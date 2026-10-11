@@ -44,6 +44,8 @@ public class IdempotencyFilter extends OncePerRequestFilter {
     private static final int IN_FLIGHT = 0;
     private static final String KEY_HEADER = "X-Idempotency-Key";
     private static final String REPLAY_HEADER = "X-Idempotent-Replay";
+    /** Bodies larger than this are not buffered or deduplicated. */
+    private static final int MAX_BODY_BYTES = 64 * 1024;
 
     private final IdempotencyRecordRepository records;
 
@@ -54,8 +56,10 @@ public class IdempotencyFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return !"POST".equalsIgnoreCase(request.getMethod())
-            || request.getRequestURI().startsWith("/webhooks/");
+        return (
+            !"POST".equalsIgnoreCase(request.getMethod()) ||
+            request.getRequestURI().startsWith("/webhooks/")
+        );
     }
 
     @Override
@@ -64,29 +68,44 @@ public class IdempotencyFilter extends OncePerRequestFilter {
         HttpServletResponse response,
         FilterChain chain
     ) throws ServletException, IOException {
-        byte[] body = request.getInputStream().readAllBytes();
+        // Oversized bodies are rejected — buffering an unauthenticated
+        // request body unboundedly would exhaust the heap.
+        if (request.getContentLengthLong() > MAX_BODY_BYTES) {
+            response.sendError(HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE);
+            return;
+        }
+        // Chunked/unknown length: read at most the bound + 1 byte.
+        byte[] body = request.getInputStream().readNBytes(MAX_BODY_BYTES + 1);
+        if (body.length > MAX_BODY_BYTES) {
+            response.sendError(HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE);
+            return;
+        }
         RepeatableBodyRequestWrapper wrappedRequest =
             new RepeatableBodyRequestWrapper(request, body);
         ContentCachingResponseWrapper wrappedResponse =
             new ContentCachingResponseWrapper(response);
         // Caller identity is part of the dedup key: two different tenants
         // POSTing the same (possibly empty) body to the same path must not
-        // replay each other's responses. Derive it from the JWT claims so
-        // a refreshed token still hits the same key — the raw header value
-        // changes on every re-issue. (Claims are only used for keying;
-        // Spring Security authenticates the token downstream.)
+        // replay each other's responses. This filter runs before
+        // authentication, so the raw credential hash is the only
+        // unforgeable identity available here — claims in an unverified
+        // token would let an attacker replay a victim's cached response.
         String explicitKey = request.getHeader(KEY_HEADER);
-        String identityHash = callerIdentity(request.getHeader("Authorization"));
+        String auth = request.getHeader("Authorization");
+        String identityHash = sha256(
+            (auth == null ? "" : auth).getBytes(StandardCharsets.UTF_8)
+        );
         // Hash the composite so the key stays a fixed 64 chars regardless
         // of URI length (the column is VARCHAR(200); a long URI + two
         // hashes would overflow it).
         String key = sha256(
-            (request.getRequestURI() +
-                    ":" +
-                    (explicitKey != null ? explicitKey : sha256(body)) +
-                    ":" +
-                    identityHash)
-                .getBytes(StandardCharsets.UTF_8)
+            (
+                request.getRequestURI() +
+                ":" +
+                (explicitKey != null ? explicitKey : sha256(body)) +
+                ":" +
+                identityHash
+            ).getBytes(StandardCharsets.UTF_8)
         );
 
         Optional<Record> stored = records.findByKey(key).filter(this::fresh);
@@ -96,7 +115,12 @@ public class IdempotencyFilter extends OncePerRequestFilter {
         }
 
         Record claim = new Record(
-            UUID.randomUUID(), key, IN_FLIGHT, "", Instant.now());
+            UUID.randomUUID(),
+            key,
+            IN_FLIGHT,
+            "",
+            Instant.now()
+        );
         if (stored.isPresent() || !tryClaim(claim)) {
             // Another request holds the claim — wait briefly for its
             // result, then replay it instead of re-executing.
@@ -106,10 +130,12 @@ public class IdempotencyFilter extends OncePerRequestFilter {
             } else {
                 response.setStatus(HttpServletResponse.SC_CONFLICT);
                 response.setContentType("application/json");
-                response.getWriter().write(
-                    "{\"code\":\"ERR_REQUEST_IN_FLIGHT\","
-                        + "\"message\":\"An identical request is still being processed\"}"
-                );
+                response
+                    .getWriter()
+                    .write(
+                        "{\"code\":\"ERR_REQUEST_IN_FLIGHT\"," +
+                            "\"message\":\"An identical request is still being processed\"}"
+                    );
             }
             return;
         }
@@ -157,8 +183,11 @@ public class IdempotencyFilter extends OncePerRequestFilter {
             // Lost the race — unless the row is a stale claim from a
             // crashed request, in which case evict it and claim again.
             Optional<Record> loser = records.findByKey(claim.idempotencyKey());
-            if (loser.isPresent() && loser.get().responseStatus() == IN_FLIGHT
-                    && !fresh(loser.get())) {
+            if (
+                loser.isPresent() &&
+                loser.get().responseStatus() == IN_FLIGHT &&
+                !fresh(loser.get())
+            ) {
                 records.delete(loser.get());
                 try {
                     records.save(claim);
@@ -197,31 +226,6 @@ public class IdempotencyFilter extends OncePerRequestFilter {
      * preferring entity_id over sub. Missing claims or parsing failures fall back
      * to a hash of the raw authorization header (empty when null).
      */
-    private static String callerIdentity(String auth) {
-        if (auth != null && auth.startsWith("Bearer ")) {
-            try {
-                String payload = auth.substring(7).split("\\.")[1];
-                String json = new String(
-                    java.util.Base64.getUrlDecoder().decode(payload),
-                    StandardCharsets.UTF_8
-                );
-                for (String claim : new String[] { "entity_id", "sub" }) {
-                    var matcher = java.util.regex.Pattern
-                        .compile("\"" + claim + "\"\\s*:\\s*\"([^\"]+)\"")
-                        .matcher(json);
-                    if (matcher.find()) {
-                        return "jwt:" + matcher.group(1);
-                    }
-                }
-            } catch (RuntimeException e) {
-                // Fall through to the raw-header hash.
-            }
-        }
-        return "hdr:" + sha256(
-            (auth == null ? "" : auth).getBytes(StandardCharsets.UTF_8)
-        );
-    }
-
     private boolean fresh(Record r) {
         return r.createdAt().isAfter(Instant.now().minus(REPLAY_WINDOW));
     }

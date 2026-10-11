@@ -9,6 +9,7 @@ import com.wise.escrow.domain.exception.ForbiddenException;
 import com.wise.escrow.domain.exception.InsufficientFundsException;
 import com.wise.escrow.domain.exception.InvalidStateTransitionException;
 import com.wise.escrow.domain.exception.NotFoundException;
+import com.wise.escrow.domain.exception.ValidationException;
 import com.wise.escrow.domain.model.Account;
 import com.wise.escrow.domain.model.AccountType;
 import com.wise.escrow.domain.model.EscrowContract;
@@ -323,6 +324,22 @@ public class EscrowService {
                 )
             );
         }
+        // An over-deposit would vault (and eventually pay out) more than
+        // the contract's target — the quote defines the exact required
+        // deposit, so anything above it is rejected rather than escrowed.
+        Quote required = quote(
+            contract.sourceCurrency(),
+            contract.targetCurrency(),
+            target
+        );
+        if (depositValue.compareTo(required.totalDeposit()) > 0) {
+            throw new ValidationException(
+                "Deposit %s exceeds quoted total %s".formatted(
+                    depositValue,
+                    required.totalDeposit()
+                )
+            );
+        }
 
         // Buyer must cover the whole deposit up front.
         if (buyerAccount.balance().subtract(deposit).isNegative()) {
@@ -588,9 +605,7 @@ public class EscrowService {
         BigDecimal targetAmount
     ) {
         if (targetAmount == null || targetAmount.signum() <= 0) {
-            throw new com.wise.escrow.domain.exception.ValidationException(
-                "targetAmount must be positive"
-            );
+            throw new ValidationException("targetAmount must be positive");
         }
         BigDecimal rate = fx.getRate(sourceCurrency, targetCurrency);
         BigDecimal oneMinusFee = BigDecimal.ONE.subtract(CONVERSION_FEE_RATE);
