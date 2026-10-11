@@ -15,6 +15,19 @@ class EscrowRepository:
     def get(self, contract_id: uuid.UUID) -> EscrowContract | None:
         return self.session.get(EscrowContract, contract_id)
 
+    def get_for_update(self, contract_id: uuid.UUID) -> EscrowContract | None:
+        """Fetch the contract under a row-level write lock (FOR UPDATE on
+        PostgreSQL; SQLite serializes via BEGIN IMMEDIATE)."""
+        stmt = select(EscrowContract).where(EscrowContract.id == contract_id).with_for_update()
+        return self.session.exec(stmt).first()
+
+    def save(self, contract: EscrowContract) -> EscrowContract:
+        """Stage a mutation inside the caller's transaction (flush only —
+        the service layer owns the commit boundary)."""
+        self.session.add(contract)
+        self.session.flush()
+        return contract
+
     def create(self, contract: EscrowContract) -> EscrowContract:
         self.session.add(contract)
         self.session.commit()

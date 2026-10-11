@@ -81,8 +81,13 @@ def client_fixture(session: Session, fx: IFXRateProvider) -> Iterator[TestClient
 
     app.dependency_overrides[get_session] = override_session
     app.dependency_overrides[get_fx_provider] = override_fx
+    # Route middleware storage (idempotency, delivery logs) at the same
+    # test database instead of the module-level dev engine.
+    previous_engine = app.state.engine
+    app.state.engine = session.get_bind()
     with TestClient(app) as client:
         yield client
+    app.state.engine = previous_engine
     app.dependency_overrides.clear()
 
 

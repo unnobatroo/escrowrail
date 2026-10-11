@@ -45,8 +45,64 @@ class LedgerService:
         currency: str,
         description: str,
         contract_id: uuid.UUID | None = None,
+        commit: bool = True,
     ) -> LedgerTransaction:
-        """Execute one balanced double-entry leg atomically."""
+        """Execute one balanced double-entry leg.
+
+        With ``commit=True`` (default) the leg is an atomic transaction of
+        its own. With ``commit=False`` it is staged (flush only) inside a
+        larger unit of work owned by the caller — e.g. EscrowService
+        composes several legs into a single commit so multi-leg funding,
+        settlement, and cancellation are all-or-nothing."""
+        if commit:
+            try:
+                tx = self._apply(
+                    debit_account_id,
+                    credit_account_id,
+                    amount,
+                    currency,
+                    description,
+                    contract_id,
+                )
+                self.session.commit()
+                self.session.refresh(tx)
+            except Exception:
+                self.session.rollback()
+                raise
+        else:
+            tx = self._apply(
+                debit_account_id,
+                credit_account_id,
+                amount,
+                currency,
+                description,
+                contract_id,
+            )
+            self.session.flush()
+        logger.info(
+            "ledger_transfer_recorded",
+            extra={
+                "ledger_tx_id": str(tx.id),
+                "contract_id": str(contract_id) if contract_id else None,
+                "debit_account_id": str(debit_account_id),
+                "credit_account_id": str(credit_account_id),
+                "amount": str(amount),
+                "currency": currency,
+            },
+        )
+        return tx
+
+    def _apply(
+        self,
+        debit_account_id: uuid.UUID,
+        credit_account_id: uuid.UUID,
+        amount: Decimal,
+        currency: str,
+        description: str,
+        contract_id: uuid.UUID | None,
+    ) -> LedgerTransaction:
+        """Validate and stage one balanced leg (no commit/rollback — the
+        caller owns the transaction boundary)."""
         if not isinstance(amount, Decimal):
             raise InvalidAmountError(
                 "Amount must be a Decimal", context={"type": type(amount).__name__}
@@ -58,60 +114,43 @@ class LedgerService:
                 context={"amount": str(amount)},
             )
         currency = currency.upper()
-        try:
-            debit = self.accounts.get_for_update(debit_account_id)
-            credit = self.accounts.get_for_update(credit_account_id)
-            if debit is None or credit is None:
-                raise NotFoundError(
-                    "Account not found",
-                    context={
-                        "debit_account_id": str(debit_account_id),
-                        "credit_account_id": str(credit_account_id),
-                    },
-                )
-            if debit.currency != currency or credit.currency != currency:
-                raise CurrencyMismatchError(
-                    "Ledger leg currency does not match account currency",
-                    context={
-                        "leg_currency": currency,
-                        "debit_currency": debit.currency,
-                        "credit_currency": credit.currency,
-                    },
-                )
-            if debit.account_type in NON_NEGATIVE_TYPES and debit.balance < amount:
-                raise InsufficientFundsError(
-                    "Insufficient funds",
-                    context={
-                        "account_id": str(debit.id),
-                        "balance": str(debit.balance),
-                        "required": str(amount),
-                    },
-                )
-            debit.balance -= amount
-            credit.balance += amount
-            tx = LedgerTransaction(
-                contract_id=contract_id,
-                debit_account_id=debit.id,
-                credit_account_id=credit.id,
-                amount=amount,
-                currency=currency,
-                description=description,
+        debit = self.accounts.get_for_update(debit_account_id)
+        credit = self.accounts.get_for_update(credit_account_id)
+        if debit is None or credit is None:
+            raise NotFoundError(
+                "Account not found",
+                context={
+                    "debit_account_id": str(debit_account_id),
+                    "credit_account_id": str(credit_account_id),
+                },
             )
-            self.session.add_all([debit, credit, tx])
-            self.session.commit()
-            self.session.refresh(tx)
-        except Exception:
-            self.session.rollback()
-            raise
-        logger.info(
-            "ledger_transfer_recorded",
-            extra={
-                "ledger_tx_id": str(tx.id),
-                "contract_id": str(contract_id) if contract_id else None,
-                "debit_account_id": str(debit.id),
-                "credit_account_id": str(credit.id),
-                "amount": str(amount),
-                "currency": currency,
-            },
+        if debit.currency != currency or credit.currency != currency:
+            raise CurrencyMismatchError(
+                "Ledger leg currency does not match account currency",
+                context={
+                    "leg_currency": currency,
+                    "debit_currency": debit.currency,
+                    "credit_currency": credit.currency,
+                },
+            )
+        if debit.account_type in NON_NEGATIVE_TYPES and debit.balance < amount:
+            raise InsufficientFundsError(
+                "Insufficient funds",
+                context={
+                    "account_id": str(debit.id),
+                    "balance": str(debit.balance),
+                    "required": str(amount),
+                },
+            )
+        debit.balance -= amount
+        credit.balance += amount
+        tx = LedgerTransaction(
+            contract_id=contract_id,
+            debit_account_id=debit.id,
+            credit_account_id=credit.id,
+            amount=amount,
+            currency=currency,
+            description=description,
         )
+        self.session.add_all([debit, credit, tx])
         return tx
