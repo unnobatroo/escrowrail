@@ -105,3 +105,13 @@ interface JpaIdempotencyRecordRepository extends JpaRepository<IdempotencyRecord
 
     Optional<IdempotencyRecordEntity> findByIdempotencyKey(String idempotencyKey);
 }
+
+interface JpaEmailVerificationTokenRepository
+        extends JpaRepository<EmailVerificationTokenEntity, UUID> {
+
+    Optional<EmailVerificationTokenEntity> findByTokenHash(String tokenHash);
+
+    List<EmailVerificationTokenEntity> findByUserIdAndUsedAtIsNull(UUID userId);
+
+    Optional<EmailVerificationTokenEntity> findTopByUserIdOrderByCreatedAtDesc(UUID userId);
+}

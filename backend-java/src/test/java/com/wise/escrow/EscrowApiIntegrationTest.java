@@ -32,9 +32,22 @@ class EscrowApiIntegrationTest extends AbstractPostgresIT {
                 "legal_name", org,
                 "ubo_tax_id", ubo,
                 "country", "US"));
-        MvcResult res = mvc.perform(post("/api/v1/auth/register")
+        String fullEmail = email + "-" + tag + "@t.dev";
+        mvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("PENDING_VERIFICATION"));
+        // Complete the emailed verification via the dev-token backdoor.
+        MvcResult tok = mvc.perform(get("/dev/verification-token")
+                        .param("email", fullEmail))
+                .andExpect(status().isOk())
+                .andReturn();
+        String rawToken = JsonPath.read(
+                tok.getResponse().getContentAsString(), "$.token");
+        MvcResult res = mvc.perform(post("/api/v1/auth/verify-email")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"token\":\"" + rawToken + "\"}"))
+                .andExpect(status().isOk())
                 .andReturn();
         return JsonPath.read(res.getResponse().getContentAsString(), "$.access_token");
     }

@@ -2,10 +2,13 @@ package com.escrowrail.escrow.infrastructure.web;
 
 import com.escrowrail.escrow.application.dto.ApiDtos.EntityView;
 import com.escrowrail.escrow.application.dto.ApiDtos.LoginRequest;
+import com.escrowrail.escrow.application.dto.ApiDtos.PendingVerificationView;
 import com.escrowrail.escrow.application.dto.ApiDtos.RegisterRequest;
 import com.escrowrail.escrow.application.dto.ApiDtos.RegisterResponse;
+import com.escrowrail.escrow.application.dto.ApiDtos.ResendVerificationRequest;
 import com.escrowrail.escrow.application.dto.ApiDtos.TokenResponse;
 import com.escrowrail.escrow.application.dto.ApiDtos.UserView;
+import com.escrowrail.escrow.application.dto.ApiDtos.VerifyEmailRequest;
 import com.escrowrail.escrow.application.service.AuthService;
 import com.escrowrail.escrow.application.service.AuthService.Registration;
 import com.escrowrail.escrow.domain.model.AppUser;
@@ -47,13 +50,30 @@ public class AuthController {
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
-    /** R. */
-    public RegisterResponse register(@Valid @RequestBody RegisterRequest body) {
+    /** Registers an unverified account — a JWT is only issued on verification. */
+    public PendingVerificationView register(@Valid @RequestBody RegisterRequest body) {
         Registration reg = auth.register(
                 body.email(), body.password(), body.legalName(), body.uboTaxId(), body.country());
+        return new PendingVerificationView("PENDING_VERIFICATION", reg.user().email());
+    }
+
+    @PostMapping("/verify-email")
+    /** Consumes the emailed token; on success the user is logged in immediately. */
+    public RegisterResponse verifyEmail(@Valid @RequestBody VerifyEmailRequest body) {
+        AppUser user = auth.verifyEmail(body.token());
+        Organization org = organizations
+                .findById(user.entityId())
+                .orElseThrow(() -> new NotFoundException("Organization not found"));
         return new RegisterResponse(
-                jwt.issue(reg.user().id(), reg.user().entityId()),
-                toView(reg.user(), reg.organization()));
+                jwt.issue(user.id(), user.entityId()), toView(user, org));
+    }
+
+    @PostMapping("/resend-verification")
+    /** Re-issues the link; always 200 so addresses cannot be enumerated. */
+    public java.util.Map<String, String> resend(
+            @Valid @RequestBody ResendVerificationRequest body) {
+        auth.resendVerification(body.email());
+        return java.util.Map.of("status", "ok");
     }
 
     @PostMapping("/login")
@@ -80,6 +100,8 @@ public class AuthController {
                 user.id(),
                 user.email(),
                 user.active(),
+                user.emailVerified(),
+                user.status().name(),
                 new EntityView(
                         org.id(), org.legalName(), org.uboTaxId().value(), org.country()),
                 user.createdAt());

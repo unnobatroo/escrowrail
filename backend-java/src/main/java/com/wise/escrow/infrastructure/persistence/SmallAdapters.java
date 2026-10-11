@@ -3,10 +3,12 @@ package com.escrowrail.escrow.infrastructure.persistence;
 import com.escrowrail.escrow.domain.model.AppUser;
 import com.escrowrail.escrow.domain.model.Organization;
 import com.escrowrail.escrow.domain.model.TaxId;
+import com.escrowrail.escrow.domain.model.VerificationToken;
 import com.escrowrail.escrow.domain.repository.AppUserRepository;
 import com.escrowrail.escrow.domain.repository.IdempotencyRecordRepository;
 import com.escrowrail.escrow.domain.repository.LedgerRepository;
 import com.escrowrail.escrow.domain.repository.OrganizationRepository;
+import com.escrowrail.escrow.domain.repository.VerificationTokenRepository;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -50,7 +52,9 @@ class AppUserRepositoryAdapter implements AppUserRepository {
     }
 
     static AppUser toDomain(AppUserEntity e) {
-        return new AppUser(e.getId(), e.getEmail(), e.getPasswordHash(), e.getEntityId(), e.isActive(), e.getCreatedAt());
+        return new AppUser(
+                e.getId(), e.getEmail(), e.getPasswordHash(), e.getEntityId(),
+                e.isActive(), e.isEmailVerified(), e.getStatus(), e.getCreatedAt());
     }
 
     @Override
@@ -69,7 +73,53 @@ class AppUserRepositoryAdapter implements AppUserRepository {
     /** {@inheritDoc} */
     public AppUser save(AppUser user) {
         return toDomain(jpa.save(new AppUserEntity(
-                user.id(), user.email(), user.passwordHash(), user.entityId(), user.active(), user.createdAt())));
+                user.id(), user.email(), user.passwordHash(), user.entityId(),
+                user.active(), user.emailVerified(), user.status(), user.createdAt())));
+    }
+}
+
+@Component
+class VerificationTokenRepositoryAdapter implements VerificationTokenRepository {
+
+    private final JpaEmailVerificationTokenRepository jpa;
+
+    VerificationTokenRepositoryAdapter(JpaEmailVerificationTokenRepository jpa) {
+        this.jpa = jpa;
+    }
+
+    static VerificationToken toDomain(EmailVerificationTokenEntity e) {
+        return new VerificationToken(
+                e.getId(), e.getUserId(), e.getTokenHash(),
+                e.getExpiresAt(), e.getUsedAt(), e.getCreatedAt());
+    }
+
+    @Override
+    /** {@inheritDoc} */
+    public Optional<VerificationToken> findByTokenHash(String tokenHash) {
+        return jpa.findByTokenHash(tokenHash).map(VerificationTokenRepositoryAdapter::toDomain);
+    }
+
+    @Override
+    /** {@inheritDoc} */
+    public List<VerificationToken> findUnusedByUserId(UUID userId) {
+        return jpa.findByUserIdAndUsedAtIsNull(userId).stream()
+                .map(VerificationTokenRepositoryAdapter::toDomain)
+                .toList();
+    }
+
+    @Override
+    /** {@inheritDoc} */
+    public Optional<VerificationToken> findLatestByUserId(UUID userId) {
+        return jpa.findTopByUserIdOrderByCreatedAtDesc(userId)
+                .map(VerificationTokenRepositoryAdapter::toDomain);
+    }
+
+    @Override
+    /** {@inheritDoc} */
+    public VerificationToken save(VerificationToken token) {
+        return toDomain(jpa.save(new EmailVerificationTokenEntity(
+                token.id(), token.userId(), token.tokenHash(),
+                token.expiresAt(), token.usedAt(), token.createdAt())));
     }
 }
 

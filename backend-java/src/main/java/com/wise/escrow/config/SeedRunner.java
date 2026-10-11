@@ -72,6 +72,8 @@ public class SeedRunner implements CommandLineRunner {
             return;
         }
         var registration = auth.register(email, demoPassword, legalName, taxId, country);
+        // Demo tenants are trusted fixtures — skip the email gate.
+        users.save(registration.user().verified());
         zeroBalance(registration.organization().id(), zeroCurrency);
         log.info("Seeded demo tenant {}", legalName);
     }
