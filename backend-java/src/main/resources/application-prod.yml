@@ -35,6 +35,12 @@ server:
     min-response-size: 1KB
 
 wise:
+  security:
+    # No mock/webhook simulation in production — settlement ingress only
+    # accepts provider-authenticated signatures.
+    allow-mock-webhooks: false
+  mail:
+    provider: resend
   jwt:
     secret: ${JWT_SECRET}
     expire-minutes: ${JWT_EXPIRE_MINUTES:120}

@@ -51,10 +51,14 @@ wise:
   seed:
     enabled: ${WISE_SEED_ENABLED:true}
     password: ${WISE_SEED_PASSWORD:WiseDemo123!}
+  security:
+    # Server-side signed webhook simulation (demo gateway). Hard off by
+    # default; only application-demo.yml and explicit env opts enable it.
+    allow-mock-webhooks: ${WISE_ALLOW_MOCK_WEBHOOKS:false}
   demo:
-    # Sandbox gateway surface: /api/v1/demo/** (config, top-ups, signed
-    # webhook simulation). Disable in hardened environments.
-    enabled: ${WISE_DEMO_ENABLED:true}
+    # Demo-tools surface /api/v1/demo/** exists only under the dev/demo
+    # Spring profiles — there is no enable flag; absence of the profile
+    # unmaps the controller entirely (404 in prod).
     buyer-email: ${WISE_DEMO_BUYER_EMAIL:buyer@demo.com}
     seller-email: ${WISE_DEMO_SELLER_EMAIL:seller@demo.com}
 

@@ -23,4 +23,8 @@ dist-ssr
 *.sln
 *.sw?
 .vercel
-.env*
+# Local-only env files (may hold secrets). Committed mode files —
+# .env.development/.env.production/.env.demo — carry flags only.
+.env
+.env.local
+.env.*.local
