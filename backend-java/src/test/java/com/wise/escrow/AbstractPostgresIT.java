@@ -20,16 +20,21 @@ import org.testcontainers.containers.PostgreSQLContainer;
 public abstract class AbstractPostgresIT {
 
     @ServiceConnection
-    static final PostgreSQLContainer<?> POSTGRES =
-            new PostgreSQLContainer<>("postgres:16-alpine")
-                    // Keep the test container small — constrained Docker
-                    // VMs (e.g. OrbStack) OOM-kill the default PG config
-                    // mid-suite.
-                    .withCommand(
-                            "postgres",
-                            "-c", "shared_buffers=64MB",
-                            "-c", "work_mem=4MB",
-                            "-c", "max_connections=50");
+    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>(
+        "postgres:16-alpine"
+    )
+        // Keep the test container small — constrained Docker
+        // VMs (e.g. OrbStack) OOM-kill the default PG config
+        // mid-suite.
+        .withCommand(
+            "postgres",
+            "-c",
+            "shared_buffers=64MB",
+            "-c",
+            "work_mem=4MB",
+            "-c",
+            "max_connections=50"
+        );
 
     static {
         POSTGRES.start();

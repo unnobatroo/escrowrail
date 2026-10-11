@@ -150,10 +150,12 @@ public class AuthService {
             // transaction — no re-query is possible here, so match on the
             // named constraint and rethrow everything else.
             if (
-                e.getMessage() != null
-                    && e.getMessage().contains("app_users_email_uq")
+                e.getMessage() != null &&
+                e.getMessage().contains("app_users_email_uq")
             ) {
-                throw new DuplicateEmailException("Email is already registered");
+                throw new DuplicateEmailException(
+                    "Email is already registered"
+                );
             }
             throw e;
         }
@@ -212,7 +214,9 @@ public class AuthService {
             .findByTokenHash(sha256(rawToken))
             .filter(VerificationToken::usable)
             .orElseThrow(() ->
-                new ValidationException("Verification link is invalid or expired")
+                new ValidationException(
+                    "Verification link is invalid or expired"
+                )
             );
         tokens.save(token.consumed());
         AppUser user = users
@@ -234,13 +238,19 @@ public class AuthService {
             return;
         }
         var latest = tokens.findLatestByUserId(user.get().id());
-        if (latest.isPresent()
-                && latest.get().createdAt().isAfter(Instant.now().minus(RESEND_COOLDOWN))) {
+        if (
+            latest.isPresent() &&
+            latest
+                .get()
+                .createdAt()
+                .isAfter(Instant.now().minus(RESEND_COOLDOWN))
+        ) {
             return;
         }
         // Invalidate outstanding links before issuing the new one — only the
         // newest token may activate the account.
-        tokens.findUnusedByUserId(user.get().id())
+        tokens
+            .findUnusedByUserId(user.get().id())
             .forEach(t -> tokens.save(t.consumed()));
         issueVerification(user.get());
     }
@@ -257,8 +267,9 @@ public class AuthService {
     private static String sha256(String input) {
         try {
             return HexFormat.of().formatHex(
-                java.security.MessageDigest.getInstance("SHA-256")
-                    .digest(input.getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                java.security.MessageDigest.getInstance("SHA-256").digest(
+                    input.getBytes(java.nio.charset.StandardCharsets.UTF_8)
+                )
             );
         } catch (java.security.NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);

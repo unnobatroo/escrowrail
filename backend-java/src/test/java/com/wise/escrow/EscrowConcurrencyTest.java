@@ -31,30 +31,56 @@ import org.springframework.beans.factory.annotation.Autowired;
  */
 class EscrowConcurrencyTest extends AbstractPostgresIT {
 
-    @Autowired EscrowService escrow;
-    @Autowired AuthService auth;
-    @Autowired EscrowContractRepository contracts;
-    @Autowired AccountRepository accounts;
-    @Autowired LedgerRepository ledger;
+    @Autowired
+    EscrowService escrow;
+
+    @Autowired
+    AuthService auth;
+
+    @Autowired
+    EscrowContractRepository contracts;
+
+    @Autowired
+    AccountRepository accounts;
+
+    @Autowired
+    LedgerRepository ledger;
 
     private record Parties(UUID buyer, UUID seller) {}
 
     private Parties parties(String tag) {
         Registration b = auth.register(
-                "b-" + tag + "@t.dev", "pw123456", "Buyer " + tag, "UB-" + tag + "-B", "US");
+            "b-" + tag + "@t.dev",
+            "pw123456",
+            "Buyer " + tag,
+            "UB-" + tag + "-B",
+            "US"
+        );
         Registration s = auth.register(
-                "s-" + tag + "@t.dev", "pw123456", "Seller " + tag, "UB-" + tag + "-S", "DE");
+            "s-" + tag + "@t.dev",
+            "pw123456",
+            "Seller " + tag,
+            "UB-" + tag + "-S",
+            "DE"
+        );
         return new Parties(b.organization().id(), s.organization().id());
     }
 
     private EscrowContract funded(Parties p, String tag, BigDecimal target) {
         EscrowContract c = escrow.createContract(
-                p.buyer(), p.seller(),
-                MoneyAmounts.of(target, "EUR"), "USD",
-                TrackingType.GITHUB_PR, "pr-" + tag);
+            p.buyer(),
+            p.seller(),
+            MoneyAmounts.of(target, "EUR"),
+            "USD",
+            TrackingType.GITHUB_PR,
+            "pr-" + tag
+        );
         EscrowService.Quote q = escrow.quote("USD", "EUR", target);
         return escrow.fundContract(
-                c.id(), p.buyer(), MoneyAmounts.of(q.totalDeposit(), "USD"));
+            c.id(),
+            p.buyer(),
+            MoneyAmounts.of(q.totalDeposit(), "USD")
+        );
     }
 
     @Test
@@ -73,7 +99,9 @@ class EscrowConcurrencyTest extends AbstractPostgresIT {
                     ready.countDown();
                     go.await();
                     EscrowContract result = escrow.settleMilestone(c.id());
-                    if (result.status() == EscrowStatus.SETTLED) settled.incrementAndGet();
+                    if (
+                        result.status() == EscrowStatus.SETTLED
+                    ) settled.incrementAndGet();
                 } catch (Exception e) {
                     failed.incrementAndGet();
                 }
@@ -89,21 +117,28 @@ class EscrowConcurrencyTest extends AbstractPostgresIT {
         // Seller credited exactly once; Wise fee exactly once — the ledger
         // is the arbiter, not the response codes.
         List<?> entries = ledger.findByContractIdOrderByCreatedAt(c.id());
-        long payouts = entries.stream()
-                .map(e -> (LedgerRepository.LedgerEntry) e)
-                .filter(e -> e.description().contains("Seller payout"))
-                .count();
-        long fees = entries.stream()
-                .map(e -> (LedgerRepository.LedgerEntry) e)
-                .filter(e -> e.description().contains("Settlement fee"))
-                .count();
+        long payouts = entries
+            .stream()
+            .map(e -> (LedgerRepository.LedgerEntry) e)
+            .filter(e -> e.description().contains("Seller payout"))
+            .count();
+        long fees = entries
+            .stream()
+            .map(e -> (LedgerRepository.LedgerEntry) e)
+            .filter(e -> e.description().contains("Settlement fee"))
+            .count();
         assertThat(payouts).isEqualTo(1);
         assertThat(fees).isEqualTo(1);
         var sellerAccount = accounts
-                .findByEntityIdAndTypeAndCurrency(p.seller(), AccountType.USER, "EUR")
-                .orElseThrow();
-        assertThat(sellerAccount.balance().getNumber().numberValue(BigDecimal.class))
-                .isEqualByComparingTo("10992.00"); // 10000 sandbox + 992 payout
+            .findByEntityIdAndTypeAndCurrency(
+                p.seller(),
+                AccountType.USER,
+                "EUR"
+            )
+            .orElseThrow();
+        assertThat(
+            sellerAccount.balance().getNumber().numberValue(BigDecimal.class)
+        ).isEqualByComparingTo("10992.00"); // 10000 sandbox + 992 payout
     }
 
     @Test
@@ -114,31 +149,46 @@ class EscrowConcurrencyTest extends AbstractPostgresIT {
         EscrowContract[] cs = new EscrowContract[threads];
         for (int i = 0; i < threads; i++) {
             cs[i] = escrow.createContract(
-                    p.buyer(), p.seller(),
-                    MoneyAmounts.of(new BigDecimal("40000.00"), "EUR"), "USD",
-                    TrackingType.GITHUB_PR, "depl-" + i);
+                p.buyer(),
+                p.seller(),
+                MoneyAmounts.of(new BigDecimal("40000.00"), "EUR"),
+                "USD",
+                TrackingType.GITHUB_PR,
+                "depl-" + i
+            );
         }
         ExecutorService pool = Executors.newFixedThreadPool(threads);
         CountDownLatch ready = new CountDownLatch(threads);
         CountDownLatch go = new CountDownLatch(1);
         AtomicInteger funded = new AtomicInteger();
         AtomicInteger insufficient = new AtomicInteger();
-        EscrowService.Quote q = escrow.quote("USD", "EUR", new BigDecimal("40000.00"));
-        List<java.util.concurrent.Future<?>> futures = new java.util.ArrayList<>();
+        EscrowService.Quote q = escrow.quote(
+            "USD",
+            "EUR",
+            new BigDecimal("40000.00")
+        );
+        List<java.util.concurrent.Future<?>> futures =
+            new java.util.ArrayList<>();
         for (int i = 0; i < threads; i++) {
             EscrowContract c = cs[i];
-            futures.add(pool.submit(() -> {
-                try {
-                    ready.countDown();
-                    go.await();
-                    escrow.fundContract(c.id(), p.buyer(), MoneyAmounts.of(q.totalDeposit(), "USD"));
-                    funded.incrementAndGet();
-                } catch (InsufficientFundsException e) {
-                    insufficient.incrementAndGet();
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-            }));
+            futures.add(
+                pool.submit(() -> {
+                    try {
+                        ready.countDown();
+                        go.await();
+                        escrow.fundContract(
+                            c.id(),
+                            p.buyer(),
+                            MoneyAmounts.of(q.totalDeposit(), "USD")
+                        );
+                        funded.incrementAndGet();
+                    } catch (InsufficientFundsException e) {
+                        insufficient.incrementAndGet();
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                })
+            );
         }
         assertThat(ready.await(10, TimeUnit.SECONDS)).isTrue();
         go.countDown();
@@ -146,15 +196,20 @@ class EscrowConcurrencyTest extends AbstractPostgresIT {
         assertThat(pool.awaitTermination(30, TimeUnit.SECONDS)).isTrue();
         // Unexpected worker failures must surface with their real cause.
         for (var f : futures) {
-            org.assertj.core.api.Assertions.assertThatCode(f::get)
-                    .doesNotThrowAnyException();
+            org.assertj.core.api.Assertions.assertThatCode(
+                f::get
+            ).doesNotThrowAnyException();
         }
         assertThat(funded.get()).isEqualTo(1);
         assertThat(insufficient.get()).isEqualTo(threads - 1);
 
         var buyerUsd = accounts
-                .findByEntityIdAndTypeAndCurrency(p.buyer(), AccountType.USER, "USD")
-                .orElseThrow();
+            .findByEntityIdAndTypeAndCurrency(
+                p.buyer(),
+                AccountType.USER,
+                "USD"
+            )
+            .orElseThrow();
         assertThat(buyerUsd.balance().isNegative()).isFalse();
     }
 }
