@@ -24,6 +24,9 @@ frontend/playwright-report/
 *.db
 *.sqlite3
 
+# Supabase CLI local state
+supabase/
+
 # Agent vaults & tool state (local, not repo content)
 .agent-vault/
 .codex-vault/

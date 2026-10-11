@@ -25,5 +25,7 @@ services:
         sync: false
       - key: WISE_LOGISTICS_WEBHOOK_SECRET
         sync: false
+      - key: WISE_SEED_ENABLED
+        value: "true"
       - key: WISE_CORS_ORIGINS
-        sync: false
+        value: "https://wise-escrow.vercel.app"
