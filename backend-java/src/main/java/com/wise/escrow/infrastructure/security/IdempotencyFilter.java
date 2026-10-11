@@ -53,20 +53,35 @@ public class IdempotencyFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(
-            HttpServletRequest request, HttpServletResponse response, FilterChain chain)
-            throws ServletException, IOException {
+        HttpServletRequest request,
+        HttpServletResponse response,
+        FilterChain chain
+    ) throws ServletException, IOException {
         byte[] body = request.getInputStream().readAllBytes();
-        RepeatableBodyRequestWrapper wrappedRequest = new RepeatableBodyRequestWrapper(request, body);
-        ContentCachingResponseWrapper wrappedResponse = new ContentCachingResponseWrapper(response);
+        RepeatableBodyRequestWrapper wrappedRequest =
+            new RepeatableBodyRequestWrapper(request, body);
+        ContentCachingResponseWrapper wrappedResponse =
+            new ContentCachingResponseWrapper(response);
         // Caller identity is part of the dedup key: two different tenants
         // POSTing the same (possibly empty) body to the same path must not
         // replay each other's responses.
         String explicitKey = request.getHeader(KEY_HEADER);
         String auth = request.getHeader("Authorization");
-        String identityHash = sha256((auth == null ? "" : auth).getBytes(StandardCharsets.UTF_8));
-        String key = request.getRequestURI() + ":"
-                + (explicitKey != null ? explicitKey : sha256(body))
-                + ":" + identityHash;
+        String identityHash = sha256(
+            (auth == null ? "" : auth).getBytes(StandardCharsets.UTF_8)
+        );
+        // Hash the composite so the key stays a fixed 64 chars regardless
+        // of URI length (the column is VARCHAR(200); a long URI + two
+        // hashes would overflow it).
+        String key = sha256(
+            (
+                request.getRequestURI() +
+                ":" +
+                (explicitKey != null ? explicitKey : sha256(body)) +
+                ":" +
+                identityHash
+            ).getBytes(StandardCharsets.UTF_8)
+        );
 
         if (replay(key, response)) {
             return;
@@ -76,43 +91,64 @@ public class IdempotencyFilter extends OncePerRequestFilter {
 
         int status = wrappedResponse.getStatus();
         if (status < 500) {
-            records.save(new Record(
-                    UUID.randomUUID(),
-                    key,
-                    status,
-                    new String(wrappedResponse.getContentAsByteArray(), StandardCharsets.UTF_8),
-                    Instant.now()));
+            try {
+                records.save(
+                    new Record(
+                        UUID.randomUUID(),
+                        key,
+                        status,
+                        new String(
+                            wrappedResponse.getContentAsByteArray(),
+                            StandardCharsets.UTF_8
+                        ),
+                        Instant.now()
+                    )
+                );
+            } catch (
+                org.springframework.dao.DataIntegrityViolationException e
+            ) {
+                // A concurrent identical request already stored a record
+                // for this key — its response wins; ours still returns.
+            }
         }
         wrappedResponse.copyBodyToResponse();
     }
 
-    private boolean replay(String key, HttpServletResponse response) throws IOException {
-        return records.findByKey(key)
-                .filter(r -> r.createdAt().isAfter(Instant.now().minus(REPLAY_WINDOW)))
-                .map(r -> {
-                    response.setStatus(r.responseStatus());
-                    response.setContentType("application/json");
-                    response.setHeader(REPLAY_HEADER, "true");
-                    try {
-                        response.getWriter().write(r.responseBody());
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    }
-                    return true;
-                })
-                .orElse(false);
+    private boolean replay(String key, HttpServletResponse response)
+        throws IOException {
+        return records
+            .findByKey(key)
+            .filter(r ->
+                r.createdAt().isAfter(Instant.now().minus(REPLAY_WINDOW))
+            )
+            .map(r -> {
+                response.setStatus(r.responseStatus());
+                response.setContentType("application/json");
+                response.setHeader(REPLAY_HEADER, "true");
+                try {
+                    response.getWriter().write(r.responseBody());
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+                return true;
+            })
+            .orElse(false);
     }
 
     private static String sha256(byte[] bytes) {
         try {
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
+            return HexFormat.of().formatHex(
+                MessageDigest.getInstance("SHA-256").digest(bytes)
+            );
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }
     }
 
     /** Replays a pre-read body so downstream handlers see it intact. */
-    private static final class RepeatableBodyRequestWrapper extends HttpServletRequestWrapper {
+    private static final class RepeatableBodyRequestWrapper
+        extends HttpServletRequestWrapper
+    {
 
         private final byte[] body;
 
@@ -148,7 +184,8 @@ public class IdempotencyFilter extends OncePerRequestFilter {
         @Override
         public BufferedReader getReader() {
             return new BufferedReader(
-                    new InputStreamReader(getInputStream(), StandardCharsets.UTF_8));
+                new InputStreamReader(getInputStream(), StandardCharsets.UTF_8)
+            );
         }
     }
 }
