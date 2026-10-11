@@ -4,6 +4,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.config import settings
@@ -32,6 +33,14 @@ async def lifespan(app_: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(title="Wise Smart Escrow", version="0.1.0", lifespan=lifespan)
 app.state.engine = engine
+
+# Frontend dev server (Vite) origins.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Last added runs outermost: Trace -> Metrics -> Idempotency -> route.
 app.add_middleware(IdempotencyMiddleware)

@@ -30,3 +30,9 @@ pytest-report.xml
 # Agent vaults (local state, not repo content)
 .agent-vault/
 .codex-vault/
+
+# frontend
+frontend/node_modules/
+frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
