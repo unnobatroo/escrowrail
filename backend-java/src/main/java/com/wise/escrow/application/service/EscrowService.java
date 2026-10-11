@@ -298,6 +298,11 @@ public class EscrowService {
         BigDecimal depositValue = deposit
             .getNumber()
             .numberValue(BigDecimal.class);
+        if (depositValue.stripTrailingZeros().scale() > 2) {
+            throw new ValidationException(
+                "depositAmount must have at most 2 decimal places"
+            );
+        }
         BigDecimal fee = depositValue
             .multiply(CONVERSION_FEE_RATE)
             .setScale(2, RoundingMode.HALF_EVEN)

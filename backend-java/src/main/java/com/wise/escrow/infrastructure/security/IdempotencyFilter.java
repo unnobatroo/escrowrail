@@ -171,23 +171,19 @@ public class IdempotencyFilter extends OncePerRequestFilter {
 
     /**
      * Attempts to save a pending claim, retrying once after deleting an expired
-     * pending row. Returns false if a save-time integrity violation cannot be
-     * resolved. Completed rows are not evicted here; other persistence failures
-     * propagate.
+     * row of any status — an expired completed row that is left behind would
+     * otherwise block its key with a unique-constraint violation forever.
+     * Returns false if a save-time integrity violation cannot be resolved.
      */
     private boolean tryClaim(Record claim) {
         try {
             records.save(claim);
             return true;
         } catch (DataIntegrityViolationException e) {
-            // Lost the race — unless the row is a stale claim from a
-            // crashed request, in which case evict it and claim again.
+            // Lost the race — unless the row is expired, in which case
+            // evict it (whatever its status) and claim again.
             Optional<Record> loser = records.findByKey(claim.idempotencyKey());
-            if (
-                loser.isPresent() &&
-                loser.get().responseStatus() == IN_FLIGHT &&
-                !fresh(loser.get())
-            ) {
+            if (loser.isPresent() && !fresh(loser.get())) {
                 records.delete(loser.get());
                 try {
                     records.save(claim);
@@ -221,11 +217,7 @@ public class IdempotencyFilter extends OncePerRequestFilter {
         return records.findByKey(key).filter(this::fresh);
     }
 
-    /**
-     * Returns an idempotency discriminator from an unverified Bearer payload,
-     * preferring entity_id over sub. Missing claims or parsing failures fall back
-     * to a hash of the raw authorization header (empty when null).
-     */
+    /** Whether the record is still inside the replay window. */
     private boolean fresh(Record r) {
         return r.createdAt().isAfter(Instant.now().minus(REPLAY_WINDOW));
     }

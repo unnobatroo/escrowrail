@@ -49,7 +49,7 @@ CREATE TABLE public.event_publication (
     event_type character varying(255),
     listener_id character varying(255),
     publication_date timestamp(6) with time zone,
-    serialized_event character varying(255)
+    serialized_event text
 );
 
 CREATE TABLE public.idempotency_records (
