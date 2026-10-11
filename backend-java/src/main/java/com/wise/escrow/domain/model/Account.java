@@ -62,6 +62,14 @@ public class Account {
         return balance.getCurrency().getCurrencyCode();
     }
 
+    /**
+     * Subtracts a nonnegative amount in this account's currency; zero is allowed.
+     * Only clearing accounts may be overdrawn. Rejection leaves the balance unchanged.
+     *
+     * @throws CurrencyMismatchException if the currencies differ
+     * @throws IllegalArgumentException if the amount is negative or has fractional cents
+     * @throws InsufficientFundsException if a non-clearing account cannot cover the debit
+     */
     public void debit(MonetaryAmount amount) {
         assertCurrency(amount);
         assertCentScale(amount);
@@ -81,6 +89,13 @@ public class Account {
         balance = next;
     }
 
+    /**
+     * Adds a nonnegative amount in this account's currency; zero is allowed.
+     * Rejection leaves the balance unchanged.
+     *
+     * @throws CurrencyMismatchException if the currencies differ
+     * @throws IllegalArgumentException if the amount is negative or has fractional cents
+     */
     public void credit(MonetaryAmount amount) {
         assertCurrency(amount);
         assertCentScale(amount);

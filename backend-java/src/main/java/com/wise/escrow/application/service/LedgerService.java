@@ -29,6 +29,17 @@ public class LedgerService {
         this.ledger = ledger;
     }
 
+    /**
+     * Transfers an amount between distinct accounts and returns the recorded ledger
+     * entry. Rounds to cents using HALF_EVEN before checking balances and currencies.
+     * Account updates and the ledger entry share a transaction.
+     *
+     * @param contractId associated escrow contract, or null for an unrelated transfer
+     * @throws IllegalArgumentException if the accounts are identical or the rounded amount is negative
+     * @throws NotFoundException if either account is missing
+     * @throws com.wise.escrow.domain.exception.CurrencyMismatchException if either account's currency differs
+     * @throws com.wise.escrow.domain.exception.InsufficientFundsException if a non-clearing debit account cannot cover the rounded amount
+     */
     @Transactional(
         propagation = Propagation.REQUIRED,
         isolation = Isolation.READ_COMMITTED
@@ -78,10 +89,11 @@ public class LedgerService {
     }
 
     /**
-     * Locks the given account rows in ascending UUID order — one global
-     * acquisition order shared by every workflow so concurrent
-     * transactions cannot cycle-wait on shared system accounts. Returns
-     * the freshly loaded, lock-held accounts keyed by id.
+     * Locks distinct account rows in ascending UUID order and returns the loaded
+     * accounts keyed by id. Locks last until the transaction ends; callers needing
+     * them for subsequent transfers must supply an enclosing transaction.
+     *
+     * @throws NotFoundException if any account is missing
      */
     @Transactional(propagation = Propagation.REQUIRED)
     public java.util.Map<UUID, com.wise.escrow.domain.model.Account> lockInOrder(
