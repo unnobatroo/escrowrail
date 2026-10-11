@@ -1,6 +1,5 @@
 """Prometheus metrics registry and HTTP latency instrumentation."""
 
-import re
 import time
 
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram
@@ -21,19 +20,20 @@ HTTP_DURATION = Histogram(
     ["method", "path"],
 )
 
-_UUID_RE = re.compile(
-    r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
-)
-
 
 class MetricsMiddleware(BaseHTTPMiddleware):
-    """Records request latency into http_request_duration_seconds with
-    cardinality-safe path labels (UUID path params normalized)."""
+    """Records request latency into http_request_duration_seconds.
+
+    The path label is the matched route template (e.g. /contracts/{id}),
+    not the raw URL — unauthenticated traffic to arbitrary paths must not
+    create unbounded label cardinality.
+    """
 
     async def dispatch(self, request: Request, call_next: object) -> Response:
         start = time.perf_counter()
         response: Response = await call_next(request)  # type: ignore[operator]
-        path = _UUID_RE.sub("{id}", request.url.path)
+        route = request.scope.get("route")
+        path = getattr(route, "path", None) or "unmatched"
         HTTP_DURATION.labels(request.method, path).observe(time.perf_counter() - start)
         return response
 

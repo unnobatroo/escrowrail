@@ -20,6 +20,7 @@ import json
 import logging
 import threading
 import time
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy.engine import Engine
@@ -38,6 +39,11 @@ logger = logging.getLogger("wise_escrow.idempotency")
 REPLAY_WINDOW_SECONDS = 300
 POLL_TIMEOUT_SECONDS = 30.0
 POLL_INTERVAL_SECONDS = 0.05
+# An IN_FLIGHT claim older than this is treated as abandoned (crashed
+# owner) and can be reclaimed. Deliberately much longer than the poll
+# timeout: reclaiming a claim whose owner is still executing would
+# double-execute ledger operations.
+CLAIM_LEASE_SECONDS = 120.0
 
 _PROVIDER_BY_ENDPOINT = {"github": "github", "logistics": "dhl"}
 
@@ -62,6 +68,16 @@ def drain_pending(timeout: float = 30.0) -> None:
 
 def _payload_hash(endpoint: str, body: bytes) -> str:
     return hashlib.sha256(endpoint.encode() + body).hexdigest()
+
+
+def _is_stale(record: IdempotencyRecord) -> bool:
+    """True if an IN_FLIGHT claim is older than the reclaim lease."""
+    if record.status_code != IN_FLIGHT:
+        return False
+    created = record.created_at
+    if created.tzinfo is None:  # SQLite returns naive datetimes
+        created = created.replace(tzinfo=UTC)
+    return (datetime.now(UTC) - created).total_seconds() > CLAIM_LEASE_SECONDS
 
 
 def _delivery_timestamp(request: Request, payload: Any) -> float | None:
@@ -121,7 +137,14 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                 )
 
         header_key = request.headers.get("x-idempotency-key")
-        dedup_key = header_key or (_payload_hash(path, body) if is_webhook else None)
+        dedup_key: str | None
+        if header_key:
+            # Scope client keys to the endpoint: the same key sent to a
+            # different path must execute independently, never replay
+            # another route's response.
+            dedup_key = f"{path}:{header_key}"
+        else:
+            dedup_key = _payload_hash(path, body) if is_webhook else None
 
         if dedup_key is None:
             response = await call_next(request)
@@ -130,26 +153,42 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
         # All DB access runs in the threadpool: a blocking call on the
         # event loop would freeze dependency teardown and deadlock on
         # the write lock the route's session still holds.
-        record = await run_in_threadpool(self._get_record, engine, dedup_key)
-        if record is not None and record.status_code != IN_FLIGHT:
-            return await self._replay(record, engine, path, payload, body)
-        if record is None:
+        while True:
+            record = await run_in_threadpool(self._get_record, engine, dedup_key)
+            if record is not None and record.status_code != IN_FLIGHT:
+                return await self._replay(record, engine, path, payload, body)
+            if record is not None and not _is_stale(record):
+                # Live claim owned by another request — wait for it.
+                record = await self._wait_for(engine, dedup_key)
+                if record is not None and record.status_code != IN_FLIGHT:
+                    return await self._replay(record, engine, path, payload, body)
+                if record is not None and not _is_stale(record):
+                    return self._reject("Concurrent duplicate in flight timed out", {})
+                # Claim was released or its lease expired — take it over.
+            if record is not None:
+                await run_in_threadpool(self._release, engine, dedup_key)
             try:
                 await run_in_threadpool(self._claim, engine, dedup_key, path)
+                break  # this request won the claim
             except IntegrityError:
-                record = await self._wait_for(engine, dedup_key)
-                if record is not None:
-                    return await self._replay(record, engine, path, payload, body)
-                return self._reject("Concurrent duplicate in flight timed out", {})
-        else:
-            record = await self._wait_for(engine, dedup_key)
-            if record is not None:
-                return await self._replay(record, engine, path, payload, body)
-            return self._reject("Concurrent duplicate in flight timed out", {})
+                continue  # lost the claim race — re-read and replay/wait
 
         # This request won the claim — execute, cache, return.
-        response = await call_next(request)
-        response_body, response = await self._read_body(response)
+        try:
+            response = await call_next(request)
+            response_body, response = await self._read_body(response)
+        except Exception:
+            # A crashed execution must not wedge the key forever.
+            await run_in_threadpool(self._release, engine, dedup_key)
+            raise
+        if response.status_code >= 500:
+            # Transient failures are never cached: release the claim so a
+            # provider redelivery re-executes instead of replaying a 5xx.
+            _spawn(
+                self._release_and_log,
+                (engine, dedup_key, is_webhook, path, payload, response_body),
+            )
+            return response
         # Completion must NOT be awaited: the route's DI session keeps its
         # write transaction until the response is fully streamed (Starlette
         # parks the app task on response_sent), so awaiting a write here
@@ -160,6 +199,22 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
             (engine, dedup_key, response.status_code, response_body, is_webhook, path, payload),
         )
         return response
+
+    def _release_and_log(
+        self,
+        engine: Engine,
+        key: str,
+        is_webhook: bool,
+        path: str,
+        payload: Any,
+        raw: bytes,
+    ) -> None:
+        try:
+            self._release(engine, key)
+        except Exception:
+            logger.exception("idempotency_release_failed")
+        if is_webhook:
+            self._log_delivery(engine, path, payload, raw, "FAILED", raw.decode("utf-8", "replace"))
 
     def _finish(
         self,
@@ -205,6 +260,18 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
             )
             session.commit()
 
+    def _release(self, engine: Engine, key: str) -> None:
+        """Delete an IN_FLIGHT claim so a later request can re-execute."""
+        with Session(engine) as session:
+            stmt = select(IdempotencyRecord).where(
+                IdempotencyRecord.idempotency_key == key,
+                IdempotencyRecord.status_code == IN_FLIGHT,
+            )
+            record = session.exec(stmt).first()
+            if record is not None:
+                session.delete(record)
+                session.commit()
+
     def _complete(self, engine: Engine, key: str, status: int, body: bytes) -> None:
         with Session(engine) as session:
             stmt = select(IdempotencyRecord).where(IdempotencyRecord.idempotency_key == key)
@@ -216,14 +283,16 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                 session.commit()
 
     async def _wait_for(self, engine: Engine, key: str) -> IdempotencyRecord | None:
+        """Poll until the claim completes, is released, or times out."""
         waited = 0.0
+        record: IdempotencyRecord | None = None
         while waited < POLL_TIMEOUT_SECONDS:
             record = await run_in_threadpool(self._get_record, engine, key)
-            if record is not None and record.status_code != IN_FLIGHT:
+            if record is None or record.status_code != IN_FLIGHT:
                 return record
             await asyncio.sleep(POLL_INTERVAL_SECONDS)
             waited += POLL_INTERVAL_SECONDS
-        return None
+        return record  # still IN_FLIGHT at timeout — caller checks staleness
 
     async def _read_body(self, response: Response) -> tuple[bytes, Response]:
         chunks: list[bytes] = []

@@ -92,7 +92,6 @@ class EscrowService:
                 extra={
                     "buyer_id": str(buyer_id),
                     "seller_id": str(seller_id),
-                    "ubo_tax_id": buyer.ubo_tax_id,
                 },
             )
             raise CircularOwnershipError(

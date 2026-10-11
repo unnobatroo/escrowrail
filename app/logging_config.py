@@ -14,6 +14,9 @@ from app.middleware.tracing import trace_id_var
 
 _RESERVED = set(logging.makeLogRecord({}).__dict__)
 
+# Keys that must never reach log aggregation in plain text (tax IDs, PII).
+_SENSITIVE = {"ubo_tax_id", "tax_id", "raw_payload"}
+
 
 class JsonFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
@@ -26,7 +29,9 @@ class JsonFormatter(logging.Formatter):
             "message": record.getMessage(),
         }
         for key, value in record.__dict__.items():
-            if key not in _RESERVED and key not in payload:
+            if key in _SENSITIVE:
+                payload[key] = "***"
+            elif key not in _RESERVED and key not in payload:
                 try:
                     json.dumps(value)
                     payload[key] = value

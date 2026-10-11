@@ -36,9 +36,14 @@ jobs:
   # `quality` instead of per-matrix check names like `quality (3.11)`.
   quality:
     needs: quality-matrix
+    if: always()
     runs-on: ubuntu-latest
     steps:
-      - run: echo "quality matrix passed"
+      - run: |
+          if [ "${{ needs.quality-matrix.result }}" != "success" ]; then
+            echo "::error::quality-matrix result: ${{ needs.quality-matrix.result }}"
+            exit 1
+          fi
 
   unit-and-invariants-matrix:
     needs: quality-matrix
@@ -74,9 +79,14 @@ jobs:
 
   unit-and-invariants:
     needs: unit-and-invariants-matrix
+    if: always()
     runs-on: ubuntu-latest
     steps:
-      - run: echo "unit and invariant matrix passed"
+      - run: |
+          if [ "${{ needs.unit-and-invariants-matrix.result }}" != "success" ]; then
+            echo "::error::unit-and-invariants-matrix result: ${{ needs.unit-and-invariants-matrix.result }}"
+            exit 1
+          fi
 
   concurrency-and-load-matrix:
     needs: quality-matrix
@@ -108,6 +118,11 @@ jobs:
 
   concurrency-and-load:
     needs: concurrency-and-load-matrix
+    if: always()
     runs-on: ubuntu-latest
     steps:
-      - run: echo "concurrency and load matrix passed"
+      - run: |
+          if [ "${{ needs.concurrency-and-load-matrix.result }}" != "success" ]; then
+            echo "::error::concurrency-and-load-matrix result: ${{ needs.concurrency-and-load-matrix.result }}"
+            exit 1
+          fi
