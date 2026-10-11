@@ -1,20 +1,38 @@
 spring:
   datasource:
     # Supabase / hosted Postgres. JDBC URL must include sslmode=require.
+    # Free-tier note: db.<ref>.supabase.co is IPv6-only — connect via the
+    # IPv4 Supavisor pooler (aws-0-<region>.pooler.supabase.com) with user
+    # postgres.<ref>.
     url: ${SPRING_DATASOURCE_URL}
     username: ${SPRING_DATASOURCE_USERNAME}
     password: ${SPRING_DATASOURCE_PASSWORD}
     hikari:
-      maximum-pool-size: 10
-      minimum-idle: 2
+      # Cost tuning: keep the pool small and release idle connections fast
+      # so the hosted Postgres (and the container) can scale to zero when
+      # no traffic arrives.
+      maximum-pool-size: 5
+      minimum-idle: 0
       connection-timeout: 20000
+      idle-timeout: 60000
+      max-lifetime: 240000
   jpa:
+    # Return the DB connection when the request's transaction ends, not at
+    # view render — shortens every pooled-conn checkout.
+    open-in-view: false
     hibernate:
       # Flyway owns the schema in every environment — Hibernate validates.
       ddl-auto: validate
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+
+server:
+  compression:
+    # Gzip JSON responses — cuts egress bytes (egress is billed).
+    enabled: true
+    mime-types: application/json
+    min-response-size: 1KB
 
 escrowrail:
   jwt:

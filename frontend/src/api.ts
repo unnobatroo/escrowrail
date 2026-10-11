@@ -2,7 +2,9 @@ import axios from "axios";
 
 const baseURL =
   import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
-export const api = axios.create({ baseURL, timeout: 15000 });
+// 60s: the free-tier backend scales to zero when idle — the first request
+// after idle pays a cold-start penalty and must not time out early.
+export const api = axios.create({ baseURL, timeout: 60000 });
 
 const TOKEN_KEY = "escrowrail_token";
 

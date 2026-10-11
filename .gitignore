@@ -19,6 +19,7 @@ frontend/playwright-report/
 # Environment
 .env
 .env.local
+.env.deploy
 
 # Local databases
 *.db
