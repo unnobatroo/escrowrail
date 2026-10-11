@@ -29,33 +29,47 @@ public class LedgerService {
         this.ledger = ledger;
     }
 
-    @Transactional(propagation = Propagation.REQUIRED, isolation = Isolation.READ_COMMITTED)
+    @Transactional(
+        propagation = Propagation.REQUIRED,
+        isolation = Isolation.READ_COMMITTED
+    )
     public LedgerEntry transfer(
-            UUID debitAccountId,
-            UUID creditAccountId,
-            MonetaryAmount amount,
-            String description,
-            UUID contractId) {
+        UUID debitAccountId,
+        UUID creditAccountId,
+        MonetaryAmount amount,
+        String description,
+        UUID contractId
+    ) {
         MonetaryAmount cents = MoneyAmounts.cents(amount);
         // Lock in a deterministic order to avoid deadlocks between legs.
-        UUID first = debitAccountId.compareTo(creditAccountId) < 0 ? debitAccountId : creditAccountId;
-        UUID second = first.equals(debitAccountId) ? creditAccountId : debitAccountId;
+        UUID first =
+            debitAccountId.compareTo(creditAccountId) < 0
+                ? debitAccountId
+                : creditAccountId;
+        UUID second = first.equals(debitAccountId)
+            ? creditAccountId
+            : debitAccountId;
         accounts.findByIdForUpdate(first).orElseThrow(() -> missing(first));
         accounts.findByIdForUpdate(second).orElseThrow(() -> missing(second));
 
-        Account debit = accounts.findById(debitAccountId).orElseThrow(() -> missing(debitAccountId));
-        Account credit = accounts.findById(creditAccountId).orElseThrow(() -> missing(creditAccountId));
+        Account debit = accounts
+            .findById(debitAccountId)
+            .orElseThrow(() -> missing(debitAccountId));
+        Account credit = accounts
+            .findById(creditAccountId)
+            .orElseThrow(() -> missing(creditAccountId));
         debit.debit(cents);
         credit.credit(cents);
         accounts.save(debit);
         accounts.save(credit);
         return ledger.record(
-                debitAccountId,
-                creditAccountId,
-                cents.getNumber().numberValue(java.math.BigDecimal.class),
-                cents.getCurrency().getCurrencyCode(),
-                description,
-                contractId);
+            debitAccountId,
+            creditAccountId,
+            cents.getNumber().numberValue(java.math.BigDecimal.class),
+            cents.getCurrency().getCurrencyCode(),
+            description,
+            contractId
+        );
     }
 
     private static NotFoundException missing(UUID id) {

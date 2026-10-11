@@ -7,3 +7,6 @@ wise:
   jwt:
     secret: test-secret-test-secret-test-secret-32
     expire-minutes: 60
+  webhooks:
+    github-secret: test-gh-secret
+    logistics-secret: test-logi-secret

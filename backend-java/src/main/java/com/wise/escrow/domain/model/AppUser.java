@@ -5,10 +5,25 @@ import java.util.UUID;
 
 /** Registered user bound to exactly one tenant organization. */
 public record AppUser(
-        UUID id, String email, String passwordHash, UUID entityId, boolean active, Instant createdAt) {
-
-    public static AppUser register(String email, String passwordHash, UUID entityId) {
+    UUID id,
+    String email,
+    String passwordHash,
+    UUID entityId,
+    boolean active,
+    Instant createdAt
+) {
+    public static AppUser register(
+        String email,
+        String passwordHash,
+        UUID entityId
+    ) {
         return new AppUser(
-                UUID.randomUUID(), email.toLowerCase().strip(), passwordHash, entityId, true, Instant.now());
+            UUID.randomUUID(),
+            email.toLowerCase().strip(),
+            passwordHash,
+            entityId,
+            true,
+            Instant.now()
+        );
     }
 }

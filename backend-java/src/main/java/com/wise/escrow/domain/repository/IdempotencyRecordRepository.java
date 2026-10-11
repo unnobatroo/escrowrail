@@ -5,13 +5,13 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface IdempotencyRecordRepository {
-
     record Record(
-            UUID id,
-            String idempotencyKey,
-            int responseStatus,
-            String responseBody,
-            Instant createdAt) {}
+        UUID id,
+        String idempotencyKey,
+        int responseStatus,
+        String responseBody,
+        Instant createdAt
+    ) {}
 
     Optional<Record> findByKey(String key);
 

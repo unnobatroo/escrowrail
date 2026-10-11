@@ -37,12 +37,13 @@ public class AuthService {
     private final ApplicationEventPublisher events;
 
     public AuthService(
-            AppUserRepository users,
-            OrganizationRepository organizations,
-            AccountRepository accounts,
-            LedgerService ledgerService,
-            PasswordEncoder passwords,
-            ApplicationEventPublisher events) {
+        AppUserRepository users,
+        OrganizationRepository organizations,
+        AccountRepository accounts,
+        LedgerService ledgerService,
+        PasswordEncoder passwords,
+        ApplicationEventPublisher events
+    ) {
         this.users = users;
         this.organizations = organizations;
         this.accounts = accounts;
@@ -55,28 +56,60 @@ public class AuthService {
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public Registration register(
-            String email, String password, String legalName, String uboTaxId, String country) {
+        String email,
+        String password,
+        String legalName,
+        String uboTaxId,
+        String country
+    ) {
         String normalized = email.toLowerCase().strip();
         if (users.findByEmail(normalized).isPresent()) {
             throw new DuplicateEmailException("Email is already registered");
         }
         try {
-            Organization org = organizations.save(Organization.register(legalName, uboTaxId, country));
-            AppUser user = users.save(AppUser.register(normalized, passwords.encode(password), org.id()));
-            for (var pair : new String[][] {{"USD", "50000"}, {"EUR", "10000"}}) {
+            Organization org = organizations.save(
+                Organization.register(legalName, uboTaxId, country)
+            );
+            AppUser user = users.save(
+                AppUser.register(
+                    normalized,
+                    passwords.encode(password),
+                    org.id()
+                )
+            );
+            for (var pair : new String[][] {
+                { "USD", "50000" },
+                { "EUR", "10000" },
+            }) {
                 String currency = pair[0];
-                Account account = accounts.save(Account.open(org.id(), AccountType.USER, currency));
+                Account account = accounts.save(
+                    Account.open(org.id(), AccountType.USER, currency)
+                );
                 Account clearing = accounts
-                        .findSystemAccountForUpdate(AccountType.WISE_CLEARING, currency)
-                        .orElseGet(() -> accounts.save(Account.open(null, AccountType.WISE_CLEARING, currency)));
+                    .findSystemAccountForUpdate(
+                        AccountType.WISE_CLEARING,
+                        currency
+                    )
+                    .orElseGet(() ->
+                        accounts.save(
+                            Account.open(
+                                null,
+                                AccountType.WISE_CLEARING,
+                                currency
+                            )
+                        )
+                    );
                 ledgerService.transfer(
-                        clearing.id(),
-                        account.id(),
-                        MoneyAmounts.of(new BigDecimal(pair[1]), currency),
-                        "Sandbox opening balance",
-                        null);
+                    clearing.id(),
+                    account.id(),
+                    MoneyAmounts.of(new BigDecimal(pair[1]), currency),
+                    "Sandbox opening balance",
+                    null
+                );
             }
-            events.publishEvent(new WelcomeEmailRequested(user.email(), org.legalName()));
+            events.publishEvent(
+                new WelcomeEmailRequested(user.email(), org.legalName())
+            );
             return new Registration(user, org);
         } catch (DataIntegrityViolationException e) {
             throw new DuplicateEmailException("Email is already registered");
@@ -85,8 +118,10 @@ public class AuthService {
 
     public AppUser authenticate(String email, String password) {
         AppUser user = users
-                .findByEmail(email.toLowerCase().strip())
-                .orElseThrow(() -> new UnauthorizedException("Invalid email or password"));
+            .findByEmail(email.toLowerCase().strip())
+            .orElseThrow(() ->
+                new UnauthorizedException("Invalid email or password")
+            );
         if (!passwords.matches(password, user.passwordHash())) {
             throw new UnauthorizedException("Invalid email or password");
         }

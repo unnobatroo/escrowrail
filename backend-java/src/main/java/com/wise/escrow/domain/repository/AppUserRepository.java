@@ -5,7 +5,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface AppUserRepository {
-
     Optional<AppUser> findById(UUID id);
 
     Optional<AppUser> findByEmail(String email);

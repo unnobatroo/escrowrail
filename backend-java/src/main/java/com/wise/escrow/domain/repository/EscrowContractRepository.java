@@ -8,7 +8,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface EscrowContractRepository {
-
     Optional<EscrowContract> findById(UUID id);
 
     /** PESSIMISTIC_WRITE lock on the contract row — inside a transaction. */
@@ -17,11 +16,17 @@ public interface EscrowContractRepository {
     /** Tenant-scoped read: only parties to the contract may see it. */
     Optional<EscrowContract> findByIdForEntity(UUID id, UUID entityId);
 
-    Optional<EscrowContract> findFundedByTracking(TrackingType trackingType, String trackingKey);
+    Optional<EscrowContract> findFundedByTracking(
+        TrackingType trackingType,
+        String trackingKey
+    );
 
     List<EscrowContract> findAllForEntity(UUID entityId);
 
-    List<EscrowContract> findAllForEntityAndStatus(UUID entityId, EscrowStatus status);
+    List<EscrowContract> findAllForEntityAndStatus(
+        UUID entityId,
+        EscrowStatus status
+    );
 
     EscrowContract save(EscrowContract contract);
 }

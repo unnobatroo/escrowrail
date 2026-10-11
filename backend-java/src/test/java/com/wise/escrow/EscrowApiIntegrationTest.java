@@ -78,12 +78,14 @@ class EscrowApiIntegrationTest extends AbstractPostgresIT {
                 .andExpect(jsonPath("$.status").value("FUNDED"))
                 .andExpect(jsonPath("$.escrowedAmount").value(1000.00));
 
-        // GitHub merge webhook settles
+        // GitHub merge webhook settles (HMAC-signed like a real delivery)
+        byte[] ghBody = """
+                {"action":"closed","pull_request":{"merged":true,"html_url":"pr-lc1"}}
+                """.getBytes(java.nio.charset.StandardCharsets.UTF_8);
         mvc.perform(post("/webhooks/github")
+                        .header("X-Hub-Signature-256", ghSignature(ghBody))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                        {"action":"closed","pull_request":{"merged":true,"html_url":"pr-lc1"}}
-                        """))
+                        .content(ghBody))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("settled"));
 
@@ -177,6 +179,35 @@ class EscrowApiIntegrationTest extends AbstractPostgresIT {
     void unauthenticatedRejected() throws Exception {
         mvc.perform(get("/api/v1/escrow")).andExpect(status().isUnauthorized());
         mvc.perform(get("/api/v1/accounts")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void unsignedOrForgedWebhookRejected() throws Exception {
+        byte[] body = """
+                {"action":"closed","pull_request":{"merged":true,"html_url":"x"}}
+                """.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        // No signature at all.
+        mvc.perform(post("/webhooks/github")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest());
+        // Forged signature.
+        mvc.perform(post("/webhooks/github")
+                        .header("X-Hub-Signature-256", "sha256=" + "0".repeat(64))
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest());
+        // Logistics without the shared secret.
+        mvc.perform(post("/webhooks/logistics")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"carrier\":\"DHL\",\"status\":\"DELIVERED\",\"tracking_key\":\"k\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    private static String ghSignature(byte[] body) throws Exception {
+        javax.crypto.Mac mac = javax.crypto.Mac.getInstance("HmacSHA256");
+        mac.init(new javax.crypto.spec.SecretKeySpec(
+                "test-gh-secret".getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                "HmacSHA256"));
+        return "sha256=" + java.util.HexFormat.of().formatHex(mac.doFinal(body));
     }
 
     @Test

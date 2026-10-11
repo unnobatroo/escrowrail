@@ -8,7 +8,6 @@ import org.springframework.stereotype.Component;
 
 /** Spot-rate provider port. */
 public interface FxRateProvider {
-
     /** Units of target currency per 1 unit of source currency. */
     BigDecimal getRate(String sourceCurrency, String targetCurrency);
 }
@@ -21,8 +20,11 @@ public interface FxRateProvider {
 class StaticFxRateProvider implements FxRateProvider {
 
     private static final Map<String, BigDecimal> USD_RATES = Map.of(
-            "EUR", new BigDecimal("0.9259259259259259"),
-            "USD", BigDecimal.ONE);
+        "EUR",
+        new BigDecimal("0.9259259259259259"),
+        "USD",
+        BigDecimal.ONE
+    );
 
     @Override
     public BigDecimal getRate(String source, String target) {
@@ -35,13 +37,18 @@ class StaticFxRateProvider implements FxRateProvider {
             return USD_RATES.get(dst);
         }
         if (USD_RATES.containsKey(src) && "USD".equals(dst)) {
-            return BigDecimal.ONE.divide(USD_RATES.get(src), 8, RoundingMode.HALF_EVEN);
+            return BigDecimal.ONE.divide(
+                USD_RATES.get(src),
+                8,
+                RoundingMode.HALF_EVEN
+            );
         }
         if (USD_RATES.containsKey(src) && USD_RATES.containsKey(dst)) {
             // Cross via USD.
             return getRate(src, "USD").multiply(getRate("USD", dst));
         }
         throw new UnsupportedCurrencyPairException(
-                "No rate for %s/%s".formatted(src, dst));
+            "No rate for %s/%s".formatted(src, dst)
+        );
     }
 }

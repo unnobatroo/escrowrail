@@ -28,8 +28,9 @@ wise:
     secret: ${JWT_SECRET:dev-only-insecure-secret-change-me}
     expire-minutes: ${JWT_EXPIRE_MINUTES:120}
   webhooks:
-    # Settlement webhooks release real funds — set these in any real
-    # deployment. Blank means "no auth" (local dev only).
+    # Settlement webhooks release real funds — a blank secret DISABLES the
+    # endpoint (calls are rejected), so any environment that accepts
+    # webhooks must set these.
     github-secret: ${WISE_GITHUB_WEBHOOK_SECRET:}
     logistics-secret: ${WISE_LOGISTICS_WEBHOOK_SECRET:}
 

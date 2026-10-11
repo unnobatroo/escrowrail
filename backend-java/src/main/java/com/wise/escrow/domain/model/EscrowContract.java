@@ -33,15 +33,16 @@ public class EscrowContract {
     private Instant fundedAt;
 
     public EscrowContract(
-            UUID id,
-            UUID buyerId,
-            UUID sellerId,
-            String targetCurrency,
-            String sourceCurrency,
-            MonetaryAmount targetAmount,
-            TrackingType trackingType,
-            String trackingKey,
-            Instant createdAt) {
+        UUID id,
+        UUID buyerId,
+        UUID sellerId,
+        String targetCurrency,
+        String sourceCurrency,
+        MonetaryAmount targetAmount,
+        TrackingType trackingType,
+        String trackingKey,
+        Instant createdAt
+    ) {
         this.id = id;
         this.buyerId = buyerId;
         this.sellerId = sellerId;
@@ -55,31 +56,34 @@ public class EscrowContract {
     }
 
     public static EscrowContract create(
-            UUID buyerId,
-            UUID sellerId,
-            MonetaryAmount targetAmount,
-            String sourceCurrency,
-            TrackingType trackingType,
-            String trackingKey) {
+        UUID buyerId,
+        UUID sellerId,
+        MonetaryAmount targetAmount,
+        String sourceCurrency,
+        TrackingType trackingType,
+        String trackingKey
+    ) {
         return new EscrowContract(
-                UUID.randomUUID(),
-                buyerId,
-                sellerId,
-                targetAmount.getCurrency().getCurrencyCode(),
-                sourceCurrency,
-                targetAmount,
-                trackingType,
-                trackingKey,
-                Instant.now());
+            UUID.randomUUID(),
+            buyerId,
+            sellerId,
+            targetAmount.getCurrency().getCurrencyCode(),
+            sourceCurrency,
+            targetAmount,
+            trackingType,
+            trackingKey,
+            Instant.now()
+        );
     }
 
     public void fund(
-            UUID buyerAccountId,
-            MonetaryAmount deposit,
-            MonetaryAmount escrowed,
-            BigDecimal spotRate,
-            UUID vaultAccountId,
-            Instant fundedAt) {
+        UUID buyerAccountId,
+        MonetaryAmount deposit,
+        MonetaryAmount escrowed,
+        BigDecimal spotRate,
+        UUID vaultAccountId,
+        Instant fundedAt
+    ) {
         requireStatus(EscrowStatus.INITIATED, "fund");
         this.buyerAccountId = buyerAccountId;
         this.depositAmount = deposit;
@@ -98,11 +102,13 @@ public class EscrowContract {
     public void cancel() {
         if (status == EscrowStatus.SETTLED) {
             throw new InvalidStateTransitionException(
-                    "Contract %s is SETTLED and cannot be cancelled".formatted(id));
+                "Contract %s is SETTLED and cannot be cancelled".formatted(id)
+            );
         }
         if (status == EscrowStatus.CANCELLED) {
             throw new InvalidStateTransitionException(
-                    "Contract %s is already CANCELLED".formatted(id));
+                "Contract %s is already CANCELLED".formatted(id)
+            );
         }
         this.status = EscrowStatus.CANCELLED;
     }
@@ -110,7 +116,8 @@ public class EscrowContract {
     private void requireStatus(EscrowStatus expected, String op) {
         if (status != expected) {
             throw new InvalidStateTransitionException(
-                    "Cannot %s contract %s in status %s".formatted(op, id, status));
+                "Cannot %s contract %s in status %s".formatted(op, id, status)
+            );
         }
     }
 
@@ -122,20 +129,67 @@ public class EscrowContract {
         return buyerId.equals(entityId) || sellerId.equals(entityId);
     }
 
-    public UUID id() { return id; }
-    public UUID buyerId() { return buyerId; }
-    public UUID sellerId() { return sellerId; }
-    public UUID buyerAccountId() { return buyerAccountId; }
-    public UUID vaultAccountId() { return vaultAccountId; }
-    public String targetCurrency() { return targetCurrency; }
-    public String sourceCurrency() { return sourceCurrency; }
-    public MonetaryAmount targetAmount() { return targetAmount; }
-    public MonetaryAmount depositAmount() { return depositAmount; }
-    public BigDecimal snapshotSpotRate() { return snapshotSpotRate; }
-    public MonetaryAmount escrowedAmount() { return escrowedAmount; }
-    public EscrowStatus status() { return status; }
-    public TrackingType trackingType() { return trackingType; }
-    public String trackingKey() { return trackingKey; }
-    public Instant fundedAt() { return fundedAt; }
-    public Instant createdAt() { return createdAt; }
+    public UUID id() {
+        return id;
+    }
+
+    public UUID buyerId() {
+        return buyerId;
+    }
+
+    public UUID sellerId() {
+        return sellerId;
+    }
+
+    public UUID buyerAccountId() {
+        return buyerAccountId;
+    }
+
+    public UUID vaultAccountId() {
+        return vaultAccountId;
+    }
+
+    public String targetCurrency() {
+        return targetCurrency;
+    }
+
+    public String sourceCurrency() {
+        return sourceCurrency;
+    }
+
+    public MonetaryAmount targetAmount() {
+        return targetAmount;
+    }
+
+    public MonetaryAmount depositAmount() {
+        return depositAmount;
+    }
+
+    public BigDecimal snapshotSpotRate() {
+        return snapshotSpotRate;
+    }
+
+    public MonetaryAmount escrowedAmount() {
+        return escrowedAmount;
+    }
+
+    public EscrowStatus status() {
+        return status;
+    }
+
+    public TrackingType trackingType() {
+        return trackingType;
+    }
+
+    public String trackingKey() {
+        return trackingKey;
+    }
+
+    public Instant fundedAt() {
+        return fundedAt;
+    }
+
+    public Instant createdAt() {
+        return createdAt;
+    }
 }

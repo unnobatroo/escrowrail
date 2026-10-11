@@ -4,5 +4,5 @@ public enum AccountType {
     USER,
     ESCROW_VAULT,
     WISE_FEE,
-    WISE_CLEARING
+    WISE_CLEARING,
 }

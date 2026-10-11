@@ -8,11 +8,23 @@ public final class Events {
 
     private Events() {}
 
-    public record ContractFunded(UUID contractId, UUID buyerId, UUID sellerId) {}
+    public record ContractFunded(
+        UUID contractId,
+        UUID buyerId,
+        UUID sellerId
+    ) {}
 
-    public record ContractSettled(UUID contractId, UUID buyerId, UUID sellerId) {}
+    public record ContractSettled(
+        UUID contractId,
+        UUID buyerId,
+        UUID sellerId
+    ) {}
 
-    public record ContractCancelled(UUID contractId, UUID buyerId, UUID sellerId) {}
+    public record ContractCancelled(
+        UUID contractId,
+        UUID buyerId,
+        UUID sellerId
+    ) {}
 
     public record CounterpartyInvited(String email, String inviterLegalName) {}
 

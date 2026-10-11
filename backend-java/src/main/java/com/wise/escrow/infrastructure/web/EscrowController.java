@@ -7,7 +7,6 @@ import com.wise.escrow.application.dto.ApiDtos.FundRequest;
 import com.wise.escrow.application.dto.ApiDtos.InvitedResponse;
 import com.wise.escrow.application.dto.ApiDtos.LedgerEntryView;
 import com.wise.escrow.application.dto.ApiDtos.QuoteView;
-import com.wise.escrow.application.dto.Events.CounterpartyInvited;
 import com.wise.escrow.application.service.EscrowService;
 import com.wise.escrow.domain.exception.NotFoundException;
 import com.wise.escrow.domain.model.EscrowContract;
@@ -19,7 +18,6 @@ import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -36,15 +34,12 @@ public class EscrowController {
 
     private final EscrowService service;
     private final OrganizationRepository organizations;
-    private final ApplicationEventPublisher events;
 
     public EscrowController(
             EscrowService service,
-            OrganizationRepository organizations,
-            ApplicationEventPublisher events) {
+            OrganizationRepository organizations) {
         this.service = service;
         this.organizations = organizations;
-        this.events = events;
     }
 
     @GetMapping
@@ -72,11 +67,7 @@ public class EscrowController {
         UUID me = TenantPrincipal.entityId();
         var counterparty = service.resolveCounterparty(body.counterpartyEmail(), me);
         if (counterparty.isEmpty()) {
-            Organization buyer = organizations
-                    .findById(me)
-                    .orElseThrow(() -> new NotFoundException("Organization not found"));
-            events.publishEvent(
-                    new CounterpartyInvited(body.counterpartyEmail(), buyer.legalName()));
+            service.inviteCounterparty(body.counterpartyEmail(), me);
             return ResponseEntity.status(HttpStatus.ACCEPTED)
                     .body(new InvitedResponse(
                             "invited",

@@ -31,7 +31,11 @@ public final class MoneyAmounts {
 
     public static MonetaryAmount cents(MonetaryAmount amount) {
         return Money.of(
-                amount.getNumber().numberValue(BigDecimal.class).setScale(2, RoundingMode.HALF_EVEN),
-                amount.getCurrency());
+            amount
+                .getNumber()
+                .numberValue(BigDecimal.class)
+                .setScale(2, RoundingMode.HALF_EVEN),
+            amount.getCurrency()
+        );
     }
 }

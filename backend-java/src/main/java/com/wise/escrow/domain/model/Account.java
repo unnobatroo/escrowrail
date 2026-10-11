@@ -17,15 +17,29 @@ public class Account {
     private final AccountType type;
     private MonetaryAmount balance;
 
-    public Account(UUID id, UUID entityId, AccountType type, MonetaryAmount balance) {
+    public Account(
+        UUID id,
+        UUID entityId,
+        AccountType type,
+        MonetaryAmount balance
+    ) {
         this.id = id;
         this.entityId = entityId;
         this.type = type;
         this.balance = balance;
     }
 
-    public static Account open(UUID entityId, AccountType type, String currency) {
-        return new Account(UUID.randomUUID(), entityId, type, MoneyAmounts.zero(currency));
+    public static Account open(
+        UUID entityId,
+        AccountType type,
+        String currency
+    ) {
+        return new Account(
+            UUID.randomUUID(),
+            entityId,
+            type,
+            MoneyAmounts.zero(currency)
+        );
     }
 
     public UUID id() {
@@ -56,7 +70,12 @@ public class Account {
         MonetaryAmount next = balance.subtract(amount);
         if (type != AccountType.WISE_CLEARING && next.isNegative()) {
             throw new InsufficientFundsException(
-                    "Account %s balance %s cannot cover debit %s".formatted(id, balance, amount));
+                "Account %s balance %s cannot cover debit %s".formatted(
+                    id,
+                    balance,
+                    amount
+                )
+            );
         }
         balance = next;
     }
@@ -72,8 +91,11 @@ public class Account {
     private void assertCurrency(MonetaryAmount amount) {
         if (!amount.getCurrency().equals(balance.getCurrency())) {
             throw new CurrencyMismatchException(
-                    "Currency %s does not match account currency %s"
-                            .formatted(amount.getCurrency(), balance.getCurrency()));
+                "Currency %s does not match account currency %s".formatted(
+                    amount.getCurrency(),
+                    balance.getCurrency()
+                )
+            );
         }
     }
 }

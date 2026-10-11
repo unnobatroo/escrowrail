@@ -53,9 +53,10 @@ public class WebhookController {
             @RequestBody byte[] body,
             @RequestHeader(value = "X-Hub-Signature-256", required = false) String signature)
             throws java.io.IOException {
-        if (!githubSecret.isBlank()) {
-            verifyGithubSignature(body, signature);
+        if (githubSecret.isBlank()) {
+            throw new WebhookValidationException("GitHub webhook endpoint not configured");
         }
+        verifyGithubSignature(body, signature);
         JsonNode payload = mapper.readTree(body);
         JsonNode pr = payload.get("pull_request");
         String trackingKey = null;
@@ -77,8 +78,10 @@ public class WebhookController {
     public WebhookResult logistics(
             @RequestBody LogisticsWebhook body,
             @RequestHeader(value = "X-Wise-Webhook-Secret", required = false) String secret) {
-        if (!logisticsSecret.isBlank()
-                && (secret == null || !constantTimeEquals(secret, logisticsSecret))) {
+        if (logisticsSecret.isBlank()) {
+            throw new WebhookValidationException("Logistics webhook endpoint not configured");
+        }
+        if (secret == null || !constantTimeEquals(secret, logisticsSecret)) {
             throw new WebhookValidationException("Invalid logistics webhook secret");
         }
         if (!"DHL".equals(body.carrier())) {

@@ -6,24 +6,25 @@ import java.util.List;
 import java.util.UUID;
 
 public interface LedgerRepository {
-
     record LedgerEntry(
-            UUID id,
-            UUID debitAccountId,
-            UUID creditAccountId,
-            BigDecimal amount,
-            String currency,
-            String description,
-            UUID contractId,
-            Instant createdAt) {}
+        UUID id,
+        UUID debitAccountId,
+        UUID creditAccountId,
+        BigDecimal amount,
+        String currency,
+        String description,
+        UUID contractId,
+        Instant createdAt
+    ) {}
 
     LedgerEntry record(
-            UUID debitAccountId,
-            UUID creditAccountId,
-            BigDecimal amount,
-            String currency,
-            String description,
-            UUID contractId);
+        UUID debitAccountId,
+        UUID creditAccountId,
+        BigDecimal amount,
+        String currency,
+        String description,
+        UUID contractId
+    );
 
     List<LedgerEntry> findByContractIdOrderByCreatedAt(UUID contractId);
 
