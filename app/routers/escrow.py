@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from app.dependencies import get_escrow_repo, get_escrow_service
+from app.middleware.metrics import CONTRACTS_CANCELLED, CONTRACTS_CREATED
 from app.models.escrow import EscrowContract, TrackingType
 from app.models.ledger import LedgerTransaction
 from app.repositories.escrow_repository import EscrowRepository
@@ -36,7 +37,7 @@ EscrowServiceDep = Annotated[EscrowService, Depends(get_escrow_service)]
 
 @router.post("", status_code=201)
 def create_contract(body: CreateContractRequest, service: EscrowServiceDep) -> EscrowContract:
-    return service.create_contract(
+    contract = service.create_contract(
         buyer_id=body.buyer_id,
         seller_id=body.seller_id,
         target_currency=body.target_currency,
@@ -45,6 +46,8 @@ def create_contract(body: CreateContractRequest, service: EscrowServiceDep) -> E
         tracking_type=body.tracking_type,
         tracking_key=body.tracking_key,
     )
+    CONTRACTS_CREATED.inc()
+    return contract
 
 
 @router.get("/{contract_id}")
@@ -71,4 +74,6 @@ def fund_contract(
 
 @router.post("/{contract_id}/cancel")
 def cancel_contract(contract_id: uuid.UUID, service: EscrowServiceDep) -> EscrowContract:
-    return service.cancel_contract(contract_id)
+    contract = service.cancel_contract(contract_id)
+    CONTRACTS_CANCELLED.inc()
+    return contract

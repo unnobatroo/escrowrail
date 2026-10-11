@@ -1,6 +1,5 @@
 """Application entrypoint: router wiring and domain-error translation."""
 
-import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -8,23 +7,36 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from app.config import settings
-from app.database import init_db
+from app.database import engine, init_db
 from app.exceptions import WiseEscrowException
-from app.routers import accounts, escrow, webhooks
-
-logging.basicConfig(
-    level=settings.log_level.upper(),
-    format="%(asctime)s %(name)s %(levelname)s %(message)s",
+from app.logging_config import configure_json_logging
+from app.middleware import (
+    IdempotencyMiddleware,
+    MetricsMiddleware,
+    TraceIDMiddleware,
 )
+from app.routers import accounts, escrow, health, metrics, webhooks
+
+configure_json_logging(settings.log_level)
 
 
 @asynccontextmanager
-async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+async def lifespan(app_: FastAPI) -> AsyncIterator[None]:
     init_db()
+    # Tests may pre-set app.state.engine to an isolated database; only
+    # fall back to the module engine when nothing was configured.
+    if getattr(app_.state, "engine", None) is None:
+        app_.state.engine = engine
     yield
 
 
 app = FastAPI(title="Escrowrail", version="0.1.0", lifespan=lifespan)
+app.state.engine = engine
+
+# Last added runs outermost: Trace -> Metrics -> Idempotency -> route.
+app.add_middleware(IdempotencyMiddleware)
+app.add_middleware(MetricsMiddleware)
+app.add_middleware(TraceIDMiddleware)
 
 
 @app.exception_handler(WiseEscrowException)
@@ -42,8 +54,10 @@ async def domain_exception_handler(_request: Request, exc: WiseEscrowException) 
 app.include_router(accounts.router)
 app.include_router(escrow.router)
 app.include_router(webhooks.router)
+app.include_router(health.router)
+app.include_router(metrics.router)
 
 
 @app.get("/health")
-def health() -> dict[str, str]:
+def health_check() -> dict[str, str]:
     return {"status": "ok"}

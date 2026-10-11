@@ -34,7 +34,7 @@ class InvalidAmountError(WiseEscrowException):
 
 class InsufficientFundsError(WiseEscrowException):
     error_code = "ERR_INSUFFICIENT_FUNDS"
-    http_status = 422
+    http_status = 400
 
 
 class InvalidStateTransitionError(WiseEscrowException):
