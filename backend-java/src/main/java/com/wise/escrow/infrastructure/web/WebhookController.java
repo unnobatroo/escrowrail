@@ -29,6 +29,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/webhooks")
 public class WebhookController {
 
+    private static final org.slf4j.Logger log =
+            org.slf4j.LoggerFactory.getLogger(WebhookController.class);
+
     private final EscrowService service;
     private final EscrowContractRepository contracts;
     private final ObjectMapper mapper;
@@ -101,9 +104,20 @@ public class WebhookController {
         if (funded.isEmpty()) {
             return new WebhookResult("ignored", null);
         }
+        // Each settlement is its own transaction; a single failure must
+        // not block the rest, and redelivery completes the remainder.
         EscrowContract last = null;
+        int settled = 0;
         for (EscrowContract c : funded) {
-            last = service.settleMilestone(c.id());
+            try {
+                last = service.settleMilestone(c.id());
+                settled++;
+            } catch (RuntimeException e) {
+                log.warn("webhook settle failed contract={} reason={}", c.id(), e.getMessage());
+            }
+        }
+        if (settled == 0) {
+            throw new WebhookValidationException("Settlement failed for all matched contracts");
         }
         return new WebhookResult("settled", last.id());
     }

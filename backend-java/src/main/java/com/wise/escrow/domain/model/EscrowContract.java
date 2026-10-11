@@ -31,6 +31,8 @@ public class EscrowContract {
     private MonetaryAmount escrowedAmount;
     private EscrowStatus status;
     private Instant fundedAt;
+    /** Row version at load time — the adapter refuses to save staleness. */
+    private long version;
 
     public EscrowContract(
         UUID id,
@@ -43,6 +45,24 @@ public class EscrowContract {
         String trackingKey,
         Instant createdAt
     ) {
+        this(
+            id, buyerId, sellerId, targetCurrency, sourceCurrency,
+            targetAmount, trackingType, trackingKey, createdAt, 0L
+        );
+    }
+
+    public EscrowContract(
+        UUID id,
+        UUID buyerId,
+        UUID sellerId,
+        String targetCurrency,
+        String sourceCurrency,
+        MonetaryAmount targetAmount,
+        TrackingType trackingType,
+        String trackingKey,
+        Instant createdAt,
+        long version
+    ) {
         this.id = id;
         this.buyerId = buyerId;
         this.sellerId = sellerId;
@@ -52,6 +72,7 @@ public class EscrowContract {
         this.trackingType = trackingType;
         this.trackingKey = trackingKey;
         this.createdAt = createdAt;
+        this.version = version;
         this.status = EscrowStatus.INITIATED;
     }
 
@@ -191,5 +212,9 @@ public class EscrowContract {
 
     public Instant createdAt() {
         return createdAt;
+    }
+
+    public long version() {
+        return version;
     }
 }

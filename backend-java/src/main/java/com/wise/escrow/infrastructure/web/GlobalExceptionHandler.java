@@ -43,12 +43,28 @@ public class GlobalExceptionHandler {
             org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class,
             org.springframework.web.bind.MissingServletRequestParameterException.class,
             org.springframework.web.bind.MissingRequestHeaderException.class,
-            org.springframework.web.HttpRequestMethodNotSupportedException.class,
-            org.springframework.web.HttpMediaTypeNotSupportedException.class,
             javax.money.UnknownCurrencyException.class})
     ResponseEntity<ErrorView> badRequest(Exception e) {
         return ResponseEntity.badRequest()
                 .body(new ErrorView("ERR_VALIDATION", "Malformed request"));
+    }
+
+    @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)
+    ResponseEntity<ErrorView> methodNotAllowed(Exception e) {
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
+                .body(new ErrorView("ERR_METHOD_NOT_ALLOWED", "Method not allowed"));
+    }
+
+    @ExceptionHandler(org.springframework.web.HttpMediaTypeNotSupportedException.class)
+    ResponseEntity<ErrorView> unsupportedMediaType(Exception e) {
+        return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+                .body(new ErrorView("ERR_UNSUPPORTED_MEDIA_TYPE", "Unsupported media type"));
+    }
+
+    @ExceptionHandler(org.springframework.dao.OptimisticLockingFailureException.class)
+    ResponseEntity<ErrorView> conflict(Exception e) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorView("ERR_CONFLICT", "Resource was modified concurrently"));
     }
 
     @ExceptionHandler(Exception.class)

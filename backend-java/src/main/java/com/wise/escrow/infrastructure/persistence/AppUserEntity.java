@@ -8,7 +8,13 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "app_users")
+@Table(
+    name = "app_users",
+    uniqueConstraints = @jakarta.persistence.UniqueConstraint(
+        name = "app_users_email_uq",
+        columnNames = { "email" }
+    )
+)
 public class AppUserEntity {
 
     @Id

@@ -30,7 +30,8 @@ public class EscrowContractRepositoryAdapter implements EscrowContractRepository
                 MoneyAmounts.of(e.getTargetAmount(), e.getTargetCurrency()),
                 e.getTrackingType(),
                 e.getTrackingKey(),
-                e.getCreatedAt());
+                e.getCreatedAt(),
+                e.getVersion());
         if (e.getStatus() != EscrowStatus.INITIATED && e.getDepositAmount() != null) {
             c.fund(
                     e.getBuyerAccountId(),
@@ -124,6 +125,13 @@ public class EscrowContractRepositoryAdapter implements EscrowContractRepository
         // overwrite columns a concurrent transaction just changed.
         EscrowContractEntity entity = jpa.findById(contract.id())
                 .map(existing -> {
+                    // The domain object carries the row version it was
+                    // loaded with — a stale contract must not overwrite
+                    // columns a concurrent transaction already changed.
+                    if (existing.getVersion() != contract.version()) {
+                        throw new org.springframework.dao.OptimisticLockingFailureException(
+                                "Contract %s was modified concurrently".formatted(contract.id()));
+                    }
                     applyTo(existing, contract);
                     return existing;
                 })

@@ -28,8 +28,8 @@ class StaticFxRateProvider implements FxRateProvider {
 
     @Override
     public BigDecimal getRate(String source, String target) {
-        String src = source.toUpperCase();
-        String dst = target.toUpperCase();
+        String src = source.toUpperCase(java.util.Locale.ROOT);
+        String dst = target.toUpperCase(java.util.Locale.ROOT);
         if (src.equals(dst)) {
             return BigDecimal.ONE;
         }

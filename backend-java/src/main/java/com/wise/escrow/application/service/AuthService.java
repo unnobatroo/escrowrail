@@ -99,14 +99,14 @@ public class AuthService {
             ledgerService.transfer(
                 clearingUsd,
                 usdAccount.id(),
-                MoneyAmounts.of(new BigDecimal("50000"), "USD"),
+                MoneyAmounts.of(SANDBOX_USD, "USD"),
                 "Sandbox opening balance",
                 null
             );
             ledgerService.transfer(
                 clearingEur,
                 eurAccount.id(),
-                MoneyAmounts.of(new BigDecimal("10000"), "EUR"),
+                MoneyAmounts.of(SANDBOX_EUR, "EUR"),
                 "Sandbox opening balance",
                 null
             );
@@ -115,29 +115,32 @@ public class AuthService {
             );
             return new Registration(user, org);
         } catch (DataIntegrityViolationException e) {
-            throw new DuplicateEmailException("Email is already registered");
+            // On PostgreSQL the failed statement already aborted the
+            // transaction — no re-query is possible here, so match on the
+            // named constraint and rethrow everything else.
+            if (
+                e.getMessage() != null
+                    && e.getMessage().contains("app_users_email_uq")
+            ) {
+                throw new DuplicateEmailException("Email is already registered");
+            }
+            throw e;
         }
     }
 
-    /** Resolves (creating when missing) a clearing account's id. */
+    /**
+     * Clearing accounts are seeded by the V1 migration — fail fast if
+     * one is missing rather than racing another transaction to create it
+     * (a failed insert would abort this transaction anyway).
+     */
     private UUID clearingAccountId(String currency) {
         return accounts
             .findSystemAccountId(AccountType.WISE_CLEARING, currency)
-            .orElseGet(() -> {
-                try {
-                    return accounts
-                        .save(Account.open(null, AccountType.WISE_CLEARING, currency))
-                        .id();
-                } catch (DataIntegrityViolationException e) {
-                    return accounts
-                        .findSystemAccountId(AccountType.WISE_CLEARING, currency)
-                        .orElseThrow(() ->
-                            new IllegalStateException(
-                                "Clearing account missing for " + currency
-                            )
-                        );
-                }
-            });
+            .orElseThrow(() ->
+                new IllegalStateException(
+                    "Clearing account missing for " + currency
+                )
+            );
     }
 
     public AppUser authenticate(String email, String password) {

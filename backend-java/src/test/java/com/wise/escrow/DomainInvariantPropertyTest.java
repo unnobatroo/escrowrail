@@ -94,6 +94,9 @@ class DomainInvariantPropertyTest {
         }
         assertThat(vault.balance().getNumber().numberValue(BigDecimal.class))
                 .isEqualByComparingTo(vaultTotal);
+        // Conservation: the clearing side holds exactly the offset.
+        assertThat(clearing.balance().getNumber().numberValue(BigDecimal.class))
+                .isEqualByComparingTo(vaultTotal.negate());
     }
 
     /** escrowedAmount is a persisted snapshot — it never drifts after funding. */

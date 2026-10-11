@@ -64,6 +64,7 @@ public class Account {
 
     public void debit(MonetaryAmount amount) {
         assertCurrency(amount);
+        assertCentScale(amount);
         if (amount.isNegative()) {
             throw new IllegalArgumentException("debit amount must be >= 0");
         }
@@ -82,10 +83,28 @@ public class Account {
 
     public void credit(MonetaryAmount amount) {
         assertCurrency(amount);
+        assertCentScale(amount);
         if (amount.isNegative()) {
             throw new IllegalArgumentException("credit amount must be >= 0");
         }
         balance = balance.add(amount);
+    }
+
+    /**
+     * Balances persist as numeric(20,2); an FX-derived amount carrying
+     * more decimals would silently drift when Postgres rounds HALF_UP.
+     */
+    private void assertCentScale(MonetaryAmount amount) {
+        int scale = amount
+            .getNumber()
+            .numberValue(BigDecimal.class)
+            .stripTrailingZeros()
+            .scale();
+        if (scale > 2) {
+            throw new IllegalArgumentException(
+                "Amount scale %d exceeds cents: %s".formatted(scale, amount)
+            );
+        }
     }
 
     private void assertCurrency(MonetaryAmount amount) {

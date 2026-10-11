@@ -521,6 +521,11 @@ public class EscrowService {
         String targetCurrency,
         BigDecimal targetAmount
     ) {
+        if (targetAmount == null || targetAmount.signum() <= 0) {
+            throw new com.wise.escrow.domain.exception.ValidationException(
+                "targetAmount must be positive"
+            );
+        }
         BigDecimal rate = fx.getRate(sourceCurrency, targetCurrency);
         BigDecimal oneMinusFee = BigDecimal.ONE.subtract(CONVERSION_FEE_RATE);
         BigDecimal total = targetAmount
@@ -591,22 +596,11 @@ public class EscrowService {
     private UUID systemAccountId(AccountType type, String currency) {
         return accounts
             .findSystemAccountId(type, currency)
-            .orElseGet(() -> {
-                try {
-                    return accounts
-                        .save(Account.open(null, type, currency))
-                        .id();
-                } catch (org.springframework.dao.DataIntegrityViolationException e) {
-                    // Another transaction created it first.
-                    return accounts
-                        .findSystemAccountId(type, currency)
-                        .orElseThrow(() ->
-                            new IllegalStateException(
-                                "System account missing: " + type + "/" + currency
-                            )
-                        );
-                }
-            });
+            .orElseGet(() ->
+                accounts
+                    .save(Account.open(null, type, currency))
+                    .id()
+            );
     }
 
     private java.util.Map<UUID, Account> lockAll(List<UUID> ids) {

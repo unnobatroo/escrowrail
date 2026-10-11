@@ -13,7 +13,11 @@ public final class TenantPrincipal {
     private TenantPrincipal() {}
 
     public static UUID userId() {
-        return UUID.fromString(jwt().getSubject());
+        try {
+            return UUID.fromString(jwt().getSubject());
+        } catch (IllegalArgumentException | NullPointerException e) {
+            throw new UnauthorizedException("Malformed subject claim");
+        }
     }
 
     public static UUID entityId() {
@@ -21,12 +25,20 @@ public final class TenantPrincipal {
         if (claim == null) {
             throw new UnauthorizedException("Token missing entity_id claim");
         }
-        return UUID.fromString(claim);
+        try {
+            return UUID.fromString(claim);
+        } catch (IllegalArgumentException e) {
+            throw new UnauthorizedException("Malformed entity_id claim");
+        }
     }
 
     private static Jwt jwt() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth instanceof JwtAuthenticationToken token && token.getToken() instanceof Jwt jwt) {
+        Authentication auth =
+            SecurityContextHolder.getContext().getAuthentication();
+        if (
+            auth instanceof JwtAuthenticationToken token &&
+            token.getToken() instanceof Jwt jwt
+        ) {
             return jwt;
         }
         throw new UnauthorizedException("Not authenticated");

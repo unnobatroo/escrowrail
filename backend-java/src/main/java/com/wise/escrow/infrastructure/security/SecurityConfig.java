@@ -41,14 +41,18 @@ public class SecurityConfig {
     SecretKey jwtSecretKey(@Value("${wise.jwt.secret}") String secret) {
         byte[] bytes = secret.getBytes(StandardCharsets.UTF_8);
         if (bytes.length < 32) {
-            throw new IllegalStateException("wise.jwt.secret must be >= 32 bytes for HS256");
+            throw new IllegalStateException(
+                "wise.jwt.secret must be >= 32 bytes for HS256"
+            );
         }
         return new SecretKeySpec(bytes, "HmacSHA256");
     }
 
     @Bean
     JwtDecoder jwtDecoder(SecretKey key) {
-        return NimbusJwtDecoder.withSecretKey(key).macAlgorithm(MacAlgorithm.HS256).build();
+        return NimbusJwtDecoder.withSecretKey(key)
+            .macAlgorithm(MacAlgorithm.HS256)
+            .build();
     }
 
     @Bean
@@ -64,19 +68,24 @@ public class SecurityConfig {
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.csrf(csrf -> csrf.disable())
-                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(
-                                "/api/v1/auth/**",
-                                "/webhooks/**",
-                                "/actuator/health",
-                                "/v3/api-docs/**",
-                                "/swagger-ui/**",
-                                "/swagger-ui.html")
-                        .permitAll()
-                        .anyRequest()
-                        .authenticated())
-                .oauth2ResourceServer(oauth -> oauth.jwt(jwt -> {}));
+            .sessionManagement(s ->
+                s.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+            )
+            .authorizeHttpRequests(auth ->
+                auth
+                    .requestMatchers(
+                        "/api/v1/auth/**",
+                        "/webhooks/**",
+                        "/actuator/health",
+                        "/v3/api-docs/**",
+                        "/swagger-ui/**",
+                        "/swagger-ui.html"
+                    )
+                    .permitAll()
+                    .anyRequest()
+                    .authenticated()
+            )
+            .oauth2ResourceServer(oauth -> oauth.jwt(jwt -> {}));
         return http.build();
     }
 
@@ -87,7 +96,10 @@ public class SecurityConfig {
         private final JwtEncoder encoder;
         private final int expireMinutes;
 
-        public JwtIssuer(JwtEncoder encoder, @Value("${wise.jwt.expire-minutes:120}") int expireMinutes) {
+        public JwtIssuer(
+            JwtEncoder encoder,
+            @Value("${wise.jwt.expire-minutes:120}") int expireMinutes
+        ) {
             this.encoder = encoder;
             this.expireMinutes = expireMinutes;
         }
@@ -95,15 +107,19 @@ public class SecurityConfig {
         public String issue(UUID userId, UUID entityId) {
             Instant now = Instant.now();
             JwtClaimsSet claims = JwtClaimsSet.builder()
-                    .subject(userId.toString())
-                    .claim("entity_id", entityId.toString())
-                    .issuedAt(now)
-                    .expiresAt(now.plus(expireMinutes, ChronoUnit.MINUTES))
-                    .build();
+                .subject(userId.toString())
+                .claim("entity_id", entityId.toString())
+                .issuedAt(now)
+                .expiresAt(now.plus(expireMinutes, ChronoUnit.MINUTES))
+                .build();
             return encoder
-                    .encode(JwtEncoderParameters.from(
-                            JwsHeader.with(MacAlgorithm.HS256).build(), claims))
-                    .getTokenValue();
+                .encode(
+                    JwtEncoderParameters.from(
+                        JwsHeader.with(MacAlgorithm.HS256).build(),
+                        claims
+                    )
+                )
+                .getTokenValue();
         }
     }
 }

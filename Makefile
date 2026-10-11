@@ -1,7 +1,7 @@
 PYTHON ?= .venv/bin/python
 PIP ?= .venv/bin/pip
 
-.PHONY: install lint typecheck test test-invariants test-concurrency verify-pr check smoke-test seed run security coverage test-mutation frontend-install frontend-dev frontend-test
+.PHONY: install lint typecheck test test-invariants test-concurrency verify-pr check smoke-test seed run security coverage test-mutation frontend-install frontend-dev frontend-test java-build java-test java-run
 
 install:
 	$(PIP) install -e ".[dev,test]"

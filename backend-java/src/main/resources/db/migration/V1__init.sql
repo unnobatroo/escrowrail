@@ -104,7 +104,7 @@ ALTER TABLE ONLY public.accounts
     ADD CONSTRAINT uk4n513qjxj7epephrwxk0n4flf UNIQUE (entity_id, type, currency);
 
 ALTER TABLE ONLY public.app_users
-    ADD CONSTRAINT uk4vj92ux8a2eehds1mdvmks473 UNIQUE (email);
+    ADD CONSTRAINT app_users_email_uq UNIQUE (email);
 
 ALTER TABLE ONLY public.idempotency_records
     ADD CONSTRAINT ukol0gjg0uap11mq1y9ug506f1i UNIQUE (idempotency_key);
@@ -117,6 +117,19 @@ CREATE UNIQUE INDEX accounts_system_uq
     ON public.accounts (type, currency)
     WHERE entity_id IS NULL
       AND type IN ('WISE_FEE', 'WISE_CLEARING');
+
+-- Referential integrity + lookup indexes for the hot read paths.
+ALTER TABLE ONLY public.ledger_transactions
+    ADD CONSTRAINT ledger_debit_account_fk FOREIGN KEY (debit_account_id) REFERENCES public.accounts(id);
+ALTER TABLE ONLY public.ledger_transactions
+    ADD CONSTRAINT ledger_credit_account_fk FOREIGN KEY (credit_account_id) REFERENCES public.accounts(id);
+ALTER TABLE ONLY public.ledger_transactions
+    ADD CONSTRAINT ledger_contract_fk FOREIGN KEY (contract_id) REFERENCES public.escrow_contracts(id);
+
+CREATE INDEX ledger_contract_idx ON public.ledger_transactions (contract_id);
+CREATE INDEX ledger_debit_idx ON public.ledger_transactions (debit_account_id);
+CREATE INDEX ledger_credit_idx ON public.ledger_transactions (credit_account_id);
+CREATE INDEX escrow_tracking_idx ON public.escrow_contracts (tracking_type, tracking_key);
 
 -- Singleton Wise system accounts for the supported pair. Seeding them
 -- here means services never race to create them at runtime.

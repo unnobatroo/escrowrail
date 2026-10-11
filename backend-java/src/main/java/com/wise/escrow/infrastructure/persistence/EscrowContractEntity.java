@@ -68,6 +68,8 @@ public class EscrowContractEntity {
 
     protected EscrowContractEntity() {}
 
+    public long getVersion() { return version; }
+
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
     public UUID getBuyerId() { return buyerId; }

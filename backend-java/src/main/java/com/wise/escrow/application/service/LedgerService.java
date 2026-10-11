@@ -40,6 +40,11 @@ public class LedgerService {
         String description,
         UUID contractId
     ) {
+        if (debitAccountId.equals(creditAccountId)) {
+            throw new IllegalArgumentException(
+                "Debit and credit account must differ: " + debitAccountId
+            );
+        }
         MonetaryAmount cents = MoneyAmounts.cents(amount);
         // Lock in a deterministic order to avoid deadlocks between legs.
         UUID first =

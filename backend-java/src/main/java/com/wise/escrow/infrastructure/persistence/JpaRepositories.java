@@ -17,6 +17,7 @@ import org.springframework.data.repository.query.Param;
 interface JpaAccountRepository extends JpaRepository<AccountEntity, UUID> {
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "5000"))
     @Query("SELECT a FROM AccountEntity a WHERE a.id = :id")
     Optional<AccountEntity> findByIdForUpdate(@Param("id") UUID id);
 
@@ -47,6 +48,7 @@ interface JpaAccountRepository extends JpaRepository<AccountEntity, UUID> {
     Optional<AccountEntity> findByEntityIdIsNullAndTypeAndCurrency(AccountType type, String currency);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "5000"))
     @Query("SELECT a FROM AccountEntity a WHERE a.entityId IS NULL AND a.type = :type AND a.currency = :currency")
     Optional<AccountEntity> findSystemForUpdate(
             @Param("type") AccountType type, @Param("currency") String currency);
@@ -57,6 +59,7 @@ interface JpaAccountRepository extends JpaRepository<AccountEntity, UUID> {
 interface JpaEscrowContractRepository extends JpaRepository<EscrowContractEntity, UUID> {
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "5000"))
     @Query("SELECT c FROM EscrowContractEntity c WHERE c.id = :id")
     Optional<EscrowContractEntity> findByIdForUpdate(@Param("id") UUID id);
 
