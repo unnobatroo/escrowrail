@@ -132,7 +132,7 @@ Live components:
   — `GET /actuator/health` returns `{"status":"UP"}`.
 - **Database (Supabase)**: project `wise-escrow` (`fxxxkctszerxgkyqeeqn`,
   eu-west-1) — schema + demo tenants migrated and seeded.
-  Demo logins: `buyer@wise.demo` / `seller@wise.demo` (password `demo1234`).
+  Demo logins: `buyer@demo.com` / `seller@demo.com` (password `WiseDemo123!`).
 
 Backend deployment notes:
 

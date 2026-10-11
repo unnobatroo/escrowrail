@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { accountsApi, escrowApi } from "../api";
+import { accountsApi, apiError, demoApi, escrowApi } from "../api";
 import type { Account, ContractView } from "../api";
 import NewTradeModal from "../components/NewTradeModal";
+import LedgerActivityFeed from "../components/LedgerActivityFeed";
+import TradeDetailView from "../components/TradeDetailView";
+import WebhookSimulatorCard from "../components/WebhookSimulatorCard";
 import Shell from "../components/Shell";
 import { money, yieldAccrued } from "../format";
 
@@ -16,13 +19,19 @@ const STATUS_STYLE: Record<string, string> = {
 };
 
 const ACTIVE = new Set(["INITIATED", "FUNDED"]);
+const TOPUP_AMOUNT = "5000";
 
 export default function Dashboard() {
   const [contracts, setContracts] = useState<ContractView[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [filter, setFilter] = useState<Filter>("all");
   const [showNew, setShowNew] = useState(false);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [now, setNow] = useState(Date.now());
+  const [demoEnabled, setDemoEnabled] = useState(false);
+  const [topupBusy, setTopupBusy] = useState("");
+  const [notice, setNotice] = useState("");
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
 
@@ -35,7 +44,10 @@ export default function Dashboard() {
       .catch(() => {});
   };
 
-  useEffect(reload, []);
+  useEffect(reload, [refreshKey]);
+  useEffect(() => {
+    demoApi.config().then((r) => setDemoEnabled(r.data.enabled)).catch(() => {});
+  }, []);
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 100);
     return () => clearInterval(t);
@@ -47,6 +59,22 @@ export default function Dashboard() {
       setParams(params, { replace: true });
     }
   }, [params, setParams]);
+
+  const refresh = () => setRefreshKey((k) => k + 1);
+
+  const topUp = async (currency: string) => {
+    setTopupBusy(currency);
+    setNotice("");
+    try {
+      await demoApi.topup(currency, TOPUP_AMOUNT);
+      setNotice(`Sandbox credit applied: +${money(TOPUP_AMOUNT, currency)}`);
+      refresh();
+    } catch (err) {
+      setNotice(apiError(err).message ?? "Top-up failed");
+    } finally {
+      setTopupBusy("");
+    }
+  };
 
   const cash = (cur: string) =>
     accounts.find((a) => a.currency === cur)?.balance ?? "0.00";
@@ -76,16 +104,41 @@ export default function Dashboard() {
 
   return (
     <Shell>
-      <div className="mb-6 grid grid-cols-3 gap-4">
-        <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <p className="text-sm text-[#5C685B]">Available Cash</p>
-          <p data-testid="metric-cash-usd" className="mt-1 text-2xl font-bold text-[#0E150E]">
-            {money(cash("USD"), "USD")}
-          </p>
-          <p data-testid="metric-cash-eur" className="text-lg font-semibold text-[#5C685B]">
-            {money(cash("EUR"), "EUR")}
-          </p>
-        </div>
+      {/* Account cards — per-currency balances with sandbox top-up */}
+      <div className="mb-4 grid grid-cols-2 gap-4">
+        {(["USD", "EUR"] as const).map((cur) => (
+          <div key={cur} className="rounded-xl border border-slate-200 bg-white p-5">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-[#5C685B]">{cur} Account</p>
+              {demoEnabled && (
+                <button
+                  data-testid={`topup-${cur.toLowerCase()}`}
+                  onClick={() => topUp(cur)}
+                  disabled={topupBusy === cur}
+                  className="rounded-full border border-[#163300] px-3 py-1 text-xs font-semibold text-[#163300] hover:bg-[#F4F5F7] disabled:opacity-40"
+                >
+                  + Add Funds
+                </button>
+              )}
+            </div>
+            <p
+              data-testid={`metric-cash-${cur.toLowerCase()}`}
+              className="mt-1 text-2xl font-bold text-[#0E150E]"
+            >
+              {money(cash(cur), cur)}
+            </p>
+            <p className="text-xs text-[#5C685B]">
+              {accounts.find((a) => a.currency === cur)?.account_type ?? "USER"} · available
+            </p>
+          </div>
+        ))}
+      </div>
+
+      {notice && (
+        <div className="mb-4 rounded-lg bg-[#D1E7DD] px-3 py-2 text-sm text-[#0F5132]">{notice}</div>
+      )}
+
+      <div className="mb-4 grid grid-cols-2 gap-4">
         <div className="rounded-xl border border-slate-200 bg-white p-5">
           <p className="text-sm text-[#5C685B]">Safeguarded in Escrow</p>
           <p data-testid="metric-vault" className="mt-1 text-2xl font-bold text-[#084298]">
@@ -127,7 +180,6 @@ export default function Dashboard() {
               <th className="px-5 py-2 font-medium">Invoice</th>
               <th className="px-5 py-2 font-medium">Role</th>
               <th className="px-5 py-2 font-medium">Status</th>
-              <th className="px-5 py-2" />
             </tr>
           </thead>
           <tbody data-testid="trades-body">
@@ -135,7 +187,8 @@ export default function Dashboard() {
               <tr
                 key={c.id}
                 data-testid={`trade-row-${c.id}`}
-                className="border-b border-slate-100 last:border-0"
+                onClick={() => setSelected(c.id)}
+                className="cursor-pointer border-b border-slate-100 last:border-0 hover:bg-slate-50"
               >
                 <td className="px-5 py-3 font-medium text-[#0E150E]">
                   {c.role === "buyer" ? c.seller_name : c.buyer_name}
@@ -151,20 +204,11 @@ export default function Dashboard() {
                     {c.status}
                   </span>
                 </td>
-                <td className="px-5 py-3 text-right">
-                  <button
-                    data-testid={`open-${c.id}`}
-                    onClick={() => navigate(`/contracts/${c.id}`)}
-                    className="text-sm font-medium text-[#163300] underline"
-                  >
-                    View
-                  </button>
-                </td>
               </tr>
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-5 py-8 text-center text-[#5C685B]">
+                <td colSpan={4} className="px-5 py-8 text-center text-[#5C685B]">
                   No trades yet — start one with “New Escrow Trade”.
                 </td>
               </tr>
@@ -172,6 +216,19 @@ export default function Dashboard() {
           </tbody>
         </table>
       </div>
+
+      <div className="mt-4 space-y-4">
+        <WebhookSimulatorCard contracts={contracts} onSettled={refresh} />
+        <LedgerActivityFeed accounts={accounts} refreshKey={refreshKey} />
+      </div>
+
+      {selected && (
+        <TradeDetailView
+          contractId={selected}
+          onClose={() => setSelected(null)}
+          onChanged={refresh}
+        />
+      )}
 
       {showNew && (
         <NewTradeModal

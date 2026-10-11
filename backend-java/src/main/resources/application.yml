@@ -50,7 +50,13 @@ wise:
     key: ${WISE_FIELD_ENCRYPTION_KEY:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}
   seed:
     enabled: ${WISE_SEED_ENABLED:true}
-    password: ${WISE_SEED_PASSWORD:demo1234}
+    password: ${WISE_SEED_PASSWORD:WiseDemo123!}
+  demo:
+    # Sandbox gateway surface: /api/v1/demo/** (config, top-ups, signed
+    # webhook simulation). Disable in hardened environments.
+    enabled: ${WISE_DEMO_ENABLED:true}
+    buyer-email: ${WISE_DEMO_BUYER_EMAIL:buyer@demo.com}
+    seller-email: ${WISE_DEMO_SELLER_EMAIL:seller@demo.com}
 
 springdoc:
   swagger-ui:

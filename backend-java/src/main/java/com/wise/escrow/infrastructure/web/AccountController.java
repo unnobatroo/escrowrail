@@ -53,9 +53,7 @@ public class AccountController {
                 .filter(a -> TenantPrincipal.entityId().equals(a.entityId()))
                 .orElseThrow(() -> new NotFoundException("Account not found"));
         return ledger.findByAccountId(id).stream()
-                .map(e -> new LedgerEntryView(
-                        e.id(), e.debitAccountId(), e.creditAccountId(),
-                        e.amount(), e.currency(), e.description(), e.createdAt()))
+                .map(LedgerEntryView::of)
                 .toList();
     }
 }
