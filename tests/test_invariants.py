@@ -194,7 +194,7 @@ def test_complete_cycles_clearing_nets_zero(deposit: Decimal, settle: bool) -> N
         _fund_buyer(session, buyer_acc)
 
         contract = _make_contract(session, service, buyer.id, seller.id)
-        service.fund_contract(contract.id, buyer_acc.id, deposit)
+        service.fund_contract(contract.id, buyer.id, buyer_acc.id, deposit)
         escrowed = next(
             tx.amount
             for tx in EscrowRepository(session).ledger_entries(contract.id)
@@ -204,7 +204,7 @@ def test_complete_cycles_clearing_nets_zero(deposit: Decimal, settle: bool) -> N
             service.settle_milestone(contract.id)
             expected = ContractStatus.SETTLED
         else:
-            service.cancel_contract(contract.id)
+            service.cancel_contract(contract.id, buyer.id)
             expected = ContractStatus.CANCELLED
 
         assert contract.status == expected
@@ -270,22 +270,22 @@ def test_operation_sequence_respects_state_machine(ops: list[str]) -> None:
         for op in ops:
             if status in legal[op]:
                 if op == "fund":
-                    service.fund_contract(contract.id, buyer_acc.id, Decimal("1000"))
+                    service.fund_contract(contract.id, buyer.id, buyer_acc.id, Decimal("1000"))
                     status = ContractStatus.FUNDED
                 elif op == "settle":
                     service.settle_milestone(contract.id)
                     status = ContractStatus.SETTLED
                 else:
-                    service.cancel_contract(contract.id)
+                    service.cancel_contract(contract.id, buyer.id)
                     status = ContractStatus.CANCELLED
             else:
                 with pytest.raises(InvalidStateTransitionError):
                     if op == "fund":
-                        service.fund_contract(contract.id, buyer_acc.id, Decimal("1000"))
+                        service.fund_contract(contract.id, buyer.id, buyer_acc.id, Decimal("1000"))
                     elif op == "settle":
                         service.settle_milestone(contract.id)
                     else:
-                        service.cancel_contract(contract.id)
+                        service.cancel_contract(contract.id, buyer.id)
             assert contract.status == status
 
 
@@ -308,7 +308,7 @@ def test_fee_plus_net_equals_gross(deposit: Decimal) -> None:
         _account(session, seller.id, "EUR")
         _fund_buyer(session, buyer_acc)
         contract = _make_contract(session, service, buyer.id, seller.id)
-        service.fund_contract(contract.id, buyer_acc.id, deposit)
+        service.fund_contract(contract.id, buyer.id, buyer_acc.id, deposit)
 
         legs = EscrowRepository(session).ledger_entries(contract.id)
         source_legs = [
@@ -341,7 +341,7 @@ def test_settlement_split_exact_to_cent(deposit: Decimal) -> None:
         seller_acc = _account(session, seller.id, "EUR")
         _fund_buyer(session, buyer_acc)
         contract = _make_contract(session, service, buyer.id, seller.id)
-        service.fund_contract(contract.id, buyer_acc.id, deposit)
+        service.fund_contract(contract.id, buyer.id, buyer_acc.id, deposit)
         escrowed = next(
             tx.amount
             for tx in EscrowRepository(session).ledger_entries(contract.id)
@@ -369,9 +369,9 @@ def test_cancellation_returns_only_to_origin(deposit: Decimal) -> None:
         _account(session, seller.id, "EUR")
         _fund_buyer(session, buyer_acc)
         contract = _make_contract(session, service, buyer.id, seller.id)
-        service.fund_contract(contract.id, buyer_acc.id, deposit)
+        service.fund_contract(contract.id, buyer.id, buyer_acc.id, deposit)
 
-        service.cancel_contract(contract.id)
+        service.cancel_contract(contract.id, buyer.id)
         refund_legs = [
             tx
             for tx in EscrowRepository(session).ledger_entries(contract.id)

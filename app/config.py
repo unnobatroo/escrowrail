@@ -42,6 +42,9 @@ class Settings:
     github_webhook_secret: str | None = field(
         default_factory=lambda: _env("ESCROWRAIL_GITHUB_WEBHOOK_SECRET") or None
     )
+    logistics_webhook_secret: str | None = field(
+        default_factory=lambda: _env("ESCROWRAIL_LOGISTICS_WEBHOOK_SECRET") or None
+    )
     frankfurter_url: str = field(
         default_factory=lambda: _env("ESCROWRAIL_FRANKFURTER_URL", "https://api.frankfurter.dev/v1")
     )
@@ -52,6 +55,31 @@ class Settings:
     # Informational ECB reference rate (%) — reserved for yield/disclosure
     # features; not used in settlement math.
     ecb_base_rate: str = field(default_factory=lambda: _env("ECB_BASE_RATE", "4.50"))
+    jwt_secret: str = field(default_factory=lambda: _env("JWT_SECRET"))
+    jwt_algorithm: str = field(default_factory=lambda: _env("JWT_ALGORITHM", "HS256"))
+    jwt_expire_minutes: int = field(default_factory=lambda: int(_env("JWT_EXPIRE_MINUTES", "120")))
+
+    def __post_init__(self) -> None:
+        # The dev fallback is a public string — acceptable only where the
+        # whole deployment is throwaway anyway (local SQLite / tests).
+        if not self.jwt_secret:
+            if not self.database_url.startswith("sqlite"):
+                raise RuntimeError("JWT_SECRET must be set for non-SQLite deployments")
+            object.__setattr__(self, "jwt_secret", "dev-only-insecure-secret-change-me")
+        # Settlement webhooks release real funds: without shared secrets
+        # anyone can forge a milestone event. SQLite stays open for the
+        # dev "simulate" path and the local test suite.
+        if not self.database_url.startswith("sqlite"):
+            missing = [
+                name
+                for name, value in (
+                    ("ESCROWRAIL_GITHUB_WEBHOOK_SECRET", self.github_webhook_secret),
+                    ("ESCROWRAIL_LOGISTICS_WEBHOOK_SECRET", self.logistics_webhook_secret),
+                )
+                if not value
+            ]
+            if missing:
+                raise RuntimeError(f"{', '.join(missing)} must be set for non-SQLite deployments")
 
 
 settings = Settings()

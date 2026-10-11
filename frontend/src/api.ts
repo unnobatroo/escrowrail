@@ -3,11 +3,49 @@ import axios from "axios";
 const baseURL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 export const api = axios.create({ baseURL, timeout: 15000 });
 
+const TOKEN_KEY = "escrowrail_token";
+
+export function getToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function setToken(token: string | null): void {
+  if (token) localStorage.setItem(TOKEN_KEY, token);
+  else localStorage.removeItem(TOKEN_KEY);
+}
+
+api.interceptors.request.use((config) => {
+  const token = getToken();
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+api.interceptors.response.use(
+  (r) => r,
+  (err) => {
+    if (axios.isAxiosError(err) && err.response?.status === 401 && getToken()) {
+      setToken(null);
+      window.location.assign("/login");
+    }
+    return Promise.reject(err);
+  },
+);
+
+// ---------- types (backend response shapes) ----------
+
 export interface Entity {
   id: string;
   legal_name: string;
   ubo_tax_id: string;
   country: string;
+}
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  is_active: boolean;
+  created_at: string;
+  entity: Entity;
 }
 
 export interface Account {
@@ -18,36 +56,50 @@ export interface Account {
   balance: string;
 }
 
-export interface EscrowContract {
+export type ContractStatus = "INITIATED" | "FUNDED" | "SETTLED" | "CANCELLED";
+export type TrackingType = "GITHUB_PR" | "SHIPPING_CARRIER";
+
+export interface ContractView {
   id: string;
   buyer_id: string;
   seller_id: string;
-  buyer_account_id: string | null;
+  buyer_name: string;
+  seller_name: string;
+  role: "buyer" | "seller";
+  status: ContractStatus;
   target_currency: string;
   target_amount: string;
   source_currency: string;
   deposit_amount: string | null;
   locked_spot_rate: string | null;
   escrowed_amount: string | null;
-  status: "INITIATED" | "FUNDED" | "SETTLED" | "CANCELLED";
-  tracking_type: "GITHUB_PR" | "SHIPPING_CARRIER";
+  tracking_type: TrackingType;
   tracking_key: string;
+  funded_at: string | null;
+  created_at: string;
 }
 
-export interface ReadyResponse {
-  status: string;
-  ledger_balanced: boolean;
-  discrepancy_cents: number;
+export interface Quote {
+  source_currency: string;
+  target_currency: string;
+  target_amount: string;
+  fx_rate: string;
+  display_rate: string;
+  principal: string;
+  fx_fee: string;
+  total_deposit: string;
 }
 
-export interface WebhookResult {
-  status: string;
-  contract_id: string | null;
+export interface Counterparty {
+  email: string;
+  entity_id: string;
+  legal_name: string;
+  country: string;
+  same_ubo: boolean;
 }
 
 export interface LedgerEntry {
   id: string;
-  contract_id: string | null;
   debit_account_id: string;
   credit_account_id: string;
   amount: string;
@@ -56,37 +108,57 @@ export interface LedgerEntry {
   created_at: string;
 }
 
-export const getReady = () => api.get<ReadyResponse>("/health/ready");
-export const getEntities = () => api.get<Entity[]>("/entities");
-export const getEntityAccounts = (entityId: string) =>
-  api.get<Account[]>(`/entities/${entityId}/accounts`);
-export const getAccount = (accountId: string) =>
-  api.get<Account>(`/accounts/${accountId}`);
-export const getContract = (id: string) =>
-  api.get<EscrowContract>(`/contracts/${id}`);
-export const getContractLedger = (id: string) =>
-  api.get<LedgerEntry[]>(`/contracts/${id}/ledger`);
-export const createContract = (body: {
-  buyer_id: string;
-  seller_id: string;
-  target_currency: string;
-  target_amount: string;
-  source_currency: string;
-  tracking_type: string;
-  tracking_key: string;
-}) => api.post<EscrowContract>("/contracts", body);
-export const fundContract = (
-  id: string,
-  body: { account_id: string; deposit_amount: string },
-) => api.post<EscrowContract>(`/contracts/${id}/fund`, body);
-export const cancelContract = (id: string) =>
-  api.post<EscrowContract>(`/contracts/${id}/cancel`);
-export const githubWebhook = (payload: {
-  action: string;
-  pull_request: { merged: boolean; html_url: string };
-}) => api.post<WebhookResult>("/webhooks/github", payload);
-export const logisticsWebhook = (payload: {
-  carrier: string;
-  status: string;
-  tracking_key: string;
-}) => api.post<WebhookResult>("/webhooks/logistics", payload);
+export interface ApiError {
+  error_code?: string;
+  code?: string;
+  message?: string;
+  context?: Record<string, unknown>;
+}
+
+export function apiError(err: unknown): ApiError {
+  if (axios.isAxiosError(err)) return (err.response?.data as ApiError) ?? {};
+  return {};
+}
+
+// ---------- calls ----------
+
+export const authApi = {
+  register: (body: {
+    email: string;
+    password: string;
+    legal_name: string;
+    ubo_tax_id: string;
+    country: string;
+  }) => api.post<{ access_token: string; user: UserProfile }>("/api/v1/auth/register", body),
+  login: (email: string, password: string) =>
+    api.post<{ access_token: string }>(
+      "/api/v1/auth/login",
+      new URLSearchParams({ username: email, password }),
+    ),
+  me: () => api.get<UserProfile>("/api/v1/auth/me"),
+};
+
+export const escrowApi = {
+  list: () => api.get<ContractView[]>("/api/v1/escrow"),
+  get: (id: string) => api.get<ContractView>(`/api/v1/escrow/${id}`),
+  audit: (id: string) => api.get<LedgerEntry[]>(`/api/v1/escrow/${id}/audit`),
+  quote: (amount: string) =>
+    api.get<Quote>("/api/v1/escrow/quote", {
+      params: { target_amount: amount, target_currency: "EUR", source_currency: "USD" },
+    }),
+  counterparty: (email: string) =>
+    api.get<Counterparty>("/api/v1/escrow/counterparty", { params: { email } }),
+  create: (body: {
+    counterparty_email: string;
+    target_amount: string;
+    tracking_type: TrackingType;
+    tracking_key: string;
+  }) => api.post<ContractView | { status: "invited" }>("/api/v1/escrow", body),
+  fund: (id: string, deposit_amount: string) =>
+    api.post<ContractView>(`/api/v1/escrow/${id}/fund`, { deposit_amount }),
+  cancel: (id: string) => api.post<ContractView>(`/api/v1/escrow/${id}/cancel`),
+};
+
+export const accountsApi = {
+  list: () => api.get<Account[]>("/api/v1/accounts"),
+};

@@ -60,3 +60,18 @@ class UnsupportedCurrencyPairError(WiseEscrowException):
 class WebhookValidationError(WiseEscrowException):
     error_code = "ERR_WEBHOOK_VALIDATION"
     http_status = 400
+
+
+class UnauthorizedError(WiseEscrowException):
+    error_code = "ERR_UNAUTHORIZED"
+    http_status = 401
+
+
+class ForbiddenError(WiseEscrowException):
+    error_code = "ERR_FORBIDDEN"
+    http_status = 403
+
+
+class DuplicateEmailError(WiseEscrowException):
+    error_code = "ERR_EMAIL_ALREADY_REGISTERED"
+    http_status = 409

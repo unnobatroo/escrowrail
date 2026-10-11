@@ -6,7 +6,6 @@ sqlite:///./escrowrail_escrow.db). Idempotent: skips entities that already exist
 """
 
 import sys
-from decimal import Decimal
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -14,16 +13,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from sqlmodel import Session, select
 
 from app.database import engine, init_db
-from app.models.entities import Account, AccountType, Entity
-from app.repositories.account_repository import AccountRepository
+from app.models.entities import AccountType, Entity
+from app.repositories.account_repository import AccountRepository, EntityRepository
+from app.repositories.user_repository import UserRepository
+from app.services.auth_service import AuthService
 from app.services.ledger_service import LedgerService
 
-DEMO_ENTITIES = [
-    # name, ubo_tax_id, country, currency, opening balance
-    ("Acme Hardware US", "TAX-US-1001", "US", "USD", Decimal("50000.00")),
-    ("Berlin Robotics GmbH", "TAX-DE-2002", "DE", "EUR", Decimal("0.00")),
+DEMO_USERS = [
+    # email, password, org name, ubo_tax_id, country
+    ("buyer@acme.test", "demo-password-1", "Acme Hardware US", "TAX-US-1001", "US"),
+    ("seller@berlin.test", "demo-password-1", "Berlin Robotics GmbH", "TAX-DE-2002", "DE"),
     # Shares Acme's UBO -> demonstrates circular-ownership rejection.
-    ("Acme Subsidiary DE", "TAX-US-1001", "DE", "EUR", Decimal("0.00")),
+    ("sub@acme-de.test", "demo-password-1", "Acme Subsidiary DE", "TAX-US-1001", "DE"),
 ]
 
 SYSTEM_CURRENCIES = ("USD", "EUR", "GBP")
@@ -33,38 +34,25 @@ def main() -> None:
     init_db()
     with Session(engine) as session:
         accounts = AccountRepository(session)
+        users = UserRepository(session)
         ledger = LedgerService(session, accounts)
+        auth = AuthService(session, users, EntityRepository(session), accounts, ledger)
 
-        for name, ubo, country, currency, opening in DEMO_ENTITIES:
-            entity = session.exec(
-                select(Entity).where(Entity.legal_name == name, Entity.ubo_tax_id == ubo)
-            ).first()
-            if entity is None:
-                entity = Entity(legal_name=name, ubo_tax_id=ubo, country=country)
-                session.add(entity)
-                session.commit()
-                session.refresh(entity)
-            account = accounts.find_entity_account(entity.id, currency)
-            if account is None:
-                account = accounts.create(
-                    Account(
-                        entity_id=entity.id,
-                        account_type=AccountType.USER_ACCOUNT,
-                        currency=currency,
-                    )
-                )
-            if opening > 0 and account.balance == 0:
-                clearing = accounts.get_or_create_system_account(
-                    AccountType.ESCROWRAIL_CLEARING_ACCOUNT, currency
-                )
-                ledger.record_transfer(
-                    clearing.id,
-                    account.id,
-                    opening,
-                    currency,
-                    "Seed opening balance",
-                )
-            print(f"{name} ({ubo}) {currency} account {account.id}")
+        for email, password, name, ubo, country in DEMO_USERS:
+            if users.find_by_email(email) is not None:
+                entity = session.exec(
+                    select(Entity).where(Entity.legal_name == name, Entity.ubo_tax_id == ubo)
+                ).first()
+                print(f"{name}: user {email} already exists")
+                continue
+            _user, entity = auth.register(
+                email=email,
+                password=password,
+                legal_name=name,
+                ubo_tax_id=ubo,
+                country=country,
+            )
+            print(f"{name} ({ubo}) -> user {email}, entity {entity.id}")
 
         for currency in SYSTEM_CURRENCIES:
             for account_type in (

@@ -2,6 +2,7 @@
 
 import uuid
 from collections.abc import Iterator
+from contextlib import contextmanager
 from decimal import Decimal
 
 import pytest
@@ -12,9 +13,12 @@ from sqlmodel import Session, SQLModel, create_engine
 from app.database import get_session
 from app.dependencies import get_fx_provider
 from app.main import app
+from app.models.auth import User
 from app.models.entities import Account, AccountType, Entity
 from app.repositories.account_repository import AccountRepository, EntityRepository
 from app.repositories.escrow_repository import EscrowRepository
+from app.repositories.user_repository import UserRepository
+from app.services.auth_service import AuthService
 from app.services.escrow_service import EscrowService
 from app.services.fx_service import IFXRateProvider
 from app.services.ledger_service import LedgerService
@@ -71,8 +75,8 @@ def ledger_fixture(session: Session) -> LedgerService:
     return LedgerService(session, AccountRepository(session))
 
 
-@pytest.fixture(name="client")
-def client_fixture(session: Session, fx: IFXRateProvider) -> Iterator[TestClient]:
+@contextmanager
+def _wired_client(session: Session, fx: IFXRateProvider) -> Iterator[TestClient]:
     def override_session() -> Iterator[Session]:
         yield session
 
@@ -85,10 +89,55 @@ def client_fixture(session: Session, fx: IFXRateProvider) -> Iterator[TestClient
     # test database instead of the module-level dev engine.
     previous_engine = app.state.engine
     app.state.engine = session.get_bind()
-    with TestClient(app) as client:
+    try:
+        with TestClient(app) as client:
+            yield client
+    finally:
+        app.state.engine = previous_engine
+        app.dependency_overrides.clear()
+
+
+@pytest.fixture(name="client")
+def client_fixture(session: Session, fx: IFXRateProvider) -> Iterator[TestClient]:
+    with _wired_client(session, fx) as client:
         yield client
-    app.state.engine = previous_engine
-    app.dependency_overrides.clear()
+
+
+@pytest.fixture(name="buyer_user")
+def buyer_user_fixture(session: Session) -> tuple[User, Entity]:
+    """A registered-style buyer: entity + USD/EUR accounts + user."""
+    entity = make_entity(session, "Buyer Co", "TAX-BUYER", "US")
+    make_account(session, entity.id, "USD", Decimal("50000"))
+    make_account(session, entity.id, "EUR", Decimal("0"))
+    return make_user(session, entity, email="buyer@test.dev"), entity
+
+
+@pytest.fixture(name="seller_user")
+def seller_user_fixture(session: Session) -> tuple[User, Entity]:
+    entity = make_entity(session, "Seller Co", "TAX-SELLER", "DE")
+    make_account(session, entity.id, "USD", Decimal("0"))
+    make_account(session, entity.id, "EUR", Decimal("0"))
+    return make_user(session, entity, email="seller@test.dev"), entity
+
+
+@pytest.fixture(name="auth_buyer_client")
+def auth_buyer_client_fixture(
+    session: Session, fx: IFXRateProvider, buyer_user: tuple[User, Entity]
+) -> Iterator[TestClient]:
+    user, _ = buyer_user
+    with _wired_client(session, fx) as client:
+        client.headers["Authorization"] = f"Bearer {AuthService.issue_token(user)}"
+        yield client
+
+
+@pytest.fixture(name="auth_seller_client")
+def auth_seller_client_fixture(
+    session: Session, fx: IFXRateProvider, seller_user: tuple[User, Entity]
+) -> Iterator[TestClient]:
+    user, _ = seller_user
+    with _wired_client(session, fx) as client:
+        client.headers["Authorization"] = f"Bearer {AuthService.issue_token(user)}"
+        yield client
 
 
 def make_entity(
@@ -96,6 +145,25 @@ def make_entity(
 ) -> Entity:
     return EntityRepository(session).create(
         Entity(legal_name=name, ubo_tax_id=ubo, country=country)
+    )
+
+
+def make_user(
+    session: Session,
+    entity: Entity,
+    email: str = "user@test.dev",
+    password: str = "test-password-1",
+) -> User:
+    """Persist an active user bound to an entity (same shape register
+    produces, minus the account boot)."""
+    from pwdlib import PasswordHash
+
+    return UserRepository(session).create(
+        User(
+            email=email,
+            hashed_password=PasswordHash.recommended().hash(password),
+            entity_id=entity.id,
+        )
     )
 
 

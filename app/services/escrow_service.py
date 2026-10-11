@@ -9,12 +9,14 @@ import logging
 import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from sqlmodel import Session
 
 from app.exceptions import (
     CircularOwnershipError,
+    ForbiddenError,
     InsufficientFundsError,
     InvalidAmountError,
     InvalidStateTransitionError,
@@ -23,6 +25,7 @@ from app.exceptions import (
 )
 from app.models.entities import AccountType
 from app.models.escrow import ContractStatus, EscrowContract, TrackingType
+from app.models.ledger import LedgerTransaction
 from app.repositories.account_repository import AccountRepository, EntityRepository
 from app.repositories.escrow_repository import EscrowRepository
 from app.services.fx_service import IFXRateProvider
@@ -128,16 +131,27 @@ class EscrowService:
     def fund_contract(
         self,
         contract_id: uuid.UUID,
-        account_id: uuid.UUID,
+        caller_entity_id: uuid.UUID,
+        account_id: uuid.UUID | None,
         deposit_amount: Decimal,
     ) -> EscrowContract:
         """Convert first, then freeze: pull the spot rate now, collect the
         0.5% conversion fee in source currency, and land converted target
         funds directly in the safeguarded vault."""
         with self._atomic():
-            contract = self._require_contract_for_update(contract_id)
+            contract = self._require_contract_for_update_for_user(contract_id, caller_entity_id)
+            if contract.buyer_id != caller_entity_id:
+                raise ForbiddenError(
+                    "Only the buyer can fund an escrow contract",
+                    context={"contract_id": str(contract_id)},
+                )
             self._require_status(contract, ContractStatus.INITIATED)
-            account = self.accounts.get_for_update(account_id)
+            if account_id is None:
+                resolved = self.accounts.find_entity_account(
+                    contract.buyer_id, contract.source_currency
+                )
+                account_id = resolved.id if resolved else None
+            account = self.accounts.get_for_update(account_id) if account_id else None
             if account is None:
                 raise NotFoundError(
                     "Funding account not found",
@@ -231,6 +245,7 @@ class EscrowService:
             )
 
             contract.deposit_amount = deposit_amount
+            contract.funded_at = datetime.now(UTC)
             contract.locked_spot_rate = rate
             contract.escrowed_amount = converted
             contract.buyer_account_id = account.id
@@ -309,7 +324,9 @@ class EscrowService:
         )
         return contract
 
-    def cancel_contract(self, contract_id: uuid.UUID) -> EscrowContract:
+    def cancel_contract(
+        self, contract_id: uuid.UUID, caller_entity_id: uuid.UUID
+    ) -> EscrowContract:
         """Asymmetric cancellation: liquidate target funds back to the
         source currency at the latest spot. The buyer absorbs negative FX
         movement; Escrowrail retains the original conversion fee; funds return
@@ -319,7 +336,12 @@ class EscrowService:
         escrowed = Decimal("0")
         unfunded_cancel = False
         with self._atomic():
-            contract = self._require_contract_for_update(contract_id)
+            contract = self._require_contract_for_update_for_user(contract_id, caller_entity_id)
+            if contract.buyer_id != caller_entity_id:
+                raise ForbiddenError(
+                    "Only the buyer can cancel an escrow contract",
+                    context={"contract_id": str(contract_id)},
+                )
             if contract.status == ContractStatus.INITIATED:
                 contract.status = ContractStatus.CANCELLED
                 self.contracts.save(contract)
@@ -382,6 +404,35 @@ class EscrowService:
 
     def get_contract(self, contract_id: uuid.UUID) -> EscrowContract:
         return self._require_contract(contract_id)
+
+    def get_contract_for_user(self, contract_id: uuid.UUID, entity_id: uuid.UUID) -> EscrowContract:
+        contract = self.contracts.get_by_id_for_user(contract_id, entity_id)
+        if contract is None:
+            raise NotFoundError(
+                "Escrow contract not found",
+                context={"contract_id": str(contract_id)},
+            )
+        return contract
+
+    def list_contracts_for_entity(self, entity_id: uuid.UUID) -> list[EscrowContract]:
+        return self.contracts.list_for_entity(entity_id)
+
+    def contract_audit(
+        self, contract_id: uuid.UUID, entity_id: uuid.UUID
+    ) -> list[LedgerTransaction]:
+        self.get_contract_for_user(contract_id, entity_id)
+        return self.contracts.ledger_entries(contract_id)
+
+    def _require_contract_for_update_for_user(
+        self, contract_id: uuid.UUID, entity_id: uuid.UUID
+    ) -> EscrowContract:
+        contract = self.contracts.get_by_id_for_user_for_update(contract_id, entity_id)
+        if contract is None:
+            raise NotFoundError(
+                "Escrow contract not found",
+                context={"contract_id": str(contract_id)},
+            )
+        return contract
 
     def _require_contract(self, contract_id: uuid.UUID) -> EscrowContract:
         contract = self.contracts.get(contract_id)

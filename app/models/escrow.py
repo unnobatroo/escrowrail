@@ -44,4 +44,6 @@ class EscrowContract(SQLModel, table=True):
     tracking_key: str = Field(index=True)
     # Originating account for asymmetric cancellation refunds.
     buyer_account_id: uuid.UUID | None = Field(default=None, foreign_key="accounts.id")
+    # Set at funding time; drives float-yield accrual display.
+    funded_at: datetime | None = Field(default=None)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

@@ -16,7 +16,7 @@ from app.middleware import (
     MetricsMiddleware,
     TraceIDMiddleware,
 )
-from app.routers import accounts, escrow, health, metrics, webhooks
+from app.routers import accounts, auth, escrow, health, metrics, webhooks
 
 configure_json_logging(settings.log_level)
 
@@ -60,6 +60,7 @@ async def domain_exception_handler(_request: Request, exc: WiseEscrowException) 
     return JSONResponse(status_code=exc.http_status, content=content)
 
 
+app.include_router(auth.router)
 app.include_router(accounts.router)
 app.include_router(escrow.router)
 app.include_router(webhooks.router)

@@ -32,8 +32,10 @@ from app.models.idempotency import IdempotencyRecord, WebhookDeliveryLog
 from app.models.ledger import LedgerTransaction
 from app.repositories.account_repository import AccountRepository, EntityRepository
 from app.repositories.escrow_repository import EscrowRepository
+from app.services.auth_service import AuthService
 from app.services.escrow_service import EscrowService
 from app.services.ledger_service import LedgerService
+from tests.conftest import make_user
 
 PR_URL = "https://github.com/acme/robotics/pull/99"
 
@@ -80,9 +82,10 @@ def wired_app(engine: Engine) -> Iterator[None]:
 
 def _seed_funded_contract(
     engine: Engine, deposit: Decimal, tracking_key: str = PR_URL
-) -> tuple[uuid.UUID, uuid.UUID, uuid.UUID, uuid.UUID]:
-    """Create buyer/seller/accounts and one funded 10000-EUR contract.
-    Returns (contract_id, buyer_id, seller_id, buyer_account_id)."""
+) -> tuple[uuid.UUID, uuid.UUID, uuid.UUID, uuid.UUID, str]:
+    """Create buyer/seller/accounts, a buyer user and one funded
+    10000-EUR contract.
+    Returns (contract_id, buyer_id, seller_id, buyer_account_id, token)."""
     with Session(engine) as session:
         entities = EntityRepository(session)
         accounts = AccountRepository(session)
@@ -124,14 +127,17 @@ def _seed_funded_contract(
             TrackingType.GITHUB_PR,
             tracking_key,
         )
-        service.fund_contract(contract.id, buyer_acc.id, deposit)
+        service.fund_contract(contract.id, buyer.id, buyer_acc.id, deposit)
+        user = make_user(session, buyer, email="buyer-race@test.dev")
+        token = AuthService.issue_token(user)
         ids = (contract.id, buyer.id, seller.id, buyer_acc.id)
-        return ids
+        return (*ids, token)
 
 
-def _post(path: str, payload: dict[str, Any]) -> Response:
+def _post(path: str, payload: dict[str, Any], token: str | None = None) -> Response:
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
     with TestClient(app) as client:
-        response: Response = client.post(path, json=payload)
+        response: Response = client.post(path, json=payload, headers=headers)
         return response
 
 
@@ -140,7 +146,7 @@ def test_concurrent_webhook_settlement_race() -> None:
     the ledger legs; the other 9 replay the cached response."""
     with file_engine() as engine, wired_app(engine):
         # deposit 10050.25 -> fee 50.25, net 10000.00 -> escrowed 10000.00
-        contract_id, _, seller_id, _ = _seed_funded_contract(engine, Decimal("10050.25"))
+        contract_id, _, seller_id, _, _ = _seed_funded_contract(engine, Decimal("10050.25"))
         payload = {
             "action": "closed",
             "pull_request": {"merged": True, "html_url": PR_URL},
@@ -238,15 +244,14 @@ def test_concurrent_balance_depletion_race() -> None:
             ]
             contract_ids = [str(c.id) for c in contracts]
             buyer_account_id = buyer_acc.id
+            token = AuthService.issue_token(make_user(session, buyer, email="buyer-drain@test.dev"))
 
         targets = [contract_ids[i % 2] for i in range(5)]
-        payloads = [
-            {"account_id": str(buyer_account_id), "deposit_amount": "10100"} for _ in targets
-        ]
+        payloads = [{"deposit_amount": "10100"} for _ in targets]
         with ThreadPoolExecutor(max_workers=5) as pool:
             responses = list(
                 pool.map(
-                    lambda t: _post(f"/contracts/{t[0]}/fund", t[1]),
+                    lambda t: _post(f"/api/v1/escrow/{t[0]}/fund", t[1], token),
                     zip(targets, payloads, strict=False),
                 )
             )
@@ -282,14 +287,15 @@ def test_concurrent_settle_vs_cancel_race() -> None:
     contract: exactly one terminal transition wins, the ledger shows
     release XOR refund legs — never both."""
     with file_engine() as engine, wired_app(engine):
-        contract_id, _, seller_id, _ = _seed_funded_contract(engine, Decimal("10050.25"))
+        contract_id, _, seller_id, _, token = _seed_funded_contract(engine, Decimal("10050.25"))
         payload = {
             "action": "closed",
             "pull_request": {"merged": True, "html_url": PR_URL},
         }
         with ThreadPoolExecutor(max_workers=8) as pool:
             futures = [pool.submit(_post, "/webhooks/github", payload) for _ in range(4)] + [
-                pool.submit(_post, f"/contracts/{contract_id}/cancel", {}) for _ in range(4)
+                pool.submit(_post, f"/api/v1/escrow/{contract_id}/cancel", {}, token)
+                for _ in range(4)
             ]
             responses = [f.result() for f in futures]
         drain_pending()
@@ -365,17 +371,17 @@ def test_idempotency_key_header_dedup() -> None:
                 "key-dedup",
             )
             contract_id = contract.id
-            account_id = buyer_acc.id
+            token = AuthService.issue_token(make_user(session, buyer, email="buyer-dedup@test.dev"))
 
         def fund() -> Response:
             with TestClient(app) as client:
                 response: Response = client.post(
-                    f"/contracts/{contract_id}/fund",
-                    json={
-                        "account_id": str(account_id),
-                        "deposit_amount": "5100",
+                    f"/api/v1/escrow/{contract_id}/fund",
+                    json={"deposit_amount": "5100"},
+                    headers={
+                        "X-Idempotency-Key": "fund-key-1",
+                        "Authorization": f"Bearer {token}",
                     },
-                    headers={"X-Idempotency-Key": "fund-key-1"},
                 )
                 return response
 
