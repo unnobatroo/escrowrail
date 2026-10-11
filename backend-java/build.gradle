@@ -1,0 +1,94 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.5.6'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.escrowrail.escrow'
+version = '0.1.0'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+compileJava {
+    options.release = 21
+    options.compilerArgs += ['-parameters']
+}
+compileTestJava {
+    options.release = 21
+    options.compilerArgs += ['-parameters']
+}
+
+repositories {
+    mavenCentral()
+}
+
+ext {
+    modulithVersion = '1.4.2'
+    mapstructVersion = '1.6.3'
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+
+    // Transactional outbox via Spring Modulith event publication registry.
+    implementation "org.springframework.modulith:spring-modulith-starter-jpa:${modulithVersion}"
+    implementation "org.springframework.modulith:spring-modulith-events-api:${modulithVersion}"
+
+    // JSR 354 money — no hand-rolled Money type.
+    implementation 'org.javamoney:moneta:1.4.5'
+
+    // Versioned schema — Hibernate runs in `validate` mode, never `update`.
+    implementation 'org.flywaydb:flyway-core'
+    implementation 'org.flywaydb:flyway-database-postgresql'
+
+    // OpenAPI docs.
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.9'
+
+    // DTO mapping.
+    implementation "org.mapstruct:mapstruct:${mapstructVersion}"
+    annotationProcessor "org.mapstruct:mapstruct-processor:${mapstructVersion}"
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+
+    runtimeOnly 'org.postgresql:postgresql'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+    testImplementation 'org.springframework.security:spring-security-test'
+    testImplementation 'org.testcontainers:junit-jupiter'
+    testImplementation 'org.testcontainers:postgresql'
+    testImplementation 'net.jqwik:jqwik:1.9.3'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+    useJUnitPlatform()
+    // Let Testcontainers auto-discover the daemon (Docker Desktop,
+    // OrbStack, /var/run/docker.sock, npipe on Windows). Honor explicit
+    // operator overrides when present.
+    if (System.getenv('DOCKER_HOST')) {
+        environment 'DOCKER_HOST', System.getenv('DOCKER_HOST')
+    }
+    if (System.getenv('DOCKER_API_VERSION')) {
+        environment 'DOCKER_API_VERSION', System.getenv('DOCKER_API_VERSION')
+        systemProperty 'api.version', System.getenv('DOCKER_API_VERSION')
+    } else if (!System.getProperty('os.name').toLowerCase().contains('windows')
+            && (new File('/var/run/docker.sock').exists()
+                || new File("${System.getProperty('user.home')}/.orbstack/run/docker.sock").exists())) {
+        // Docker 29+ daemons (OrbStack) reject docker-java's default
+        // API 1.32 — floor at their documented minimum. Only applied on
+        // Unix with a local socket so Windows/remote setups are untouched.
+        environment 'DOCKER_API_VERSION', '1.40'
+        systemProperty 'api.version', '1.40'
+    }
+    testLogging {
+        events 'passed', 'failed', 'skipped'
+    }
+}

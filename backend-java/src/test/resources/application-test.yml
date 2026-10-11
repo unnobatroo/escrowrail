@@ -1,0 +1,14 @@
+spring:
+  jpa:
+    hibernate:
+      # Flyway applies V1__init.sql on each fresh container; validate
+      # proves the entities and the migration never drift apart.
+      ddl-auto: validate
+
+escrowrail:
+  jwt:
+    secret: test-secret-test-secret-test-secret-32
+    expire-minutes: 60
+  webhooks:
+    github-secret: test-gh-secret
+    logistics-secret: test-logi-secret
