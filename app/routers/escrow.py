@@ -11,7 +11,6 @@ from pydantic import BaseModel, Field
 from app.dependencies import (
     CurrentUser,
     TaskQueueDep,
-    get_account_repo,
     get_entity_repo,
     get_escrow_service,
     get_user_repo,
@@ -20,7 +19,7 @@ from app.exceptions import NotFoundError
 from app.middleware.metrics import CONTRACTS_CANCELLED, CONTRACTS_CREATED
 from app.models.escrow import EscrowContract, TrackingType
 from app.models.ledger import LedgerTransaction
-from app.repositories.account_repository import AccountRepository, EntityRepository
+from app.repositories.account_repository import EntityRepository
 from app.repositories.user_repository import UserRepository
 from app.services.escrow_service import EscrowService
 from app.services.ledger_service import CENT
@@ -30,7 +29,6 @@ router = APIRouter(prefix="/api/v1/escrow", tags=["escrow"])
 
 EscrowServiceDep = Annotated[EscrowService, Depends(get_escrow_service)]
 EntityRepoDep = Annotated[EntityRepository, Depends(get_entity_repo)]
-AccountRepoDep = Annotated[AccountRepository, Depends(get_account_repo)]
 UserRepoDep = Annotated[UserRepository, Depends(get_user_repo)]
 
 
