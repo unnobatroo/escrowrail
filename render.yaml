@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: escrowrail-backend
+    runtime: docker
+    dockerfilePath: backend-java/Dockerfile
+    dockerContext: backend-java
+    plan: starter
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: PORT
+        value: "8080"
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: SPRING_DATASOURCE_URL
+        sync: false
+      - key: SPRING_DATASOURCE_USERNAME
+        sync: false
+      - key: SPRING_DATASOURCE_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: ESCROWRAIL_FIELD_ENCRYPTION_KEY
+        sync: false
+      - key: ESCROWRAIL_GITHUB_WEBHOOK_SECRET
+        sync: false
+      - key: ESCROWRAIL_LOGISTICS_WEBHOOK_SECRET
+        sync: false
+      - key: ESCROWRAIL_CORS_ORIGINS
+        sync: false

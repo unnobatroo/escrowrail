@@ -79,7 +79,9 @@ public class AuthController {
         return new UserView(
                 user.id(),
                 user.email(),
-                new EntityView(org.id(), org.legalName(), org.country()),
+                user.active(),
+                new EntityView(
+                        org.id(), org.legalName(), org.uboTaxId().value(), org.country()),
                 user.createdAt());
     }
 }

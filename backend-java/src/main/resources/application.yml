@@ -1,6 +1,10 @@
 spring:
   application:
     name: escrowrail-java
+  jackson:
+    # Wire format stays snake_case — the SPA contract from the Python
+    # service is unchanged.
+    property-naming-strategy: SNAKE_CASE
   datasource:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/escrowrail_escrow}
     username: ${DATABASE_USER}
@@ -36,6 +40,17 @@ escrowrail:
     # webhooks must set these.
     github-secret: ${ESCROWRAIL_GITHUB_WEBHOOK_SECRET:}
     logistics-secret: ${ESCROWRAIL_LOGISTICS_WEBHOOK_SECRET:}
+  cors:
+    # Comma-separated SPA origins allowed to call the API. Prod sets
+    # ESCROWRAIL_CORS_ORIGINS to the deployed Vercel frontend URL(s).
+    allowed-origins: ${ESCROWRAIL_CORS_ORIGINS:http://localhost:5173}
+  encryption:
+    # AES-256 field-encryption key (base64, 32 bytes). The default is a
+    # published dev-only key — prod must set ESCROWRAIL_FIELD_ENCRYPTION_KEY.
+    key: ${ESCROWRAIL_FIELD_ENCRYPTION_KEY:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}
+  seed:
+    enabled: ${ESCROWRAIL_SEED_ENABLED:true}
+    password: ${ESCROWRAIL_SEED_PASSWORD:demo1234}
 
 springdoc:
   swagger-ui:

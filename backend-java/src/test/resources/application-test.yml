@@ -12,3 +12,5 @@ escrowrail:
   webhooks:
     github-secret: test-gh-secret
     logistics-secret: test-logi-secret
+  seed:
+    enabled: false

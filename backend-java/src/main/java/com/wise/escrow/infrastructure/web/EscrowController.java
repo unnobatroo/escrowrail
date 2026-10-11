@@ -124,9 +124,9 @@ public class EscrowController {
     @GetMapping("/quote")
     /** Q. */
     public QuoteView quote(
-            @RequestParam BigDecimal targetAmount,
-            @RequestParam(defaultValue = "EUR") String targetCurrency,
-            @RequestParam(defaultValue = "USD") String sourceCurrency) {
+            @RequestParam("target_amount") BigDecimal targetAmount,
+            @RequestParam(value = "target_currency", defaultValue = "EUR") String targetCurrency,
+            @RequestParam(value = "source_currency", defaultValue = "USD") String sourceCurrency) {
         TenantPrincipal.entityId(); // auth gate
         EscrowService.Quote q = service.quote(sourceCurrency, targetCurrency, targetAmount);
         var bank = q.traditionalBankEstimate();

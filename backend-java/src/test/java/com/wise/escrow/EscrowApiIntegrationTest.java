@@ -29,14 +29,14 @@ class EscrowApiIntegrationTest extends AbstractPostgresIT {
         String body = mapper.writeValueAsString(java.util.Map.of(
                 "email", email + "-" + tag + "@t.dev",
                 "password", "pw123456",
-                "legalName", org,
-                "uboTaxId", ubo,
+                "legal_name", org,
+                "ubo_tax_id", ubo,
                 "country", "US"));
         MvcResult res = mvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isCreated())
                 .andReturn();
-        return JsonPath.read(res.getResponse().getContentAsString(), "$.accessToken");
+        return JsonPath.read(res.getResponse().getContentAsString(), "$.access_token");
     }
 
     private String createContract(String token, String sellerEmail, String key) throws Exception {
@@ -44,8 +44,8 @@ class EscrowApiIntegrationTest extends AbstractPostgresIT {
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                        {"counterpartyEmail":"%s","targetAmount":"1000.00",
-                         "trackingType":"GITHUB_PR","trackingKey":"%s"}
+                        {"counterparty_email":"%s","target_amount":"1000.00",
+                         "tracking_type":"GITHUB_PR","tracking_key":"%s"}
                         """.formatted(sellerEmail, key)))
                 .andExpect(status().isCreated())
                 .andReturn();
@@ -62,21 +62,21 @@ class EscrowApiIntegrationTest extends AbstractPostgresIT {
 
         // Quote → fund
         MvcResult quoteRes = mvc.perform(get("/api/v1/escrow/quote")
-                        .param("targetAmount", "1000.00")
+                        .param("target_amount", "1000.00")
                         .header("Authorization", "Bearer " + buyerToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.wiseFee").exists())
-                .andExpect(jsonPath("$.customerSavings").exists())
+                .andExpect(jsonPath("$.escrowrail_fee").exists())
+                .andExpect(jsonPath("$.customer_savings").exists())
                 .andReturn();
-        String total = JsonPath.read(quoteRes.getResponse().getContentAsString(), "$.totalDeposit").toString();
+        String total = JsonPath.read(quoteRes.getResponse().getContentAsString(), "$.total_deposit").toString();
 
         mvc.perform(post("/api/v1/escrow/" + contractId + "/fund")
                         .header("Authorization", "Bearer " + buyerToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"depositAmount\":\"" + total + "\"}"))
+                        .content("{\"deposit_amount\":\"" + total + "\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("FUNDED"))
-                .andExpect(jsonPath("$.escrowedAmount").value(1000.00));
+                .andExpect(jsonPath("$.escrowed_amount").value(1000.00));
 
         // GitHub merge webhook settles (HMAC-signed like a real delivery)
         byte[] ghBody = """
@@ -106,7 +106,8 @@ class EscrowApiIntegrationTest extends AbstractPostgresIT {
         for (JsonNode a : accounts) {
             if ("EUR".equals(a.get("currency").asText())) {
                 eurCount++;
-                org.assertj.core.api.Assertions.assertThat(a.get("balance").decimalValue())
+                org.assertj.core.api.Assertions.assertThat(
+                                new java.math.BigDecimal(a.get("balance").asText()))
                         .isEqualByComparingTo("10992.00");
             }
         }
@@ -123,8 +124,8 @@ class EscrowApiIntegrationTest extends AbstractPostgresIT {
                         .header("Authorization", "Bearer " + buyerToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                        {"counterpartyEmail":"alter-ubo1@t.dev","targetAmount":"100",
-                         "trackingType":"GITHUB_PR","trackingKey":"k"}
+                        {"counterparty_email":"alter-ubo1@t.dev","target_amount":"100",
+                         "tracking_type":"GITHUB_PR","tracking_key":"k"}
                         """))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("CIRCULAR_OWNERSHIP_DETECTED"));
@@ -147,13 +148,13 @@ class EscrowApiIntegrationTest extends AbstractPostgresIT {
         mvc.perform(post("/api/v1/escrow/" + contractId + "/fund")
                         .header("Authorization", "Bearer " + strangerToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"depositAmount\":\"1100.00\"}"))
+                        .content("{\"deposit_amount\":\"1100.00\"}"))
                 .andExpect(status().isNotFound());
         // Seller is a party but not the buyer → 403 on writes.
         mvc.perform(post("/api/v1/escrow/" + contractId + "/fund")
                         .header("Authorization", "Bearer " + sellerToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"depositAmount\":\"1100.00\"}"))
+                        .content("{\"deposit_amount\":\"1100.00\"}"))
                 .andExpect(status().isForbidden());
         mvc.perform(post("/api/v1/escrow/" + contractId + "/cancel")
                         .header("Authorization", "Bearer " + sellerToken))
@@ -168,14 +169,14 @@ class EscrowApiIntegrationTest extends AbstractPostgresIT {
         String contractId = createContract(buyerToken, "seller-cx1@t.dev", "pr-cx1");
 
         MvcResult quoteRes = mvc.perform(get("/api/v1/escrow/quote")
-                        .param("targetAmount", "1000.00")
+                        .param("target_amount", "1000.00")
                         .header("Authorization", "Bearer " + buyerToken))
                 .andReturn();
-        String total = JsonPath.read(quoteRes.getResponse().getContentAsString(), "$.totalDeposit").toString();
+        String total = JsonPath.read(quoteRes.getResponse().getContentAsString(), "$.total_deposit").toString();
         mvc.perform(post("/api/v1/escrow/" + contractId + "/fund")
                         .header("Authorization", "Bearer " + buyerToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"depositAmount\":\"" + total + "\"}"))
+                        .content("{\"deposit_amount\":\"" + total + "\"}"))
                 .andExpect(status().isOk());
 
         mvc.perform(post("/api/v1/escrow/" + contractId + "/cancel")
@@ -232,8 +233,8 @@ class EscrowApiIntegrationTest extends AbstractPostgresIT {
                         .header("Authorization", "Bearer " + buyerToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                        {"counterpartyEmail":"ghost@nowhere.dev","targetAmount":"500",
-                         "trackingType":"SHIPPING_CARRIER","trackingKey":"DHL-1"}
+                        {"counterparty_email":"ghost@nowhere.dev","target_amount":"500",
+                         "tracking_type":"SHIPPING_CARRIER","tracking_key":"DHL-1"}
                         """))
                 .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.status").value("invited"));

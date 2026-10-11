@@ -1,7 +1,27 @@
 import { expect, test } from "@playwright/test";
-import type { Page, Browser } from "@playwright/test";
+import { createHmac } from "node:crypto";
+import type { Page } from "@playwright/test";
 
 const API = "http://localhost:8619";
+const GH_SECRET = "e2e-gh-secret";
+
+/** Posts a properly HMAC-signed GitHub pull-request webhook. */
+async function fireGithubWebhook(
+  request: { post: (url: string, opts: object) => Promise<{ ok: () => boolean; status: () => number }> },
+  payload: object,
+) {
+  const body = JSON.stringify(payload);
+  const signature =
+    "sha256=" + createHmac("sha256", GH_SECRET).update(body).digest("hex");
+  const res = await request.post(`${API}/webhooks/github`, {
+    data: body,
+    headers: {
+      "content-type": "application/json",
+      "x-hub-signature-256": signature,
+    },
+  });
+  if (!res.ok()) throw new Error(`webhook rejected: ${res.status()}`);
+}
 const PASSWORD = "demo-password-1";
 
 async function registerViaApi(request: {
@@ -73,8 +93,9 @@ test("buyer invites seller, funds in USD, webhook settles, seller paid EUR", asy
   await page.getByTestId("cp-email").fill(sellerEmail);
   await expect(page.getByTestId("cp-resolved")).toContainText("Seller Org");
   await page.getByTestId("amount").fill("1000.00");
+  const trackingKey = `https://github.com/o/r/pull/${run}`;
   await page.getByTestId("tracking-type").selectOption("GITHUB_PR");
-  await page.getByTestId("tracking-key").fill(`https://github.com/o/r/pull/${run}`);
+  await page.getByTestId("tracking-key").fill(trackingKey);
   await expect(page.getByTestId("quote-total")).toContainText("USD");
   await page.getByTestId("create-trade").click();
 
@@ -84,13 +105,17 @@ test("buyer invites seller, funds in USD, webhook settles, seller paid EUR", asy
   await expect(page.getByTestId("status-badge")).toHaveText("FUNDED");
   await expect(page.getByTestId("vault-balance")).toHaveText("1,000.00 EUR");
 
-  // Simulated milestone webhook settles: 0.8% fee, 992.00 EUR to seller.
-  await page.getByTestId("simulate").click();
+  // Signed milestone webhook settles: 0.8% fee, 992.00 EUR to seller.
+  await fireGithubWebhook(request, {
+    action: "closed",
+    pull_request: { merged: true, html_url: trackingKey },
+  });
+  await page.reload();
   await expect(page.getByTestId("status-badge")).toHaveText("SETTLED");
 
   // Audit trail has the release legs.
   await page.getByTestId("tab-audit").click();
-  await expect(page.getByText("Escrow release to seller")).toBeVisible();
+  await expect(page.getByText("Seller payout")).toBeVisible();
 
   // Seller session: dashboard shows the EUR payout in the nav pill.
   const ctx2 = await browser.newContext({ baseURL: "http://localhost:5173" });

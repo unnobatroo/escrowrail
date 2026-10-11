@@ -209,7 +209,7 @@ export default function ContractDetail() {
                     {quote && (
                       <p className="mb-2 text-sm text-[#5C685B]">
                         Deposit {money(quote.total_deposit, quote.source_currency)}{" "}
-                        (incl. {money(quote.fx_fee, quote.source_currency)} FX fee)
+                        (incl. {money(quote.escrowrail_fee, quote.source_currency)} FX fee)
                       </p>
                     )}
                     <button

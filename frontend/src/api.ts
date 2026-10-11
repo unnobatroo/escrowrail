@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const baseURL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+const baseURL =
+  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
 export const api = axios.create({ baseURL, timeout: 15000 });
 
 const TOKEN_KEY = "escrowrail_token";
@@ -83,11 +84,14 @@ export interface Quote {
   source_currency: string;
   target_currency: string;
   target_amount: string;
-  fx_rate: string;
-  display_rate: string;
+  mid_market_rate: string;
   principal: string;
-  fx_fee: string;
+  escrowrail_fee: string;
   total_deposit: string;
+  bank_spread_cost: string;
+  bank_swift_fee: string;
+  bank_total_cost: string;
+  customer_savings: string;
 }
 
 export interface Counterparty {
@@ -131,10 +135,10 @@ export const authApi = {
     country: string;
   }) => api.post<{ access_token: string; user: UserProfile }>("/api/v1/auth/register", body),
   login: (email: string, password: string) =>
-    api.post<{ access_token: string }>(
-      "/api/v1/auth/login",
-      new URLSearchParams({ username: email, password }),
-    ),
+    api.post<{ access_token: string }>("/api/v1/auth/login", {
+      email,
+      password,
+    }),
   me: () => api.get<UserProfile>("/api/v1/auth/me"),
 };
 

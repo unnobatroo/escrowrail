@@ -86,6 +86,13 @@ interface JpaAppUserRepository extends JpaRepository<AppUserEntity, UUID> {
     Optional<AppUserEntity> findByEmail(String email);
 }
 
+interface JpaLedgerChainRepository extends JpaRepository<LedgerChainEntity, Short> {
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT c FROM LedgerChainEntity c WHERE c.id = :id")
+    Optional<LedgerChainEntity> findByIdForUpdate(@Param("id") short id);
+}
+
 interface JpaLedgerTransactionRepository extends JpaRepository<LedgerTransactionEntity, UUID> {
 
     List<LedgerTransactionEntity> findByContractIdOrderByCreatedAt(UUID contractId);
