@@ -70,12 +70,12 @@ public class IdempotencyFilter extends OncePerRequestFilter {
             new ContentCachingResponseWrapper(response);
         // Caller identity is part of the dedup key: two different tenants
         // POSTing the same (possibly empty) body to the same path must not
-        // replay each other's responses.
+        // replay each other's responses. Derive it from the JWT claims so
+        // a refreshed token still hits the same key — the raw header value
+        // changes on every re-issue. (Claims are only used for keying;
+        // Spring Security authenticates the token downstream.)
         String explicitKey = request.getHeader(KEY_HEADER);
-        String auth = request.getHeader("Authorization");
-        String identityHash = sha256(
-            (auth == null ? "" : auth).getBytes(StandardCharsets.UTF_8)
-        );
+        String identityHash = callerIdentity(request.getHeader("Authorization"));
         // Hash the composite so the key stays a fixed 64 chars regardless
         // of URI length (the column is VARCHAR(200); a long URI + two
         // hashes would overflow it).
@@ -178,6 +178,31 @@ public class IdempotencyFilter extends OncePerRequestFilter {
             }
         }
         return records.findByKey(key).filter(this::fresh);
+    }
+
+    private static String callerIdentity(String auth) {
+        if (auth != null && auth.startsWith("Bearer ")) {
+            try {
+                String payload = auth.substring(7).split("\\.")[1];
+                String json = new String(
+                    java.util.Base64.getUrlDecoder().decode(payload),
+                    StandardCharsets.UTF_8
+                );
+                for (String claim : new String[] { "entity_id", "sub" }) {
+                    var matcher = java.util.regex.Pattern
+                        .compile("\"" + claim + "\"\\s*:\\s*\"([^\"]+)\"")
+                        .matcher(json);
+                    if (matcher.find()) {
+                        return "jwt:" + matcher.group(1);
+                    }
+                }
+            } catch (RuntimeException e) {
+                // Fall through to the raw-header hash.
+            }
+        }
+        return "hdr:" + sha256(
+            (auth == null ? "" : auth).getBytes(StandardCharsets.UTF_8)
+        );
     }
 
     private boolean fresh(Record r) {

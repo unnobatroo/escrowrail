@@ -63,12 +63,14 @@ class EscrowConcurrencyTest extends AbstractPostgresIT {
         EscrowContract c = funded(p, "race1", new BigDecimal("1000.00"));
         int threads = 10;
         ExecutorService pool = Executors.newFixedThreadPool(threads);
+        CountDownLatch ready = new CountDownLatch(threads);
         CountDownLatch go = new CountDownLatch(1);
         AtomicInteger settled = new AtomicInteger();
         AtomicInteger failed = new AtomicInteger();
         for (int i = 0; i < threads; i++) {
             pool.submit(() -> {
                 try {
+                    ready.countDown();
                     go.await();
                     EscrowContract result = escrow.settleMilestone(c.id());
                     if (result.status() == EscrowStatus.SETTLED) settled.incrementAndGet();
@@ -77,6 +79,7 @@ class EscrowConcurrencyTest extends AbstractPostgresIT {
                 }
             });
         }
+        assertThat(ready.await(10, TimeUnit.SECONDS)).isTrue();
         go.countDown();
         pool.shutdown();
         assertThat(pool.awaitTermination(30, TimeUnit.SECONDS)).isTrue();
@@ -116,6 +119,7 @@ class EscrowConcurrencyTest extends AbstractPostgresIT {
                     TrackingType.GITHUB_PR, "depl-" + i);
         }
         ExecutorService pool = Executors.newFixedThreadPool(threads);
+        CountDownLatch ready = new CountDownLatch(threads);
         CountDownLatch go = new CountDownLatch(1);
         AtomicInteger funded = new AtomicInteger();
         AtomicInteger insufficient = new AtomicInteger();
@@ -125,6 +129,7 @@ class EscrowConcurrencyTest extends AbstractPostgresIT {
             EscrowContract c = cs[i];
             futures.add(pool.submit(() -> {
                 try {
+                    ready.countDown();
                     go.await();
                     escrow.fundContract(c.id(), p.buyer(), MoneyAmounts.of(q.totalDeposit(), "USD"));
                     funded.incrementAndGet();
@@ -135,6 +140,7 @@ class EscrowConcurrencyTest extends AbstractPostgresIT {
                 }
             }));
         }
+        assertThat(ready.await(10, TimeUnit.SECONDS)).isTrue();
         go.countDown();
         pool.shutdown();
         assertThat(pool.awaitTermination(30, TimeUnit.SECONDS)).isTrue();

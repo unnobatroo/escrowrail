@@ -93,6 +93,9 @@ public class WebhookController {
         if (!"DELIVERED".equals(body.status())) {
             return new WebhookResult("ignored", null);
         }
+        if (body.tracking_key() == null || body.tracking_key().isBlank()) {
+            throw new WebhookValidationException("tracking_key is required");
+        }
         return settle(TrackingType.SHIPPING_CARRIER, body.tracking_key());
     }
 

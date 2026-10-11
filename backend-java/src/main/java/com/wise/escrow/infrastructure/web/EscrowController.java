@@ -163,6 +163,6 @@ public class EscrowController {
     }
 
     private static String currency(String value, String fallback) {
-        return value == null || value.isBlank() ? fallback : value.toUpperCase();
+        return value == null || value.isBlank() ? fallback : value.toUpperCase(java.util.Locale.ROOT);
     }
 }

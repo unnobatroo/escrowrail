@@ -594,12 +594,14 @@ public class EscrowService {
      * transaction's global order.
      */
     private UUID systemAccountId(AccountType type, String currency) {
+        // Supported currencies have their system accounts seeded by the
+        // V1 migration; creating one mid-transaction would race.
         return accounts
             .findSystemAccountId(type, currency)
-            .orElseGet(() ->
-                accounts
-                    .save(Account.open(null, type, currency))
-                    .id()
+            .orElseThrow(() ->
+                new IllegalStateException(
+                    "System account missing: " + type + "/" + currency
+                )
             );
     }
 

@@ -89,6 +89,13 @@ class EscrowApiIntegrationTest extends AbstractPostgresIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("settled"));
 
+        // The contract audit trail shows the 8.00 settlement fee leg
+        // landing on the Wise fee account, not just the seller payout.
+        mvc.perform(get("/api/v1/escrow/" + contractId + "/audit")
+                        .header("Authorization", "Bearer " + buyerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.description=='Settlement fee (0.8%%)' && @.amount==8.00)]").exists());
+
         // Seller EUR account holds 10000 sandbox + 992.00 payout.
         MvcResult sellerAccounts = mvc.perform(get("/api/v1/accounts")
                         .header("Authorization", "Bearer " + sellerToken))
@@ -136,6 +143,11 @@ class EscrowApiIntegrationTest extends AbstractPostgresIT {
                 .andExpect(status().isNotFound());
         mvc.perform(post("/api/v1/escrow/" + contractId + "/cancel")
                         .header("Authorization", "Bearer " + strangerToken))
+                .andExpect(status().isNotFound());
+        mvc.perform(post("/api/v1/escrow/" + contractId + "/fund")
+                        .header("Authorization", "Bearer " + strangerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"depositAmount\":\"1100.00\"}"))
                 .andExpect(status().isNotFound());
         // Seller is a party but not the buyer → 403 on writes.
         mvc.perform(post("/api/v1/escrow/" + contractId + "/fund")

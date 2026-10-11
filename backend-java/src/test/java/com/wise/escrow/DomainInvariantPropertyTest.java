@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.wise.escrow.application.service.EscrowService;
 import com.wise.escrow.application.service.FxRateProvider;
+import com.wise.escrow.application.service.LedgerService;
 import com.wise.escrow.domain.exception.CurrencyMismatchException;
 import com.wise.escrow.domain.exception.InsufficientFundsException;
 import com.wise.escrow.domain.exception.InvalidStateTransitionException;
@@ -14,10 +15,13 @@ import com.wise.escrow.domain.model.EscrowContract;
 import com.wise.escrow.domain.model.EscrowStatus;
 import com.wise.escrow.domain.model.MoneyAmounts;
 import com.wise.escrow.domain.model.TrackingType;
+import com.wise.escrow.domain.repository.AccountRepository;
+import com.wise.escrow.domain.repository.LedgerRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import javax.money.MonetaryAmount;
 import net.jqwik.api.Arbitraries;
@@ -76,27 +80,105 @@ class DomainInvariantPropertyTest {
         assertThat(q.totalDeposit()).isEqualTo(q.principal().add(q.wiseFee()));
     }
 
+    /** In-memory repo fakes — enough surface for LedgerService.transfer. */
+    static class FakeAccounts implements AccountRepository {
+        private final java.util.Map<UUID, Account> store = new java.util.HashMap<>();
+
+        void put(Account a) { store.put(a.id(), a); }
+
+        @Override
+        public Optional<Account> findById(UUID id) { return Optional.ofNullable(store.get(id)); }
+
+        @Override
+        public Optional<Account> findByIdForUpdate(UUID id) { return findById(id); }
+
+        @Override
+        public Optional<Account> findByEntityIdAndTypeAndCurrency(
+                UUID entityId, AccountType type, String currency) { return Optional.empty(); }
+
+        @Override
+        public Optional<Account> findByEntityIdAndTypeAndCurrencyForUpdate(
+                UUID entityId, AccountType type, String currency) { return Optional.empty(); }
+
+        @Override
+        public Optional<UUID> findAccountId(
+                UUID entityId, AccountType type, String currency) { return Optional.empty(); }
+
+        @Override
+        public Optional<Account> findSystemAccount(
+                AccountType type, String currency) { return Optional.empty(); }
+
+        @Override
+        public Optional<UUID> findSystemAccountId(
+                AccountType type, String currency) { return Optional.empty(); }
+
+        @Override
+        public Optional<Account> findSystemAccountForUpdate(
+                AccountType type, String currency) { return Optional.empty(); }
+
+        @Override
+        public List<Account> findAllByEntityId(UUID entityId) { return List.of(); }
+
+        @Override
+        public Account save(Account account) { store.put(account.id(), account); return account; }
+    }
+
+    static class FakeLedger implements LedgerRepository {
+        final List<LedgerEntry> entries = new java.util.ArrayList<>();
+
+        @Override
+        public LedgerEntry record(UUID debitAccountId, UUID creditAccountId,
+                BigDecimal amount, String currency, String description, UUID contractId) {
+            LedgerEntry e = new LedgerEntry(UUID.randomUUID(), debitAccountId,
+                    creditAccountId, amount, currency, description, contractId, Instant.now());
+            entries.add(e);
+            return e;
+        }
+
+        @Override
+        public List<LedgerEntry> findByContractIdOrderByCreatedAt(UUID contractId) {
+            return entries;
+        }
+
+        @Override
+        public List<LedgerEntry> findByAccountId(UUID accountId) {
+            return entries;
+        }
+    }
+
     /** sum(debits) == sum(credits) across arbitrary transfer sequences —
-     * structurally guaranteed since each leg is one balanced row. */
+     * exercised through the real LedgerService.transfer path. */
     @Property
     void ledgerConservationAcrossRandomSequences(
             @ForAll @Size(max = 50) List<@BigRange(min = "0.01", max = "500") BigDecimal> amounts) {
+        FakeAccounts accounts = new FakeAccounts();
+        FakeLedger ledger = new FakeLedger();
+        LedgerService service = new LedgerService(accounts, ledger);
         Account vault = new Account(
                 UUID.randomUUID(), null, AccountType.ESCROW_VAULT, MoneyAmounts.zero("USD"));
         Account clearing = new Account(
                 UUID.randomUUID(), null, AccountType.WISE_CLEARING, MoneyAmounts.zero("USD"));
-        BigDecimal vaultTotal = BigDecimal.ZERO;
+        accounts.put(vault);
+        accounts.put(clearing);
         for (BigDecimal a : amounts) {
-            MonetaryAmount m = Money.of(a, "USD");
-            clearing.debit(m);
-            vault.credit(m);
-            vaultTotal = vaultTotal.add(a);
+            service.transfer(clearing.id(), vault.id(), Money.of(a, "USD"), "leg", null);
         }
+        // Every recorded leg is one balanced debit->credit row.
+        BigDecimal debited = ledger.entries.stream()
+                .filter(e -> e.debitAccountId().equals(clearing.id()))
+                .map(LedgerRepository.LedgerEntry::amount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal credited = ledger.entries.stream()
+                .filter(e -> e.creditAccountId().equals(vault.id()))
+                .map(LedgerRepository.LedgerEntry::amount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        assertThat(debited).isEqualByComparingTo(credited);
+        // The balances mirror the ledger: vault holds the total, clearing
+        // holds the exact offset.
         assertThat(vault.balance().getNumber().numberValue(BigDecimal.class))
-                .isEqualByComparingTo(vaultTotal);
-        // Conservation: the clearing side holds exactly the offset.
+                .isEqualByComparingTo(credited);
         assertThat(clearing.balance().getNumber().numberValue(BigDecimal.class))
-                .isEqualByComparingTo(vaultTotal.negate());
+                .isEqualByComparingTo(debited.negate());
     }
 
     /** escrowedAmount is a persisted snapshot — it never drifts after funding. */
