@@ -1,7 +1,32 @@
-"""Application configuration via environment variables."""
+"""Application configuration via environment variables.
+
+Loads ``.env`` from the project root if present (no dependency needed),
+then falls back to real environment variables, then to safe defaults.
+"""
 
 import os
 from dataclasses import dataclass, field
+from pathlib import Path
+
+
+def _load_dotenv(path: Path) -> dict[str, str]:
+    """Minimal .env parser: KEY=VALUE lines, '#' comments, no quoting rules."""
+    values: dict[str, str] = {}
+    if not path.is_file():
+        return values
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            key, _, value = line.partition("=")
+            values[key.strip()] = value.strip()
+    return values
+
+
+_DOTENV = _load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+
+
+def _env(key: str, default: str = "") -> str:
+    return os.environ.get(key) or _DOTENV.get(key) or default
 
 
 @dataclass(frozen=True)
@@ -9,22 +34,24 @@ class Settings:
     """Runtime settings. Defaults are local-dev / test friendly."""
 
     database_url: str = field(
-        default_factory=lambda: os.environ.get("WISE_DATABASE_URL", "sqlite:///./wise_escrow.db")
-    )
-    github_webhook_secret: str | None = field(
-        default_factory=lambda: os.environ.get("WISE_GITHUB_WEBHOOK_SECRET") or None
-    )
-    frankfurter_url: str = field(
-        default_factory=lambda: os.environ.get(
-            "WISE_FRANKFURTER_URL", "https://api.frankfurter.dev/v1"
+        default_factory=lambda: _env(
+            "DATABASE_URL", _env("WISE_DATABASE_URL", "sqlite:///./wise_escrow.db")
         )
     )
+    log_level: str = field(default_factory=lambda: _env("LOG_LEVEL", "INFO"))
+    github_webhook_secret: str | None = field(
+        default_factory=lambda: _env("WISE_GITHUB_WEBHOOK_SECRET") or None
+    )
+    frankfurter_url: str = field(
+        default_factory=lambda: _env("WISE_FRANKFURTER_URL", "https://api.frankfurter.dev/v1")
+    )
     fx_live_enabled: bool = field(
-        default_factory=lambda: os.environ.get("WISE_FX_LIVE", "").lower() in ("1", "true", "yes")
+        default_factory=lambda: _env("WISE_FX_LIVE").lower() in ("1", "true", "yes")
     )
-    fx_timeout_seconds: float = field(
-        default_factory=lambda: float(os.environ.get("WISE_FX_TIMEOUT", "2.0"))
-    )
+    fx_timeout_seconds: float = field(default_factory=lambda: float(_env("WISE_FX_TIMEOUT", "2.0")))
+    # Informational ECB reference rate (%) — reserved for yield/disclosure
+    # features; not used in settlement math.
+    ecb_base_rate: str = field(default_factory=lambda: _env("ECB_BASE_RATE", "4.50"))
 
 
 settings = Settings()

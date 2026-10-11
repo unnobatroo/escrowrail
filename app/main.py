@@ -7,12 +7,13 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
+from app.config import settings
 from app.database import init_db
 from app.exceptions import WiseEscrowException
 from app.routers import accounts, escrow, webhooks
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=settings.log_level.upper(),
     format="%(asctime)s %(name)s %(levelname)s %(message)s",
 )
 

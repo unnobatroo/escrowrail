@@ -1,0 +1,25 @@
+version: "2"
+language: "en-US"
+reviews:
+  profile: "assertive"
+  request_changes_workflow: true
+  high_level_summary: true
+  poem: false
+  auto_review:
+    enabled: true
+    drafts: false
+  path_instructions:
+    - path: "app/models/**"
+      instructions: |
+        Verify that no monetary attributes use float or standard integer division.
+        Amounts and rates must strictly use Decimal or exact database numeric types.
+    - path: "app/services/**"
+      instructions: |
+        Strictly verify financial invariants:
+        1. All balance updates must execute through double-entry legs (debit == credit).
+        2. Cross-currency transfers must route through WISE_CLEARING_ACCOUNT.
+        3. UBO circular ownership checks must never be bypassed.
+        4. No funds can move to SETTLED without third-party webhook verification.
+    - path: "tests/**"
+      instructions: |
+        Ensure tests do not use hardcoded mock returns that bypass state machine validation.
