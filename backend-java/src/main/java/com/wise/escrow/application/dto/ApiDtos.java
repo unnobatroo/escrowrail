@@ -57,7 +57,11 @@ public final class ApiDtos {
     public record ResendVerificationRequest(@NotBlank @Email String email) {}
 
     /** Login rejection for unverified accounts — carries the email for resend UX. */
-    public record EmailNotVerifiedView(String code, String message, String email) {}
+    public record EmailNotVerifiedView(
+        String code,
+        String message,
+        String email
+    ) {}
 
     public record AccountView(
         UUID id,
@@ -135,11 +139,21 @@ public final class ApiDtos {
         Instant createdAt
     ) {
         /** Maps a domain entry to its wire view with a classified tx type. */
-        public static LedgerEntryView of(com.escrowrail.escrow.domain.repository.LedgerRepository.LedgerEntry e) {
+        public static LedgerEntryView of(
+            com.escrowrail.escrow.domain.repository.LedgerRepository.LedgerEntry e
+        ) {
             return new LedgerEntryView(
-                    e.id(), e.debitAccountId(), e.creditAccountId(),
-                    e.amount(), e.currency(), e.description(), e.contractId(),
-                    classify(e.description()), e.currentHash(), e.createdAt());
+                e.id(),
+                e.debitAccountId(),
+                e.creditAccountId(),
+                e.amount(),
+                e.currency(),
+                e.description(),
+                e.contractId(),
+                classify(e.description()),
+                e.currentHash(),
+                e.createdAt()
+            );
         }
 
         /**
