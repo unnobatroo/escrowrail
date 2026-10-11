@@ -10,7 +10,6 @@ SaaS dashboard styled with Escrowrail Neptune tokens.
 ```
 backend-java/            Active service — Spring Boot 3 / Java 21
 frontend/                Multi-tenant SaaS dashboard — React 19 + Vite
-legacy-python-backend/   Archived FastAPI reference implementation
 Makefile                 Unified install/build/test/run targets
 docker-compose.yml       Local Postgres for development
 render.yaml              One-click backend deployment (Render)
@@ -126,12 +125,32 @@ make test-e2e   # Playwright SaaS flow: register → fund → webhook settle
 
 ## Deployment
 
-- **Database**: Supabase Postgres — set `SPRING_DATASOURCE_URL` (with
-  `sslmode=require`), `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`.
-- **Backend**: `backend-java/Dockerfile` multi-stage build;
-  `render.yaml` provisions a Render web service on port 8080.
-- **Frontend**: Vercel — `frontend/vercel.json` SPA rewrites; set
-  `VITE_API_BASE_URL` to the public backend URL.
-- Required prod envs: `JWT_SECRET`, `ESCROWRAIL_FIELD_ENCRYPTION_KEY`,
-  `ESCROWRAIL_GITHUB_WEBHOOK_SECRET`, `ESCROWRAIL_LOGISTICS_WEBHOOK_SECRET`,
-  `ESCROWRAIL_CORS_ORIGINS`, `SPRING_DATASOURCE_*`. See `.env.example`.
+Live components:
+
+- **Frontend (Vercel)**: https://escrowrail.vercel.app
+- **Database (Supabase)**: project `escrowrail` (`fxxxkctszerxgkyqeeqn`,
+  eu-west-1) — schema + demo tenants already migrated and seeded.
+  Demo logins: `buyer@escrowrail.demo` / `seller@escrowrail.demo` (password `demo1234`).
+- **Backend (Render)**: one-click blueprint deploy —
+
+  [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/unnobatroo/escrowrail)
+
+  `render.yaml` provisions the `escrowrail-backend` web service
+  (Docker, port 8080, health `/actuator/health`). Fill the `sync: false`
+  env vars in the Render dashboard:
+
+  | Env var | Value |
+  |---|---|
+  | `SPRING_DATASOURCE_URL` | `jdbc:postgresql://db.fxxxkctszerxgkyqeeqn.supabase.co:5432/postgres?sslmode=require` |
+  | `SPRING_DATASOURCE_USERNAME` | `postgres` |
+  | `SPRING_DATASOURCE_PASSWORD` | Supabase project DB password |
+  | `JWT_SECRET` | ≥32 random bytes |
+  | `ESCROWRAIL_FIELD_ENCRYPTION_KEY` | base64-encoded 32-byte AES key |
+  | `ESCROWRAIL_GITHUB_WEBHOOK_SECRET` | HMAC secret for PR-merge releases |
+  | `ESCROWRAIL_LOGISTICS_WEBHOOK_SECRET` | HMAC secret for carrier releases |
+
+  `ESCROWRAIL_SEED_ENABLED=true` and `ESCROWRAIL_CORS_ORIGINS=https://escrowrail.vercel.app`
+  are preset in the blueprint. The frontend's `VITE_API_BASE_URL` already
+  points at `https://escrowrail-backend.onrender.com`.
+
+See `.env.example` for the full variable reference.

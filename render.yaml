@@ -25,5 +25,7 @@ services:
         sync: false
       - key: ESCROWRAIL_LOGISTICS_WEBHOOK_SECRET
         sync: false
+      - key: ESCROWRAIL_SEED_ENABLED
+        value: "true"
       - key: ESCROWRAIL_CORS_ORIGINS
-        sync: false
+        value: "https://escrowrail.vercel.app"
