@@ -35,6 +35,20 @@ class CreateAccountRequest(BaseModel):
     initial_balance: Decimal = Field(default=Decimal("0"), ge=0)
 
 
+@router.get("/entities")
+def list_entities(session: SessionDep) -> list[Entity]:
+    return list(session.exec(select(Entity).order_by(Entity.legal_name)).all())
+
+
+@router.get("/entities/{entity_id}/accounts")
+def list_entity_accounts(entity_id: uuid.UUID, session: SessionDep) -> list[Account]:
+    stmt = select(Account).where(
+        Account.entity_id == entity_id,
+        Account.account_type == AccountType.USER_ACCOUNT,
+    )
+    return list(session.exec(stmt).all())
+
+
 @router.post("/entities", status_code=201)
 def create_entity(
     body: CreateEntityRequest,

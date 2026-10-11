@@ -1,7 +1,7 @@
 PYTHON ?= .venv/bin/python
 PIP ?= .venv/bin/pip
 
-.PHONY: install lint typecheck test test-invariants test-concurrency verify-pr check smoke-test seed run security coverage test-mutation
+.PHONY: install lint typecheck test test-invariants test-concurrency verify-pr check smoke-test seed run security coverage test-mutation frontend-install frontend-dev frontend-test
 
 install:
 	$(PIP) install -e ".[dev,test]"
@@ -43,3 +43,12 @@ seed:
 
 run:
 	.venv/bin/uvicorn app.main:app --reload
+
+frontend-install:
+	cd frontend && npm install && npx playwright install chromium
+
+frontend-dev:
+	cd frontend && npm run dev -- --port 5173
+
+frontend-test:
+	cd frontend && npx playwright test
