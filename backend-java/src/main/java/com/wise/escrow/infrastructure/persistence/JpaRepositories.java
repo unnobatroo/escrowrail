@@ -111,6 +111,9 @@ interface JpaIdempotencyRecordRepository extends JpaRepository<IdempotencyRecord
 interface JpaEmailVerificationTokenRepository
         extends JpaRepository<EmailVerificationTokenEntity, UUID> {
 
+    /** Row-locked lookup so concurrent verify calls serialize on the token row. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "5000"))
     Optional<EmailVerificationTokenEntity> findByTokenHash(String tokenHash);
 
     List<EmailVerificationTokenEntity> findByUserIdAndUsedAtIsNull(UUID userId);

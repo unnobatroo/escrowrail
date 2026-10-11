@@ -21,7 +21,8 @@ CREATE TABLE email_verification_tokens (
     created_at timestamp(6) with time zone NOT NULL
 );
 
--- Verification looks tokens up by hash: index the hash, and keep one
--- active token per user cheap to find for the resend flow.
-CREATE INDEX evt_token_hash_idx ON email_verification_tokens (token_hash);
+-- Verification looks tokens up by hash: one row per hash (a duplicate
+-- would make the Optional lookup explode) — and keep one active token per
+-- user cheap to find for the resend flow.
+CREATE UNIQUE INDEX evt_token_hash_uq ON email_verification_tokens (token_hash);
 CREATE INDEX evt_user_idx ON email_verification_tokens (user_id);

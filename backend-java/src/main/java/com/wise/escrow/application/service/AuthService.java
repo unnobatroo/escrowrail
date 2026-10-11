@@ -19,12 +19,16 @@ import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HexFormat;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * Tenant onboarding. Registration is one transaction: organization + user
@@ -35,6 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class AuthService {
 
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
     private static final Duration RESEND_COOLDOWN = Duration.ofSeconds(60);
     private static final SecureRandom RANDOM = new SecureRandom();
 
@@ -212,7 +217,26 @@ public class AuthService {
         RANDOM.nextBytes(bytes);
         String rawToken = HexFormat.of().formatHex(bytes);
         tokens.save(VerificationToken.issue(user.id(), sha256(rawToken)));
-        mailer.sendVerificationEmail(user.email(), rawToken);
+        // Send after commit: a slow/failed mail call must not hold the
+        // registration transaction's row locks, and a rollback must not
+        // leave the user holding a link to an account that does not exist.
+        // A plain TransactionSynchronization (not a @TransactionalEventListener)
+        // is used on purpose — Modulith persists event payloads to
+        // event_publication, and the raw token must never be stored unhashed.
+        TransactionSynchronizationManager.registerSynchronization(
+            new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    try {
+                        mailer.sendVerificationEmail(user.email(), rawToken);
+                    } catch (RuntimeException e) {
+                        log.warn(
+                            "verification email send failed for {} — user can resend",
+                            user.email(), e);
+                    }
+                }
+            }
+        );
     }
 
     private static String sha256(String input) {
