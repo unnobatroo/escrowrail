@@ -128,29 +128,21 @@ make test-e2e   # Playwright SaaS flow: register → fund → webhook settle
 Live components:
 
 - **Frontend (Vercel)**: https://wise-escrow.vercel.app
+- **Backend (Azure Container Apps)**: https://wise-escrow-api.redmoss-f42ffb4e.swedencentral.azurecontainerapps.io
+  — `GET /actuator/health` returns `{"status":"UP"}`.
 - **Database (Supabase)**: project `wise-escrow` (`fxxxkctszerxgkyqeeqn`,
-  eu-west-1) — schema + demo tenants already migrated and seeded.
+  eu-west-1) — schema + demo tenants migrated and seeded.
   Demo logins: `buyer@wise.demo` / `seller@wise.demo` (password `demo1234`).
-- **Backend (Render)**: one-click blueprint deploy —
 
-  [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/unnobatroo/wise-hack)
+Backend deployment notes:
 
-  `render.yaml` provisions the `wise-escrow-backend` web service
-  (Docker, port 8080, health `/actuator/health`). Fill the `sync: false`
-  env vars in the Render dashboard:
-
-  | Env var | Value |
-  |---|---|
-  | `SPRING_DATASOURCE_URL` | `jdbc:postgresql://db.fxxxkctszerxgkyqeeqn.supabase.co:5432/postgres?sslmode=require` |
-  | `SPRING_DATASOURCE_USERNAME` | `postgres` |
-  | `SPRING_DATASOURCE_PASSWORD` | Supabase project DB password |
-  | `JWT_SECRET` | ≥32 random bytes |
-  | `WISE_FIELD_ENCRYPTION_KEY` | base64-encoded 32-byte AES key |
-  | `WISE_GITHUB_WEBHOOK_SECRET` | HMAC secret for PR-merge releases |
-  | `WISE_LOGISTICS_WEBHOOK_SECRET` | HMAC secret for carrier releases |
-
-  `WISE_SEED_ENABLED=true` and `WISE_CORS_ORIGINS=https://wise-escrow.vercel.app`
-  are preset in the blueprint. The frontend's `VITE_API_BASE_URL` already
-  points at `https://wise-escrow-backend.onrender.com`.
+- Image built from `backend-java/Dockerfile` (linux/amd64, pushed to
+  `wiseescrowacr.azurecr.io`) and runs on Azure Container Apps
+  (`wise-escrow-rg` / `wise-env`, consumption plan — free-tier eligible).
+- Supabase direct connection is IPv6-only; the app connects via the
+  IPv4 pooler `aws-0-eu-west-1.pooler.supabase.com:5432` with user
+  `postgres.<project-ref>`.
+- `render.yaml` remains as an alternative one-click backend target;
+  Container Apps is the live deployment.
 
 See `.env.example` for the full variable reference.
