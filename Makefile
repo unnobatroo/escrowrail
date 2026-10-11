@@ -1,4 +1,4 @@
-.PHONY: install build test test-backend test-frontend run-backend run-frontend clean deploy-check db
+.PHONY: install build test test-backend test-frontend run-backend run-frontend clean deploy-check deploy-backend deploy-frontend db
 
 install:
 	cd backend-java && ./gradlew build -x test
@@ -28,6 +28,12 @@ db:
 deploy-check:
 	cd backend-java && ./gradlew check
 	cd frontend && npm run build
+
+deploy-backend:
+	./scripts/deploy-azure.sh
+
+deploy-frontend:
+	cd frontend && vercel --prod
 
 clean:
 	cd backend-java && ./gradlew clean

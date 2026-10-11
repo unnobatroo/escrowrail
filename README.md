@@ -136,12 +136,23 @@ Live components:
 
 Backend deployment notes:
 
-- Image built from `backend-java/Dockerfile` (linux/amd64, pushed to
-  `wiseescrowacr.azurecr.io`) and runs on Azure Container Apps
-  (`wise-escrow-rg` / `wise-env`, consumption plan — free-tier eligible).
+- Image built from `backend-java/Dockerfile` and deployed to Azure
+  Container Apps (`wise-escrow-rg` / `wise-env`, consumption plan).
+  `make deploy-backend` (scripts/deploy-azure.sh) rebuilds the image and
+  updates the app — it encodes all platform gotchas:
+  - `linux/amd64` only — cross-build via `buildx --platform linux/amd64`.
+  - No OCI attestation manifests — `--provenance=false --sbom=false`.
+  - Tag pulls can resolve stale manifests — deploys pin the `@sha256`
+    digest instead.
+- **Cost profile (near-zero)**: scale-to-zero (`minReplicas: 0`) means
+  $0 compute when idle; Hikari is tuned to release idle connections fast
+  (`minimum-idle: 0`, 60s idle / 4min max lifetime) so the database can
+  sleep; JSON responses are gzipped to cut egress. Trade-off: the first
+  request after idle pays a ~30-90s JVM cold start — the frontend's
+  axios timeout is 60s to accommodate it.
 - Supabase direct connection is IPv6-only; the app connects via the
   IPv4 pooler `aws-0-eu-west-1.pooler.supabase.com:5432` with user
-  `postgres.<project-ref>`.
+  `postgres.<project-ref>` (session mode).
 - `render.yaml` remains as an alternative one-click backend target;
   Container Apps is the live deployment.
 
