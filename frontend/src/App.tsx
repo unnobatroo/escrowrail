@@ -94,6 +94,30 @@ export default function App() {
 
   // ---- walking skeleton: health badge + entity bootstrap ----
   useEffect(() => {
+    // Restore an in-flight contract after a reload — the backend holds it.
+    const savedId = localStorage.getItem("escrowContractId");
+    if (savedId) {
+      getContract(savedId)
+        .then(async (r) => {
+          setContract(r.data);
+          addLog("info", `restored contract ${savedId.slice(0, 8)} (${r.data.status})`);
+          if (r.data.status === "FUNDED") {
+            const legs = await getContractLedger(savedId).catch(() => null);
+            const vaultLeg = legs?.data.find((l) =>
+              l.description.includes("safeguarded vault"),
+            );
+            // Funded timestamp is not on the contract — recover elapsed
+            // time from the vault ledger leg so the ticker stays honest.
+            setFundedAt(
+              vaultLeg ? new Date(vaultLeg.created_at).getTime() : Date.now(),
+            );
+          } else if (r.data.status === "SETTLED") {
+            const legs = await getContractLedger(savedId).catch(() => null);
+            if (legs) setLedger(legs.data);
+          }
+        })
+        .catch(() => localStorage.removeItem("escrowContractId"));
+    }
     getReady()
       .then((r) => {
         setReady(r.data.ledger_balanced);
@@ -138,11 +162,13 @@ export default function App() {
   const refreshAccounts = useCallback(async () => {
     if (buyerId) {
       const accs = await getEntityAccounts(buyerId).then((r) => r.data).catch(() => []);
-      setBuyerAccount(accs.find((a) => a.currency === "USD") ?? accs[0] ?? null);
+      // Funding submits source_currency: "USD" — never substitute another
+      // currency's account or the deposit would draw from the wrong pot.
+      setBuyerAccount(accs.find((a) => a.currency === "USD") ?? null);
     }
     if (sellerId) {
       const accs = await getEntityAccounts(sellerId).then((r) => r.data).catch(() => []);
-      setSellerAccount(accs.find((a) => a.currency === "EUR") ?? accs[0] ?? null);
+      setSellerAccount(accs.find((a) => a.currency === "EUR") ?? null);
     }
   }, [buyerId, sellerId]);
 
@@ -152,7 +178,7 @@ export default function App() {
 
   // ---- float yield ticker (display-only counter, no state mutation) ----
   useEffect(() => {
-    if (!fundedAt || !escrowed) return;
+    if (!fundedAt || !escrowed || contract?.status !== "FUNDED") return;
     const tick = () => {
       const elapsed = (Date.now() - fundedAt) / 1000;
       setYieldAccrued((escrowed * ECB_BASE_RATE * elapsed) / (365 * 86400));
@@ -160,7 +186,7 @@ export default function App() {
     tick();
     const id = setInterval(tick, 100);
     return () => clearInterval(id);
-  }, [fundedAt, escrowed]);
+  }, [fundedAt, escrowed, contract?.status]);
 
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -168,6 +194,7 @@ export default function App() {
 
   // ---- actions ----
   const resetForNew = () => {
+    localStorage.removeItem("escrowContractId");
     setContract(null);
     setFundedAt(null);
     setYieldAccrued(0);
@@ -188,6 +215,7 @@ export default function App() {
         tracking_key: milestoneConf.key,
       });
       setContract(c.data);
+      localStorage.setItem("escrowContractId", c.data.id);
       addLog("ok", `contract ${c.data.id.slice(0, 8)} created — ${milestoneConf.type}:${milestoneConf.key}`);
 
       const funded = await fundContract(c.data.id, {
@@ -375,6 +403,11 @@ export default function App() {
             </div>
           </div>
 
+          {buyer && !buyerAccount && (
+            <p className="rounded-md bg-slate-100 p-2 text-xs text-wise-subtext">
+              Buyer has no USD account — funding unavailable.
+            </p>
+          )}
           {uboCollision && (
             <div
               data-testid="ubo-error"
@@ -388,7 +421,7 @@ export default function App() {
 
           <button
             data-testid="create-fund-btn"
-            disabled={busy || uboCollision || !buyerAccount || amountNum <= 0}
+            disabled={busy || uboCollision || !buyerAccount || amountNum <= 0 || !!contract}
             onClick={handleCreateAndFund}
             className="mt-1 flex items-center justify-center gap-2 rounded-md bg-wise-neon px-4 py-2.5 font-bold text-wise-forest transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-40"
           >
@@ -407,7 +440,13 @@ export default function App() {
           {contract && contract.status !== "INITIATED" ? (
             <>
               <div className="rounded-md border border-slate-200 p-3">
-                <Badge tone="vault">SAFEGUARDED UNDER EMI REGULATION (Segregated Vault)</Badge>
+                {contract.status === "FUNDED" ? (
+                  <Badge tone="vault">SAFEGUARDED UNDER EMI REGULATION (Segregated Vault)</Badge>
+                ) : contract.status === "SETTLED" ? (
+                  <Badge tone="settled">SETTLED — VAULT RELEASED (historical)</Badge>
+                ) : (
+                  <Badge tone="blocked">CANCELLED — VAULT LIQUIDATED (historical)</Badge>
+                )}
                 <dl className="mt-3 space-y-1 text-sm">
                   <div className="flex justify-between">
                     <dt className="text-wise-subtext">Contract</dt>
@@ -418,7 +457,9 @@ export default function App() {
                     <dd>{contract.locked_spot_rate} USD/EUR</dd>
                   </div>
                   <div className="flex justify-between">
-                    <dt className="text-wise-subtext">Locked balance</dt>
+                    <dt className="text-wise-subtext">
+                      {contract.status === "FUNDED" ? "Locked balance" : "Vaulted amount (historical)"}
+                    </dt>
                     <dd data-testid="vault-balance" className="font-bold">
                       {money(contract.escrowed_amount ?? "0", "EUR")}
                     </dd>
@@ -426,6 +467,7 @@ export default function App() {
                 </dl>
               </div>
 
+              {contract.status === "FUNDED" && (
               <div className="rounded-md bg-wise-forest p-3 text-wise-neon">
                 <p className="text-xs font-semibold uppercase tracking-wide opacity-80">
                   Accrued Float Yield (3.5% ECB base rate, captured by Wise)
@@ -434,6 +476,7 @@ export default function App() {
                   €{yieldAccrued.toFixed(6)}
                 </p>
               </div>
+              )}
 
               {contract.status === "FUNDED" && (
                 <button
