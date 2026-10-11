@@ -25,7 +25,21 @@ public interface AccountRepository {
         String currency
     );
 
+    /**
+     * Scalar id resolution for the lock-then-load pattern — does not
+     * populate the persistence context, so a subsequent FOR UPDATE load
+     * sees the post-lock row.
+     */
+    Optional<UUID> findAccountId(
+        UUID entityId,
+        AccountType type,
+        String currency
+    );
+
     Optional<Account> findSystemAccount(AccountType type, String currency);
+
+    /** Scalar id variant — see findAccountId. */
+    Optional<UUID> findSystemAccountId(AccountType type, String currency);
 
     /** Locked variant for system accounts taking part in ledger legs. */
     Optional<Account> findSystemAccountForUpdate(

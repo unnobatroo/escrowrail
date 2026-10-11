@@ -95,12 +95,15 @@ class EscrowApiIntegrationTest extends AbstractPostgresIT {
                 .andExpect(status().isOk())
                 .andReturn();
         JsonNode accounts = mapper.readTree(sellerAccounts.getResponse().getContentAsString());
+        int eurCount = 0;
         for (JsonNode a : accounts) {
             if ("EUR".equals(a.get("currency").asText())) {
+                eurCount++;
                 org.assertj.core.api.Assertions.assertThat(a.get("balance").decimalValue())
                         .isEqualByComparingTo("10992.00");
             }
         }
+        org.assertj.core.api.Assertions.assertThat(eurCount).isEqualTo(1);
     }
 
     @Test

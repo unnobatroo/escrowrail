@@ -45,6 +45,10 @@ dependencies {
     // JSR 354 money — no hand-rolled Money type.
     implementation 'org.javamoney:moneta:1.4.5'
 
+    // Versioned schema — Hibernate runs in `validate` mode, never `update`.
+    implementation 'org.flywaydb:flyway-core'
+    implementation 'org.flywaydb:flyway-database-postgresql'
+
     // OpenAPI docs.
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.9'
 

@@ -11,9 +11,13 @@ public record TaxId(String value) {
 
     public TaxId {
         Objects.requireNonNull(value, "tax id");
-        value = value.strip().toUpperCase();
+        // Format-insensitive equality: separators and case are ignored so
+        // "12-345" and "12345" are the same UBO.
+        value = value.strip()
+            .replaceAll("[\\s.\\-_/]", "")
+            .toUpperCase(java.util.Locale.ROOT);
         if (value.isEmpty() || value.length() > 64) {
-            throw new IllegalArgumentException("Invalid tax id: " + value);
+            throw new IllegalArgumentException("Invalid tax id");
         }
     }
 }

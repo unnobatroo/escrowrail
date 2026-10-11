@@ -50,9 +50,7 @@ public class EscrowContractRepositoryAdapter implements EscrowContractRepository
         return c;
     }
 
-    static EscrowContractEntity toEntity(EscrowContract c) {
-        EscrowContractEntity e = new EscrowContractEntity();
-        e.setId(c.id());
+    static void applyTo(EscrowContractEntity e, EscrowContract c) {
         e.setBuyerId(c.buyerId());
         e.setSellerId(c.sellerId());
         e.setBuyerAccountId(c.buyerAccountId());
@@ -74,6 +72,12 @@ public class EscrowContractRepositoryAdapter implements EscrowContractRepository
         e.setTrackingKey(c.trackingKey());
         e.setFundedAt(c.fundedAt());
         e.setCreatedAt(c.createdAt());
+    }
+
+    static EscrowContractEntity toEntity(EscrowContract c) {
+        EscrowContractEntity e = new EscrowContractEntity();
+        e.setId(c.id());
+        applyTo(e, c);
         return e;
     }
 
@@ -93,9 +97,10 @@ public class EscrowContractRepositoryAdapter implements EscrowContractRepository
     }
 
     @Override
-    public Optional<EscrowContract> findFundedByTracking(TrackingType trackingType, String trackingKey) {
-        return jpa.findFundedByTracking(trackingType, trackingKey)
-                .map(EscrowContractRepositoryAdapter::toDomain);
+    public List<EscrowContract> findFundedByTracking(TrackingType trackingType, String trackingKey) {
+        return jpa.findFundedByTracking(trackingType, trackingKey).stream()
+                .map(EscrowContractRepositoryAdapter::toDomain)
+                .toList();
     }
 
     @Override
@@ -114,6 +119,15 @@ public class EscrowContractRepositoryAdapter implements EscrowContractRepository
 
     @Override
     public EscrowContract save(EscrowContract contract) {
-        return toDomain(jpa.save(toEntity(contract)));
+        // Merge into the managed row when it exists instead of handing
+        // JPA a detached copy — a stale domain instance must not blindly
+        // overwrite columns a concurrent transaction just changed.
+        EscrowContractEntity entity = jpa.findById(contract.id())
+                .map(existing -> {
+                    applyTo(existing, contract);
+                    return existing;
+                })
+                .orElseGet(() -> toEntity(contract));
+        return toDomain(jpa.save(entity));
     }
 }

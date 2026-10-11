@@ -16,7 +16,8 @@ public interface EscrowContractRepository {
     /** Tenant-scoped read: only parties to the contract may see it. */
     Optional<EscrowContract> findByIdForEntity(UUID id, UUID entityId);
 
-    Optional<EscrowContract> findFundedByTracking(
+    /** All FUNDED contracts on this tracking event — each settles. */
+    List<EscrowContract> findFundedByTracking(
         TrackingType trackingType,
         String trackingKey
     );

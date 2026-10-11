@@ -62,6 +62,10 @@ public class EscrowContractEntity {
     @Column(nullable = false)
     private Instant createdAt;
 
+    /** Optimistic concurrency guard on top of the pessimistic row locks. */
+    @jakarta.persistence.Version
+    private long version;
+
     protected EscrowContractEntity() {}
 
     public UUID getId() { return id; }

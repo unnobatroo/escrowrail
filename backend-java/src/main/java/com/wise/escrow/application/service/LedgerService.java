@@ -72,6 +72,33 @@ public class LedgerService {
         );
     }
 
+    /**
+     * Locks the given account rows in ascending UUID order — one global
+     * acquisition order shared by every workflow so concurrent
+     * transactions cannot cycle-wait on shared system accounts. Returns
+     * the freshly loaded, lock-held accounts keyed by id.
+     */
+    @Transactional(propagation = Propagation.REQUIRED)
+    public java.util.Map<UUID, com.wise.escrow.domain.model.Account> lockInOrder(
+        java.util.Collection<UUID> accountIds
+    ) {
+        java.util.Map<UUID, com.wise.escrow.domain.model.Account> locked =
+            new java.util.HashMap<>();
+        accountIds
+            .stream()
+            .distinct()
+            .sorted()
+            .forEach(id ->
+                locked.put(
+                    id,
+                    accounts
+                        .findByIdForUpdate(id)
+                        .orElseThrow(() -> missing(id))
+                )
+            );
+        return locked;
+    }
+
     private static NotFoundException missing(UUID id) {
         return new NotFoundException("Account not found: " + id);
     }

@@ -94,13 +94,18 @@ public class WebhookController {
     }
 
     private WebhookResult settle(TrackingType type, String key) {
-        return contracts
-                .findFundedByTracking(type, key)
-                .map(c -> {
-                    EscrowContract settled = service.settleMilestone(c.id());
-                    return new WebhookResult("settled", settled.id());
-                })
-                .orElse(new WebhookResult("ignored", null));
+        // More than one FUNDED contract can share a tracking key (e.g.
+        // two invoices on the same PR); the event settles each of them.
+        java.util.List<EscrowContract> funded =
+                contracts.findFundedByTracking(type, key);
+        if (funded.isEmpty()) {
+            return new WebhookResult("ignored", null);
+        }
+        EscrowContract last = null;
+        for (EscrowContract c : funded) {
+            last = service.settleMilestone(c.id());
+        }
+        return new WebhookResult("settled", last.id());
     }
 
     private void verifyGithubSignature(byte[] body, String signature) {

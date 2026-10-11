@@ -58,7 +58,7 @@ class AppUserRepositoryAdapter implements AppUserRepository {
 
     @Override
     public Optional<AppUser> findByEmail(String email) {
-        return jpa.findByEmail(email.toLowerCase().strip()).map(AppUserRepositoryAdapter::toDomain);
+        return jpa.findByEmail(email.strip().toLowerCase(java.util.Locale.ROOT)).map(AppUserRepositoryAdapter::toDomain);
     }
 
     @Override

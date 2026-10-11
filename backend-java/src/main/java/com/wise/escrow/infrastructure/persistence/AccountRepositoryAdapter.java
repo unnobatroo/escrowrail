@@ -48,9 +48,19 @@ public class AccountRepositoryAdapter implements AccountRepository {
     }
 
     @Override
+    public Optional<UUID> findAccountId(UUID entityId, AccountType type, String currency) {
+        return jpa.findIdByEntityIdAndTypeAndCurrency(entityId, type, currency);
+    }
+
+    @Override
     public Optional<Account> findSystemAccount(AccountType type, String currency) {
         return jpa.findByEntityIdIsNullAndTypeAndCurrency(type, currency)
                 .map(AccountRepositoryAdapter::toDomain);
+    }
+
+    @Override
+    public Optional<UUID> findSystemAccountId(AccountType type, String currency) {
+        return jpa.findSystemAccountId(type, currency);
     }
 
     @Override

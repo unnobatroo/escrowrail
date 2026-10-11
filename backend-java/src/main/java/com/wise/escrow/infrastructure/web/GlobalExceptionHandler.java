@@ -37,6 +37,20 @@ public class GlobalExceptionHandler {
                 .body(new ErrorView("ERR_FORBIDDEN", "Access denied"));
     }
 
+    /** Framework-level client errors are 4xx, never 500. */
+    @ExceptionHandler({
+            org.springframework.http.converter.HttpMessageNotReadableException.class,
+            org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class,
+            org.springframework.web.bind.MissingServletRequestParameterException.class,
+            org.springframework.web.bind.MissingRequestHeaderException.class,
+            org.springframework.web.HttpRequestMethodNotSupportedException.class,
+            org.springframework.web.HttpMediaTypeNotSupportedException.class,
+            javax.money.UnknownCurrencyException.class})
+    ResponseEntity<ErrorView> badRequest(Exception e) {
+        return ResponseEntity.badRequest()
+                .body(new ErrorView("ERR_VALIDATION", "Malformed request"));
+    }
+
     @ExceptionHandler(Exception.class)
     ResponseEntity<ErrorView> unexpected(Exception e) {
         log.error("unhandled", e);

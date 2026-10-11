@@ -19,7 +19,7 @@ public record AppUser(
     ) {
         return new AppUser(
             UUID.randomUUID(),
-            email.toLowerCase().strip(),
+            email.strip().toLowerCase(java.util.Locale.ROOT),
             passwordHash,
             entityId,
             true,

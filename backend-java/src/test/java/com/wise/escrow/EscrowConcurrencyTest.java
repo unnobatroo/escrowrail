@@ -120,9 +120,10 @@ class EscrowConcurrencyTest extends AbstractPostgresIT {
         AtomicInteger funded = new AtomicInteger();
         AtomicInteger insufficient = new AtomicInteger();
         EscrowService.Quote q = escrow.quote("USD", "EUR", new BigDecimal("40000.00"));
+        List<java.util.concurrent.Future<?>> futures = new java.util.ArrayList<>();
         for (int i = 0; i < threads; i++) {
             EscrowContract c = cs[i];
-            pool.submit(() -> {
+            futures.add(pool.submit(() -> {
                 try {
                     go.await();
                     escrow.fundContract(c.id(), p.buyer(), MoneyAmounts.of(q.totalDeposit(), "USD"));
@@ -132,11 +133,16 @@ class EscrowConcurrencyTest extends AbstractPostgresIT {
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
-            });
+            }));
         }
         go.countDown();
         pool.shutdown();
         assertThat(pool.awaitTermination(30, TimeUnit.SECONDS)).isTrue();
+        // Unexpected worker failures must surface with their real cause.
+        for (var f : futures) {
+            org.assertj.core.api.Assertions.assertThatCode(f::get)
+                    .doesNotThrowAnyException();
+        }
         assertThat(funded.get()).isEqualTo(1);
         assertThat(insufficient.get()).isEqualTo(threads - 1);
 

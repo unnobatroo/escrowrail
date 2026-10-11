@@ -1,7 +1,9 @@
 spring:
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      # Flyway applies V1__init.sql on each fresh container; validate
+      # proves the entities and the migration never drift apart.
+      ddl-auto: validate
 
 wise:
   jwt:

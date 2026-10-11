@@ -12,6 +12,7 @@ import com.wise.escrow.domain.repository.AccountRepository;
 import com.wise.escrow.domain.repository.AppUserRepository;
 import com.wise.escrow.domain.repository.OrganizationRepository;
 import java.math.BigDecimal;
+import java.util.UUID;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -62,7 +63,7 @@ public class AuthService {
         String uboTaxId,
         String country
     ) {
-        String normalized = email.toLowerCase().strip();
+        String normalized = email.strip().toLowerCase(java.util.Locale.ROOT);
         if (users.findByEmail(normalized).isPresent()) {
             throw new DuplicateEmailException("Email is already registered");
         }
@@ -77,36 +78,38 @@ public class AuthService {
                     org.id()
                 )
             );
-            for (var pair : new String[][] {
-                { "USD", "50000" },
-                { "EUR", "10000" },
-            }) {
-                String currency = pair[0];
-                Account account = accounts.save(
-                    Account.open(org.id(), AccountType.USER, currency)
-                );
-                Account clearing = accounts
-                    .findSystemAccountForUpdate(
-                        AccountType.WISE_CLEARING,
-                        currency
-                    )
-                    .orElseGet(() ->
-                        accounts.save(
-                            Account.open(
-                                null,
-                                AccountType.WISE_CLEARING,
-                                currency
-                            )
-                        )
-                    );
-                ledgerService.transfer(
-                    clearing.id(),
-                    account.id(),
-                    MoneyAmounts.of(new BigDecimal(pair[1]), currency),
-                    "Sandbox opening balance",
-                    null
-                );
-            }
+            Account usdAccount = accounts.save(
+                Account.open(org.id(), AccountType.USER, "USD")
+            );
+            Account eurAccount = accounts.save(
+                Account.open(org.id(), AccountType.USER, "EUR")
+            );
+            UUID clearingUsd = clearingAccountId("USD");
+            UUID clearingEur = clearingAccountId("EUR");
+            // One global lock order for every row this transaction
+            // touches (shared with escrow workflows via LedgerService).
+            ledgerService.lockInOrder(
+                java.util.List.of(
+                    usdAccount.id(),
+                    eurAccount.id(),
+                    clearingUsd,
+                    clearingEur
+                )
+            );
+            ledgerService.transfer(
+                clearingUsd,
+                usdAccount.id(),
+                MoneyAmounts.of(new BigDecimal("50000"), "USD"),
+                "Sandbox opening balance",
+                null
+            );
+            ledgerService.transfer(
+                clearingEur,
+                eurAccount.id(),
+                MoneyAmounts.of(new BigDecimal("10000"), "EUR"),
+                "Sandbox opening balance",
+                null
+            );
             events.publishEvent(
                 new WelcomeEmailRequested(user.email(), org.legalName())
             );
@@ -116,9 +119,30 @@ public class AuthService {
         }
     }
 
+    /** Resolves (creating when missing) a clearing account's id. */
+    private UUID clearingAccountId(String currency) {
+        return accounts
+            .findSystemAccountId(AccountType.WISE_CLEARING, currency)
+            .orElseGet(() -> {
+                try {
+                    return accounts
+                        .save(Account.open(null, AccountType.WISE_CLEARING, currency))
+                        .id();
+                } catch (DataIntegrityViolationException e) {
+                    return accounts
+                        .findSystemAccountId(AccountType.WISE_CLEARING, currency)
+                        .orElseThrow(() ->
+                            new IllegalStateException(
+                                "Clearing account missing for " + currency
+                            )
+                        );
+                }
+            });
+    }
+
     public AppUser authenticate(String email, String password) {
         AppUser user = users
-            .findByEmail(email.toLowerCase().strip())
+            .findByEmail(email.strip().toLowerCase(java.util.Locale.ROOT))
             .orElseThrow(() ->
                 new UnauthorizedException("Invalid email or password")
             );

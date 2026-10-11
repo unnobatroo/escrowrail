@@ -113,7 +113,7 @@ public class EscrowService {
         UUID requesterEntityId
     ) {
         return users
-            .findByEmail(email)
+            .findByEmail(email.strip().toLowerCase(java.util.Locale.ROOT))
             .flatMap(u -> organizations.findById(u.entityId()))
             .map(org ->
                 new Counterparty(
@@ -169,6 +169,9 @@ public class EscrowService {
                 "Buyer and seller share UBO tax id " + buyer.uboTaxId().value()
             );
         }
+        // Fail fast on a pair the FX provider cannot quote — otherwise the
+        // buyer is left with a contract that can never be funded.
+        fx.getRate(sourceCurrency, targetAmount.getCurrency().getCurrencyCode());
         return contracts.save(
             EscrowContract.create(
                 buyerEntityId,
@@ -220,8 +223,8 @@ public class EscrowService {
             );
         }
 
-        Account buyerAccount = accounts
-            .findByEntityIdAndTypeAndCurrencyForUpdate(
+        UUID buyerAccountId = accounts
+            .findAccountId(
                 actorEntityId,
                 AccountType.USER,
                 contract.sourceCurrency()
@@ -229,14 +232,28 @@ public class EscrowService {
             .orElseThrow(() ->
                 new NotFoundException("Funding account not found")
             );
-        Account clearingSource = systemAccount(
+        UUID clearingSourceId = systemAccountId(
             AccountType.WISE_CLEARING,
             contract.sourceCurrency()
         );
-        Account feeAccount = systemAccount(
+        UUID clearingTargetId = systemAccountId(
+            AccountType.WISE_CLEARING,
+            contract.targetCurrency()
+        );
+        UUID feeAccountId = systemAccountId(
             AccountType.WISE_FEE,
             contract.sourceCurrency()
         );
+        // Lock every account row this transaction touches in one global
+        // order (UUID sort, matching LedgerService). fund() would
+        // otherwise hold source-clearing while refund() holds
+        // target-clearing — a classic lock-ordering deadlock.
+        var locked = lockAll(
+            List.of(buyerAccountId, clearingSourceId, clearingTargetId, feeAccountId)
+        );
+        Account buyerAccount = locked.get(buyerAccountId);
+        Account clearingSource = locked.get(clearingSourceId);
+        Account feeAccount = locked.get(feeAccountId);
 
         BigDecimal depositValue = deposit
             .getNumber()
@@ -301,12 +318,8 @@ public class EscrowService {
                 contract.targetCurrency()
             )
         );
-        Account clearingTarget = systemAccount(
-            AccountType.WISE_CLEARING,
-            contract.targetCurrency()
-        );
         ledgerService.transfer(
-            clearingTarget.id(),
+            clearingTargetId,
             vault.id(),
             MoneyAmounts.of(converted, contract.targetCurrency()),
             "Escrow vault funding",
@@ -353,9 +366,8 @@ public class EscrowService {
             );
         }
 
-        Account vault = lockedAccount(contract.vaultAccountId());
-        Account sellerAccount = accounts
-            .findByEntityIdAndTypeAndCurrencyForUpdate(
+        UUID sellerAccountId = accounts
+            .findAccountId(
                 contract.sellerId(),
                 AccountType.USER,
                 contract.targetCurrency()
@@ -363,10 +375,16 @@ public class EscrowService {
             .orElseThrow(() ->
                 new NotFoundException("Seller account not found")
             );
-        Account feeAccount = systemAccount(
+        UUID feeAccountId = systemAccountId(
             AccountType.WISE_FEE,
             contract.targetCurrency()
         );
+        var locked = lockAll(
+            List.of(contract.vaultAccountId(), sellerAccountId, feeAccountId)
+        );
+        Account vault = locked.get(contract.vaultAccountId());
+        Account sellerAccount = locked.get(sellerAccountId);
+        Account feeAccount = locked.get(feeAccountId);
 
         BigDecimal escrowed = contract
             .escrowedAmount()
@@ -445,16 +463,26 @@ public class EscrowService {
     }
 
     private void refund(EscrowContract contract) {
-        Account vault = lockedAccount(contract.vaultAccountId());
-        Account clearingTarget = systemAccount(
+        UUID clearingTargetId = systemAccountId(
             AccountType.WISE_CLEARING,
             contract.targetCurrency()
         );
-        Account clearingSource = systemAccount(
+        UUID clearingSourceId = systemAccountId(
             AccountType.WISE_CLEARING,
             contract.sourceCurrency()
         );
-        Account buyerAccount = lockedAccount(contract.buyerAccountId());
+        var locked = lockAll(
+            List.of(
+                contract.vaultAccountId(),
+                contract.buyerAccountId(),
+                clearingTargetId,
+                clearingSourceId
+            )
+        );
+        Account vault = locked.get(contract.vaultAccountId());
+        Account clearingTarget = locked.get(clearingTargetId);
+        Account clearingSource = locked.get(clearingSourceId);
+        Account buyerAccount = locked.get(contract.buyerAccountId());
 
         BigDecimal escrowed = contract
             .escrowedAmount()
@@ -555,24 +583,33 @@ public class EscrowService {
 
     // ---------- helpers ----------
 
-    private Account systemAccount(AccountType type, String currency) {
+    /**
+     * Resolves (creating when missing) a system account's id without
+     * taking its row lock. Callers then lock it via lockAll in the
+     * transaction's global order.
+     */
+    private UUID systemAccountId(AccountType type, String currency) {
         return accounts
-            .findSystemAccountForUpdate(type, currency)
+            .findSystemAccountId(type, currency)
             .orElseGet(() -> {
-                Account created = accounts.save(
-                    Account.open(null, type, currency)
-                );
-                return accounts
-                    .findSystemAccountForUpdate(type, currency)
-                    .orElse(created);
+                try {
+                    return accounts
+                        .save(Account.open(null, type, currency))
+                        .id();
+                } catch (org.springframework.dao.DataIntegrityViolationException e) {
+                    // Another transaction created it first.
+                    return accounts
+                        .findSystemAccountId(type, currency)
+                        .orElseThrow(() ->
+                            new IllegalStateException(
+                                "System account missing: " + type + "/" + currency
+                            )
+                        );
+                }
             });
     }
 
-    private Account lockedAccount(UUID id) {
-        return accounts
-            .findByIdForUpdate(id)
-            .orElseThrow(() ->
-                new NotFoundException("Account not found: " + id)
-            );
+    private java.util.Map<UUID, Account> lockAll(List<UUID> ids) {
+        return ledgerService.lockInOrder(ids);
     }
 }

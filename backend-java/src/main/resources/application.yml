@@ -3,20 +3,23 @@ spring:
     name: wise-escrow-java
   datasource:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/wise_escrow}
-    username: ${DATABASE_USER:wise}
-    password: ${DATABASE_PASSWORD:wise}
+    username: ${DATABASE_USER}
+    password: ${DATABASE_PASSWORD}
     hikari:
       maximum-pool-size: 20
       minimum-idle: 5
       connection-test-query: SELECT 1
   jpa:
     hibernate:
-      ddl-auto: update
+      # Schema is Flyway-owned (db/migration) — Hibernate only verifies
+      # the entities match. Never `update` on a funds ledger.
+      ddl-auto: validate
     open-in-view: false
   modulith:
     events:
       jdbc-schema-initialization:
-        enabled: true
+        # event_publication DDL lives in V1__init.sql like everything else.
+        enabled: false
 
 server:
   port: ${PORT:8080}

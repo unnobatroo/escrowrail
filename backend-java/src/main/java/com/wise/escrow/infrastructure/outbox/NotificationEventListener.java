@@ -44,11 +44,17 @@ public class NotificationEventListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     void on(CounterpartyInvited e) {
         log.info("notification counterparty_invited email={} inviter={}",
-                e.email(), e.inviterLegalName());
+                mask(e.email()), e.inviterLegalName());
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     void on(WelcomeEmailRequested e) {
-        log.info("notification welcome_email email={} entity={}", e.email(), e.legalName());
+        log.info("notification welcome_email email={} entity={}", mask(e.email()), e.legalName());
+    }
+
+    /** Emails are PII — keep only the domain in logs. */
+    private static String mask(String email) {
+        int at = email.indexOf('@');
+        return at < 0 ? "***" : "***@" + email.substring(at + 1);
     }
 }
