@@ -56,9 +56,12 @@ public class IdempotencyFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
+        // Auth endpoints are excluded: their 2xx bodies carry bearer
+        // tokens that must never be persisted as plaintext replay copies.
         return (
             !"POST".equalsIgnoreCase(request.getMethod()) ||
-            request.getRequestURI().startsWith("/webhooks/")
+            request.getRequestURI().startsWith("/webhooks/") ||
+            request.getRequestURI().startsWith("/api/v1/auth/")
         );
     }
 
