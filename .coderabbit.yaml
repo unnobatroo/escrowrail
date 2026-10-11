@@ -11,15 +11,27 @@ reviews:
   path_instructions:
     - path: "app/models/**"
       instructions: |
-        Verify that no monetary attributes use float or standard integer division.
-        Amounts and rates must strictly use Decimal or exact database numeric types.
+        REJECT any `float` type used for monetary attributes, balances, or
+        FX rates — everything must be `Decimal` (Numeric(20,2) for money,
+        Numeric(20,8) for rates). REJECT unconstrained string fields that
+        could carry monetary values. Integer division on money is forbidden.
     - path: "app/services/**"
       instructions: |
         Strictly verify financial invariants:
-        1. All balance updates must execute through double-entry legs (debit == credit).
+        1. All balance updates must execute through double-entry legs
+           (debit == credit) inside LedgerService — no direct balance writes.
         2. Cross-currency transfers must route through WISE_CLEARING_ACCOUNT.
-        3. UBO circular ownership checks must never be bypassed.
-        4. No funds can move to SETTLED without third-party webhook verification.
+        3. UBO circular ownership checks (HTTP 403) must never be bypassed.
+        4. No funds can move to SETTLED without third-party webhook
+           verification — flag any manual/admin settle path.
+        5. Mutating endpoints must be covered by the idempotency engine —
+           flag any ledger mutation reachable outside the dedup/claim path.
+        6. Multi-leg operations (fund/settle/cancel) must run inside a
+           single atomic transaction — flag partial-commit sequences.
     - path: "tests/**"
       instructions: |
-        Ensure tests do not use hardcoded mock returns that bypass state machine validation.
+        FLAG any use of time.sleep or timing-based synchronization — tests
+        must be deterministic. FLAG brittle mocks that hardcode returns in
+        ways that bypass state-machine or invariant validation. Ensure tests
+        do not stub out the ledger or state transitions to make assertions
+        pass artificially.

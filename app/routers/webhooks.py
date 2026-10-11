@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from app.config import settings
 from app.dependencies import get_escrow_repo, get_escrow_service
 from app.exceptions import WebhookValidationError
+from app.middleware.metrics import CONTRACTS_SETTLED
 from app.models.escrow import TrackingType
 from app.repositories.escrow_repository import EscrowRepository
 from app.services.escrow_service import EscrowService
@@ -73,6 +74,7 @@ async def github_webhook(
     if contract is None:
         return WebhookResult(status="ignored")
     settled = service.settle_milestone(contract.id)
+    CONTRACTS_SETTLED.inc()
     return WebhookResult(status="settled", contract_id=settled.id)
 
 
