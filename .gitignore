@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+*.db
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.agent-vault/
+.codex-vault/
