@@ -1,7 +1,7 @@
 PYTHON ?= .venv/bin/python
 PIP ?= .venv/bin/pip
 
-.PHONY: install lint typecheck test test-invariants test-concurrency verify-pr check smoke-test seed run security coverage test-mutation frontend-install frontend-dev frontend-test
+.PHONY: install lint typecheck test test-invariants test-concurrency verify-pr check smoke-test seed run security coverage test-mutation frontend-install frontend-dev frontend-test java-build java-test java-run
 
 install:
 	$(PIP) install -e ".[dev,test]"
@@ -43,6 +43,18 @@ seed:
 
 run:
 	.venv/bin/uvicorn app.main:app --reload
+
+# ---- Java backend (backend-java/) ----
+# Isolated Spring Boot port; the Python service remains the fallback.
+
+java-build:
+	cd backend-java && ./gradlew build -x test
+
+java-test:
+	cd backend-java && ./gradlew clean test
+
+java-run:
+	cd backend-java && ./gradlew bootRun
 
 frontend-install:
 	cd frontend && npm install && npx playwright install chromium

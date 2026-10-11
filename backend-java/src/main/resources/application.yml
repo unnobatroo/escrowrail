@@ -1,0 +1,48 @@
+spring:
+  application:
+    name: wise-escrow-java
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/wise_escrow}
+    username: ${DATABASE_USER}
+    password: ${DATABASE_PASSWORD}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-test-query: SELECT 1
+  jpa:
+    hibernate:
+      # Schema is Flyway-owned (db/migration) — Hibernate only verifies
+      # the entities match. Never `update` on a funds ledger.
+      ddl-auto: validate
+    open-in-view: false
+  modulith:
+    events:
+      jdbc-schema-initialization:
+        # event_publication DDL lives in V1__init.sql like everything else.
+        enabled: false
+
+server:
+  port: ${PORT:8080}
+
+wise:
+  jwt:
+    # HS256 shared secret, >= 32 bytes. No default — the app refuses to
+    # boot without JWT_SECRET in the environment.
+    secret: ${JWT_SECRET:}
+    expire-minutes: ${JWT_EXPIRE_MINUTES:120}
+  webhooks:
+    # Settlement webhooks release real funds — a blank secret DISABLES the
+    # endpoint (calls are rejected), so any environment that accepts
+    # webhooks must set these.
+    github-secret: ${WISE_GITHUB_WEBHOOK_SECRET:}
+    logistics-secret: ${WISE_LOGISTICS_WEBHOOK_SECRET:}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics
