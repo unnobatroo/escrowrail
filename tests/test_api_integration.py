@@ -16,6 +16,7 @@ from httpx import Response
 from sqlmodel import Session, select
 from starlette.responses import JSONResponse
 
+from app.config import settings
 from app.exceptions import UnsupportedCurrencyPairError
 from app.main import app
 from app.middleware.idempotency import CLAIM_LEASE_SECONDS, drain_pending
@@ -205,6 +206,42 @@ def test_dhl_in_transit_ignored(client: TestClient, session: Session) -> None:
         client.get(f"/api/v1/escrow/{contract_id}", headers=_bearer(buyer)).json()["status"]
         == "FUNDED"
     )
+
+
+def test_logistics_webhook_requires_secret_when_configured(client: TestClient) -> None:
+    """With WISE_LOGISTICS_WEBHOOK_SECRET set, forged carrier callbacks are
+    rejected; unset (SQLite dev) the check is skipped."""
+    object.__setattr__(settings, "logistics_webhook_secret", "carrier-secret")
+    try:
+        # Distinct tracking keys per request — identical bodies would hit
+        # the idempotency replay cache.
+        delivered = {
+            "carrier": "DHL",
+            "status": "DELIVERED",
+        }
+        assert (
+            client.post(
+                "/webhooks/logistics", json={**delivered, "tracking_key": "T-1"}
+            ).status_code
+            == 400
+        )
+        assert (
+            client.post(
+                "/webhooks/logistics",
+                json={**delivered, "tracking_key": "T-2"},
+                headers={"X-Wise-Webhook-Secret": "wrong"},
+            ).status_code
+            == 400
+        )
+        ok = client.post(
+            "/webhooks/logistics",
+            json={**delivered, "tracking_key": "T-3"},
+            headers={"X-Wise-Webhook-Secret": "carrier-secret"},
+        )
+        assert ok.status_code == 200
+        assert ok.json()["status"] == "ignored"  # auth passed, no funded contract
+    finally:
+        object.__setattr__(settings, "logistics_webhook_secret", None)
 
 
 def test_wrong_carrier_rejected(client: TestClient) -> None:

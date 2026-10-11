@@ -62,8 +62,13 @@ def _migrate(eng: Engine) -> None:
     existing = {c["name"] for c in inspect(eng).get_columns("escrow_contracts")}
     if "funded_at" not in existing:
         col_type = DateTime().compile(dialect=eng.dialect)
+        # IF NOT EXISTS guards against replicas running this concurrently
+        # at boot on PostgreSQL; SQLite lacks the clause but is local-only.
+        guard = "" if eng.dialect.name == "sqlite" else "IF NOT EXISTS "
         with eng.begin() as conn:
-            conn.execute(text(f"ALTER TABLE escrow_contracts ADD COLUMN funded_at {col_type}"))
+            conn.execute(
+                text(f"ALTER TABLE escrow_contracts ADD COLUMN {guard}funded_at {col_type}")
+            )
 
 
 def get_session() -> Iterator[Session]:

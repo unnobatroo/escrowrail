@@ -11,7 +11,7 @@ import json
 import uuid
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Header, Request
 from pydantic import BaseModel
 
 from app.config import settings
@@ -83,13 +83,25 @@ async def github_webhook(
     return WebhookResult(status="settled", contract_id=settled.id)
 
 
+def _verify_logistics_secret(provided: str | None) -> None:
+    """Shared-secret gate for carrier callbacks. Unset = SQLite dev mode
+    (non-SQLite deployments refuse to boot without it — see Settings)."""
+    secret = settings.logistics_webhook_secret
+    if secret is None:
+        return
+    if not provided or not hmac.compare_digest(provided, secret):
+        raise WebhookValidationError("Invalid logistics webhook secret")
+
+
 @router.post("/logistics")
 def logistics_webhook(
     body: LogisticsWebhook,
     service: EscrowServiceDep,
     contracts: EscrowRepoDep,
     tasks: TaskQueueDep,
+    x_wise_webhook_secret: Annotated[str | None, Header()] = None,
 ) -> WebhookResult:
+    _verify_logistics_secret(x_wise_webhook_secret)
     if body.carrier != "DHL":
         raise WebhookValidationError(
             "Unsupported carrier",

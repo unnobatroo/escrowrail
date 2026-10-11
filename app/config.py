@@ -42,6 +42,9 @@ class Settings:
     github_webhook_secret: str | None = field(
         default_factory=lambda: _env("WISE_GITHUB_WEBHOOK_SECRET") or None
     )
+    logistics_webhook_secret: str | None = field(
+        default_factory=lambda: _env("WISE_LOGISTICS_WEBHOOK_SECRET") or None
+    )
     frankfurter_url: str = field(
         default_factory=lambda: _env("WISE_FRANKFURTER_URL", "https://api.frankfurter.dev/v1")
     )
@@ -63,6 +66,20 @@ class Settings:
             if not self.database_url.startswith("sqlite"):
                 raise RuntimeError("JWT_SECRET must be set for non-SQLite deployments")
             object.__setattr__(self, "jwt_secret", "dev-only-insecure-secret-change-me")
+        # Settlement webhooks release real funds: without shared secrets
+        # anyone can forge a milestone event. SQLite stays open for the
+        # dev "simulate" path and the local test suite.
+        if not self.database_url.startswith("sqlite"):
+            missing = [
+                name
+                for name, value in (
+                    ("WISE_GITHUB_WEBHOOK_SECRET", self.github_webhook_secret),
+                    ("WISE_LOGISTICS_WEBHOOK_SECRET", self.logistics_webhook_secret),
+                )
+                if not value
+            ]
+            if missing:
+                raise RuntimeError(f"{', '.join(missing)} must be set for non-SQLite deployments")
 
 
 settings = Settings()

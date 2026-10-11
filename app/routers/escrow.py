@@ -123,7 +123,9 @@ def quote(
     one = Decimal("1") - EscrowService.CONVERSION_FEE_RATE
     total = (target_amount / (one * rate)).quantize(CENT, ROUND_CEILING)
     fee = (total * EscrowService.CONVERSION_FEE_RATE).quantize(CENT)
-    if (total - fee) * rate < target_amount:
+    # Re-check after each cent: a half-cent boundary can push the rounded
+    # fee up a full cent, leaving the net still short of the target.
+    while ((total - fee) * rate).quantize(CENT) < target_amount:
         total += CENT
         fee = (total * EscrowService.CONVERSION_FEE_RATE).quantize(CENT)
     display = service.fx.get_rate(target_currency.upper(), source_currency.upper())

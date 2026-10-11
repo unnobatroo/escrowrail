@@ -20,9 +20,19 @@ export default function ContractDetail() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
 
   const reload = useCallback(() => {
-    escrowApi.get(id).then((r) => setContract(r.data)).catch(() => setContract(null));
+    escrowApi
+      .get(id)
+      .then((r) => {
+        setContract(r.data);
+        setLoadError("");
+      })
+      .catch((err) => {
+        setContract(null);
+        setLoadError(apiError(err).message ?? "Contract not found");
+      });
   }, [id]);
 
   useEffect(reload, [reload]);
@@ -110,7 +120,7 @@ export default function ContractDetail() {
   return (
     <Shell>
       {!contract ? (
-        <p className="text-[#5C685B]">Loading…</p>
+        <p className="text-[#5C685B]">{loadError || "Loading…"}</p>
       ) : (
         <>
           <div className="mb-4 flex items-center justify-between">
