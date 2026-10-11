@@ -1,7 +1,7 @@
 PYTHON ?= .venv/bin/python
 PIP ?= .venv/bin/pip
 
-.PHONY: install lint typecheck test test-invariants test-concurrency verify-pr check smoke-test seed run
+.PHONY: install lint typecheck test test-invariants test-concurrency verify-pr check smoke-test seed run security coverage test-mutation
 
 install:
 	$(PIP) install -e ".[dev,test]"
@@ -22,7 +22,16 @@ test-invariants:
 test-concurrency:
 	$(PYTHON) -m pytest -v --tb=short tests/test_concurrency_and_load.py tests/test_synthetic_traffic.py
 
-verify-pr: lint typecheck test test-invariants test-concurrency
+security:
+	.venv/bin/bandit -r app/ -ll -q
+
+coverage:
+	$(PYTHON) -m pytest --cov=app --cov-report=term-missing --cov-fail-under=90 -q
+
+test-mutation:
+	.venv/bin/mutmut run || true
+
+verify-pr: lint typecheck security test test-invariants test-concurrency
 
 check: verify-pr
 

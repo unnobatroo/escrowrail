@@ -277,6 +277,126 @@ def test_concurrent_balance_depletion_race() -> None:
             assert statuses.count(ContractStatus.INITIATED) == 1
 
 
+def test_concurrent_settle_vs_cancel_race() -> None:
+    """Parallel settle-webhook and cancel requests on the same funded
+    contract: exactly one terminal transition wins, the ledger shows
+    release XOR refund legs — never both."""
+    with file_engine() as engine, wired_app(engine):
+        contract_id, _, seller_id, _ = _seed_funded_contract(engine, Decimal("10050.25"))
+        payload = {
+            "action": "closed",
+            "pull_request": {"merged": True, "html_url": PR_URL},
+        }
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            futures = [pool.submit(_post, "/webhooks/github", payload) for _ in range(4)] + [
+                pool.submit(_post, f"/contracts/{contract_id}/cancel", {}) for _ in range(4)
+            ]
+            responses = [f.result() for f in futures]
+        drain_pending()
+
+        # every response is either a valid outcome or a typed domain error
+        for r in responses:
+            if r.status_code >= 400:
+                assert r.json()["error_code"].startswith("ERR_")
+
+        with Session(engine) as session:
+            contract = session.get(EscrowContract, contract_id)
+            assert contract is not None
+            legs = session.exec(
+                select(LedgerTransaction).where(LedgerTransaction.contract_id == contract_id)
+            ).all()
+            releases = [tx for tx in legs if "release to seller" in tx.description]
+            refunds = [tx for tx in legs if "liquidation" in tx.description]
+            # exactly one terminal outcome — never both paths applied
+            assert bool(releases) != bool(refunds)
+            if contract.status == ContractStatus.SETTLED:
+                assert len(releases) == 1
+                seller_acc = session.exec(
+                    select(Account).where(
+                        Account.entity_id == seller_id,
+                        Account.account_type == AccountType.USER_ACCOUNT,
+                    )
+                ).one()
+                assert seller_acc.balance == Decimal("9920.00")
+            else:
+                assert contract.status == ContractStatus.CANCELLED
+                assert len(refunds) == 1
+
+
+def test_idempotency_key_header_dedup() -> None:
+    """X-Idempotency-Key on a non-webhook POST dedupes re-execution:
+    a second fund call with the same key replays the first response
+    instead of failing on the state machine."""
+    with file_engine() as engine, wired_app(engine):
+        with Session(engine) as session:
+            entities = EntityRepository(session)
+            accounts = AccountRepository(session)
+            buyer = entities.create(Entity(legal_name="B", ubo_tax_id="U-B", country="US"))
+            seller = entities.create(Entity(legal_name="S", ubo_tax_id="U-S", country="DE"))
+            buyer_acc = accounts.create(
+                Account(
+                    entity_id=buyer.id,
+                    account_type=AccountType.USER_ACCOUNT,
+                    currency="USD",
+                )
+            )
+            clearing = accounts.get_or_create_system_account(
+                AccountType.WISE_CLEARING_ACCOUNT, "USD"
+            )
+            session.commit()
+            LedgerService(session, accounts).record_transfer(
+                clearing.id, buyer_acc.id, Decimal("20000"), "USD", "seed"
+            )
+            service = EscrowService(
+                session,
+                entities,
+                accounts,
+                EscrowRepository(session),
+                LedgerService(session, accounts),
+                ParityFX(),
+            )
+            contract = service.create_contract(
+                buyer.id,
+                seller.id,
+                "EUR",
+                Decimal("5000"),
+                "USD",
+                TrackingType.GITHUB_PR,
+                "key-dedup",
+            )
+            contract_id = contract.id
+            account_id = buyer_acc.id
+
+        def fund() -> Response:
+            with TestClient(app) as client:
+                response: Response = client.post(
+                    f"/contracts/{contract_id}/fund",
+                    json={
+                        "account_id": str(account_id),
+                        "deposit_amount": "5100",
+                    },
+                    headers={"X-Idempotency-Key": "fund-key-1"},
+                )
+                return response
+
+        r1 = fund()
+        drain_pending()
+        r2 = fund()
+        assert r1.status_code == 200
+        assert r1.json()["status"] == "FUNDED"
+        # second identical-key call replays instead of 409ing
+        assert r2.status_code == 200
+        assert r2.headers.get("x-idempotent-replay") == "1"
+        assert r2.json()["status"] == "FUNDED"
+
+        with Session(engine) as session:
+            legs = session.exec(
+                select(LedgerTransaction).where(LedgerTransaction.contract_id == contract_id)
+            ).all()
+            fee_legs = [t for t in legs if "conversion fee" in t.description]
+            assert len(fee_legs) == 1, "funding ran twice"
+
+
 def test_webhook_replay_protection_old_timestamp() -> None:
     """Deliveries carrying timestamps older than 300s are rejected."""
     with file_engine() as engine, wired_app(engine):

@@ -265,3 +265,45 @@ def test_fx_unsupported_pair_raises() -> None:
 
 def test_health(client: TestClient) -> None:
     assert client.get("/health").json() == {"status": "ok"}
+
+
+def test_health_probes(client: TestClient) -> None:
+    assert client.get("/health/live").json() == {"status": "alive"}
+    ready = client.get("/health/ready").json()
+    assert ready["status"] == "ready"
+    assert ready["ledger_balanced"] is True
+    assert ready["discrepancy_cents"] == 0
+
+
+def test_metrics_endpoint(client: TestClient, session: Session) -> None:
+    buyer_id, seller_id, buyer_usd, _ = _setup_entities(client)
+    contract_id = _create_contract(client, buyer_id, seller_id)
+    _fund(client, contract_id, buyer_usd)
+    client.post(
+        "/webhooks/github",
+        json={
+            "action": "closed",
+            "pull_request": {"merged": True, "html_url": PR_URL},
+        },
+    )
+    body = client.get("/metrics").text
+    assert "escrow_contracts_created_total" in body
+    assert "escrow_contracts_settled_total" in body
+    assert "ledger_invariant_discrepancy_cents 0" in body
+    assert "http_request_duration_seconds" in body
+
+
+def test_idempotent_webhook_replay(client: TestClient, session: Session) -> None:
+    buyer_id, seller_id, buyer_usd, _ = _setup_entities(client)
+    contract_id = _create_contract(client, buyer_id, seller_id)
+    _fund(client, contract_id, buyer_usd)
+    payload = {
+        "action": "closed",
+        "pull_request": {"merged": True, "html_url": PR_URL},
+    }
+    r1 = client.post("/webhooks/github", json=payload)
+    r2 = client.post("/webhooks/github", json=payload)
+    assert r1.status_code == 200 and r1.json()["status"] == "settled"
+    assert r2.status_code == 200
+    assert r2.headers.get("x-idempotent-replay") == "1"
+    assert r2.json() == r1.json()
