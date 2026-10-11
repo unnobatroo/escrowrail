@@ -184,14 +184,15 @@ class EscrowService:
             AccountType.SAFEGUARDED_ESCROW_VAULT, target
         )
         cid = contract.id
-        self.ledger.record_transfer(
-            account.id,
-            fee_account.id,
-            fee,
-            source,
-            "0.5% upfront conversion fee",
-            contract_id=cid,
-        )
+        if fee > 0:
+            self.ledger.record_transfer(
+                account.id,
+                fee_account.id,
+                fee,
+                source,
+                "0.5% upfront conversion fee",
+                contract_id=cid,
+            )
         self.ledger.record_transfer(
             account.id,
             clearing_source.id,
@@ -211,6 +212,7 @@ class EscrowService:
 
         contract.deposit_amount = deposit_amount
         contract.locked_spot_rate = rate
+        contract.escrowed_amount = converted
         contract.buyer_account_id = account.id
         contract.status = ContractStatus.FUNDED
         updated = self.contracts.update(contract)
@@ -251,14 +253,15 @@ class EscrowService:
             AccountType.ESCROWRAIL_FEE_ACCOUNT, target
         )
         cid = contract.id
-        self.ledger.record_transfer(
-            vault.id,
-            fee_account.id,
-            fee,
-            target,
-            "0.8% escrow software fee",
-            contract_id=cid,
-        )
+        if fee > 0:
+            self.ledger.record_transfer(
+                vault.id,
+                fee_account.id,
+                fee,
+                target,
+                "0.8% escrow software fee",
+                contract_id=cid,
+            )
         self.ledger.record_transfer(
             vault.id,
             seller_account.id,
@@ -319,14 +322,15 @@ class EscrowService:
             "Vault liquidation on cancellation",
             contract_id=cid,
         )
-        self.ledger.record_transfer(
-            clearing_source.id,
-            contract.buyer_account_id,
-            refund,
-            source,
-            "Refund to originating account at latest spot",
-            contract_id=cid,
-        )
+        if refund > 0:
+            self.ledger.record_transfer(
+                clearing_source.id,
+                contract.buyer_account_id,
+                refund,
+                source,
+                "Refund to originating account at latest spot",
+                contract_id=cid,
+            )
         contract.status = ContractStatus.CANCELLED
         updated = self.contracts.update(contract)
         logger.info(
@@ -367,13 +371,12 @@ class EscrowService:
     def _conversion_fee(self, deposit_amount: Decimal) -> Decimal:
         return (deposit_amount * self.CONVERSION_FEE_RATE).quantize(CENT)
 
-    def _escrowed_amount(self, contract: EscrowContract) -> Decimal:
-        """Recompute the vaulted amount deterministically from the stored
-        deposit and locked spot rate (identical math to fund_contract)."""
-        if contract.deposit_amount is None or contract.locked_spot_rate is None:
+    @staticmethod
+    def _escrowed_amount(contract: EscrowContract) -> Decimal:
+        """The vaulted target-currency amount recorded at funding."""
+        if contract.escrowed_amount is None:
             raise WiseEscrowException(
                 "Contract is not funded",
                 context={"contract_id": str(contract.id)},
             )
-        fee = self._conversion_fee(contract.deposit_amount)
-        return ((contract.deposit_amount - fee) * contract.locked_spot_rate).quantize(CENT)
+        return contract.escrowed_amount

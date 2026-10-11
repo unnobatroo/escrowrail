@@ -36,6 +36,9 @@ class EscrowContract(SQLModel, table=True):
     source_currency: str = Field(max_length=3)
     deposit_amount: Decimal | None = Field(default=None, sa_column=Column(MONEY))
     locked_spot_rate: Decimal | None = Field(default=None, sa_column=Column(RATE))
+    # Target-currency amount actually vaulted at funding time. Stored
+    # rather than recomputed: rate column precision would drift the math.
+    escrowed_amount: Decimal | None = Field(default=None, sa_column=Column(MONEY))
     status: ContractStatus = Field(default=ContractStatus.INITIATED)
     tracking_type: TrackingType
     tracking_key: str = Field(index=True)

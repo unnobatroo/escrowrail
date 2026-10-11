@@ -1,9 +1,32 @@
+# Virtual environments
 .venv/
+venv/
+
+# Python artifacts
 __pycache__/
 *.pyc
-*.db
+*.pyo
+*.egg-info/
+build/
+dist/
+
+# Tool caches & coverage
+.pytest_cache/
 .mypy_cache/
 .ruff_cache/
-.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+pytest-report.xml
+
+# Local databases
+*.db
+*.sqlite3
+
+# Environment & OS
+.env
+.DS_Store
+
+# Agent vaults (local state, not repo content)
 .agent-vault/
 .codex-vault/

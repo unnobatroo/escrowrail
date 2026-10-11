@@ -1,0 +1,28 @@
+PYTHON ?= .venv/bin/python
+PIP ?= .venv/bin/pip
+
+.PHONY: install lint typecheck test test-invariants check seed run
+
+install:
+	$(PIP) install -e ".[dev,test]"
+
+lint:
+	.venv/bin/ruff check .
+	.venv/bin/ruff format --check .
+
+typecheck:
+	.venv/bin/mypy --strict .
+
+test:
+	$(PYTHON) -m pytest -v --tb=short --ignore=tests/test_invariants.py
+
+test-invariants:
+	$(PYTHON) -m pytest -v --tb=short tests/test_invariants.py
+
+check: lint typecheck test test-invariants
+
+seed:
+	$(PYTHON) scripts/seed_demo_data.py
+
+run:
+	.venv/bin/uvicorn app.main:app --reload
