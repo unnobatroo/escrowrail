@@ -1,0 +1,195 @@
+package com.wise.escrow;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jayway.jsonpath.JsonPath;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+
+/**
+ * End-to-end lifecycle over HTTP: auth, UBO guardrail, fund, webhook
+ * settle (0.8% split), asymmetric cancel, and tenant isolation.
+ */
+@AutoConfigureMockMvc
+class EscrowApiIntegrationTest extends AbstractPostgresIT {
+
+    @Autowired MockMvc mvc;
+    @Autowired ObjectMapper mapper;
+
+    private String tokenOf(String email, String org, String ubo, String tag) throws Exception {
+        String body = mapper.writeValueAsString(java.util.Map.of(
+                "email", email + "-" + tag + "@t.dev",
+                "password", "pw123456",
+                "legalName", org,
+                "uboTaxId", ubo,
+                "country", "US"));
+        MvcResult res = mvc.perform(post("/api/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated())
+                .andReturn();
+        return JsonPath.read(res.getResponse().getContentAsString(), "$.accessToken");
+    }
+
+    private String createContract(String token, String sellerEmail, String key) throws Exception {
+        MvcResult res = mvc.perform(post("/api/v1/escrow")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                        {"counterpartyEmail":"%s","targetAmount":"1000.00",
+                         "trackingType":"GITHUB_PR","trackingKey":"%s"}
+                        """.formatted(sellerEmail, key)))
+                .andExpect(status().isCreated())
+                .andReturn();
+        return JsonPath.read(res.getResponse().getContentAsString(), "$.id");
+    }
+
+    @Test
+    void fullLifecycleSettlesWithCorrectSplit() throws Exception {
+        String tag = "lc1";
+        String buyerToken = tokenOf("buyer", "Buyer LC", "UB-LC-B", tag);
+        String sellerToken = tokenOf("seller", "Seller LC", "UB-LC-S", tag);
+
+        String contractId = createContract(buyerToken, "seller-lc1@t.dev", "pr-lc1");
+
+        // Quote → fund
+        MvcResult quoteRes = mvc.perform(get("/api/v1/escrow/quote")
+                        .param("targetAmount", "1000.00")
+                        .header("Authorization", "Bearer " + buyerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.wiseFee").exists())
+                .andExpect(jsonPath("$.customerSavings").exists())
+                .andReturn();
+        String total = JsonPath.read(quoteRes.getResponse().getContentAsString(), "$.totalDeposit").toString();
+
+        mvc.perform(post("/api/v1/escrow/" + contractId + "/fund")
+                        .header("Authorization", "Bearer " + buyerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"depositAmount\":\"" + total + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("FUNDED"))
+                .andExpect(jsonPath("$.escrowedAmount").value(1000.00));
+
+        // GitHub merge webhook settles
+        mvc.perform(post("/webhooks/github")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                        {"action":"closed","pull_request":{"merged":true,"html_url":"pr-lc1"}}
+                        """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("settled"));
+
+        // Seller EUR account holds 10000 sandbox + 992.00 payout.
+        MvcResult sellerAccounts = mvc.perform(get("/api/v1/accounts")
+                        .header("Authorization", "Bearer " + sellerToken))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode accounts = mapper.readTree(sellerAccounts.getResponse().getContentAsString());
+        for (JsonNode a : accounts) {
+            if ("EUR".equals(a.get("currency").asText())) {
+                org.assertj.core.api.Assertions.assertThat(a.get("balance").decimalValue())
+                        .isEqualByComparingTo("10992.00");
+            }
+        }
+    }
+
+    @Test
+    void uboCollisionRejectedWith403() throws Exception {
+        String tag = "ubo1";
+        String buyerToken = tokenOf("buyer", "Buyer", "SAME-UBO", tag);
+        tokenOf("alter", "Buyer Shell", "SAME-UBO", tag);
+
+        mvc.perform(post("/api/v1/escrow")
+                        .header("Authorization", "Bearer " + buyerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                        {"counterpartyEmail":"alter-ubo1@t.dev","targetAmount":"100",
+                         "trackingType":"GITHUB_PR","trackingKey":"k"}
+                        """))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("CIRCULAR_OWNERSHIP_DETECTED"));
+    }
+
+    @Test
+    void strangerCannotReadOrFund() throws Exception {
+        String tag = "ten1";
+        String buyerToken = tokenOf("buyer", "B", "UB-T1-B", tag);
+        String sellerToken = tokenOf("seller", "S", "UB-T1-S", tag);
+        String strangerToken = tokenOf("stranger", "X", "UB-T1-X", tag);
+        String contractId = createContract(buyerToken, "seller-ten1@t.dev", "pr-ten1");
+
+        mvc.perform(get("/api/v1/escrow/" + contractId)
+                        .header("Authorization", "Bearer " + strangerToken))
+                .andExpect(status().isNotFound());
+        mvc.perform(post("/api/v1/escrow/" + contractId + "/cancel")
+                        .header("Authorization", "Bearer " + strangerToken))
+                .andExpect(status().isNotFound());
+        // Seller is a party but not the buyer → 403 on writes.
+        mvc.perform(post("/api/v1/escrow/" + contractId + "/fund")
+                        .header("Authorization", "Bearer " + sellerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"depositAmount\":\"1100.00\"}"))
+                .andExpect(status().isForbidden());
+        mvc.perform(post("/api/v1/escrow/" + contractId + "/cancel")
+                        .header("Authorization", "Bearer " + sellerToken))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void fundedCancellationLiquidatesToUsd() throws Exception {
+        String tag = "cx1";
+        String buyerToken = tokenOf("buyer", "B", "UB-CX-B", tag);
+        tokenOf("seller", "S", "UB-CX-S", tag);
+        String contractId = createContract(buyerToken, "seller-cx1@t.dev", "pr-cx1");
+
+        MvcResult quoteRes = mvc.perform(get("/api/v1/escrow/quote")
+                        .param("targetAmount", "1000.00")
+                        .header("Authorization", "Bearer " + buyerToken))
+                .andReturn();
+        String total = JsonPath.read(quoteRes.getResponse().getContentAsString(), "$.totalDeposit").toString();
+        mvc.perform(post("/api/v1/escrow/" + contractId + "/fund")
+                        .header("Authorization", "Bearer " + buyerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"depositAmount\":\"" + total + "\"}"))
+                .andExpect(status().isOk());
+
+        mvc.perform(post("/api/v1/escrow/" + contractId + "/cancel")
+                        .header("Authorization", "Bearer " + buyerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CANCELLED"));
+
+        // Audit trail shows the liquidation legs.
+        mvc.perform(get("/api/v1/escrow/" + contractId + "/audit")
+                        .header("Authorization", "Bearer " + buyerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.description=='Vault liquidation')]").exists());
+    }
+
+    @Test
+    void unauthenticatedRejected() throws Exception {
+        mvc.perform(get("/api/v1/escrow")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/v1/accounts")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void inviteReturns202ForUnknownCounterparty() throws Exception {
+        String buyerToken = tokenOf("buyer", "B", "UB-IN-B", "in1");
+        mvc.perform(post("/api/v1/escrow")
+                        .header("Authorization", "Bearer " + buyerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                        {"counterpartyEmail":"ghost@nowhere.dev","targetAmount":"500",
+                         "trackingType":"SHIPPING_CARRIER","trackingKey":"DHL-1"}
+                        """))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.status").value("invited"));
+    }
+}

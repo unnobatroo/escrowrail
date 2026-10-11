@@ -1,0 +1,9 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+
+wise:
+  jwt:
+    secret: test-secret-test-secret-test-secret-32
+    expire-minutes: 60

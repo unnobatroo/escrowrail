@@ -1,0 +1,80 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.5.6'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.wise.escrow'
+version = '0.1.0'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+compileJava {
+    options.release = 21
+    options.compilerArgs += ['-parameters']
+}
+compileTestJava {
+    options.release = 21
+    options.compilerArgs += ['-parameters']
+}
+
+repositories {
+    mavenCentral()
+}
+
+ext {
+    modulithVersion = '1.4.2'
+    mapstructVersion = '1.6.3'
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+
+    // Transactional outbox via Spring Modulith event publication registry.
+    implementation "org.springframework.modulith:spring-modulith-starter-jpa:${modulithVersion}"
+    implementation "org.springframework.modulith:spring-modulith-events-api:${modulithVersion}"
+
+    // JSR 354 money — no hand-rolled Money type.
+    implementation 'org.javamoney:moneta:1.4.5'
+
+    // OpenAPI docs.
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.9'
+
+    // DTO mapping.
+    implementation "org.mapstruct:mapstruct:${mapstructVersion}"
+    annotationProcessor "org.mapstruct:mapstruct-processor:${mapstructVersion}"
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+
+    runtimeOnly 'org.postgresql:postgresql'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+    testImplementation 'org.springframework.security:spring-security-test'
+    testImplementation 'org.testcontainers:junit-jupiter'
+    testImplementation 'org.testcontainers:postgresql'
+    testImplementation 'net.jqwik:jqwik:1.9.3'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+    useJUnitPlatform()
+    // OrbStack (and plain Docker on Linux) expose the daemon on this
+    // socket; honor an explicit DOCKER_HOST if the operator set one.
+    environment 'DOCKER_HOST', System.getenv('DOCKER_HOST') ?: 'unix:///var/run/docker.sock'
+    environment 'DOCKER_API_VERSION', System.getenv('DOCKER_API_VERSION') ?: '1.44'
+    // docker-java's DefaultDockerClientConfig resolves api.version from
+    // system properties before env vars — pin it for Docker daemons that
+    // dropped API < 1.40 (OrbStack / Docker 29).
+    systemProperty 'api.version', System.getenv('DOCKER_API_VERSION') ?: '1.44'
+    testLogging {
+        events 'passed', 'failed', 'skipped'
+    }
+}

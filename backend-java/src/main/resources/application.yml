@@ -1,0 +1,44 @@
+spring:
+  application:
+    name: wise-escrow-java
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/wise_escrow}
+    username: ${DATABASE_USER:wise}
+    password: ${DATABASE_PASSWORD:wise}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-test-query: SELECT 1
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  modulith:
+    events:
+      jdbc-schema-initialization:
+        enabled: true
+
+server:
+  port: ${PORT:8080}
+
+wise:
+  jwt:
+    # HS256 shared secret. Required: >= 32 bytes. In production this MUST
+    # come from the environment — the default is dev-only.
+    secret: ${JWT_SECRET:dev-only-insecure-secret-change-me}
+    expire-minutes: ${JWT_EXPIRE_MINUTES:120}
+  webhooks:
+    # Settlement webhooks release real funds — set these in any real
+    # deployment. Blank means "no auth" (local dev only).
+    github-secret: ${WISE_GITHUB_WEBHOOK_SECRET:}
+    logistics-secret: ${WISE_LOGISTICS_WEBHOOK_SECRET:}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics
