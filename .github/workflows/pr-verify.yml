@@ -2,7 +2,7 @@ name: PR Verify
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, "feat/*"]
 
 jobs:
   quality-matrix:
