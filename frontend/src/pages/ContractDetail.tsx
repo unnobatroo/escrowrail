@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Landmark, ShieldCheck, Timer } from "lucide-react";
-import { api, apiError, escrowApi } from "../api";
+import { apiError, demoApi, escrowApi, isDemoMode } from "../api";
 import type { ContractView, LedgerEntry, Quote } from "../api";
 import Shell from "../components/Shell";
 import { money, yieldAccrued } from "../format";
@@ -83,18 +83,11 @@ export default function ContractDetail() {
     setNotice("");
     setError("");
     try {
-      const res =
-        contract.tracking_type === "GITHUB_PR"
-          ? await api.post("/webhooks/github", {
-              action: "closed",
-              pull_request: { merged: true, html_url: contract.tracking_key },
-            })
-          : await api.post("/webhooks/logistics", {
-              carrier: "DHL",
-              status: "DELIVERED",
-              tracking_key: contract.tracking_key,
-            });
-      setNotice(`Webhook: ${res.data.status}`);
+      // The demo gateway signs the milestone server-side and dispatches it
+      // through the real verification path — unsigned calls to /webhooks/*
+      // are correctly rejected.
+      const res = await demoApi.simulateWebhook(contract.id);
+      setNotice(`Webhook: ${res.data.status} (signature ${res.data.signature})`);
       reload();
     } catch (err) {
       setError(apiError(err).message ?? "Simulation failed");
@@ -258,10 +251,10 @@ export default function ContractDetail() {
                 <p className="mb-3 text-sm text-[#5C685B]">
                   Settlement releases automatically when the milestone verifies.
                 </p>
-                {import.meta.env.DEV && (
+                {isDemoMode() && (
                   <>
                     <p className="mb-3 text-sm text-[#5C685B]">
-                      Dev build — you can fire the milestone event directly:
+                      Demo mode — fire the milestone via the signed gateway:
                     </p>
                     <button
                       data-testid="simulate"

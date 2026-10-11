@@ -25,6 +25,7 @@ export default defineConfig({
         "until docker exec escrowrail-e2e-pg pg_isready -U escrowrail -d escrowrail_escrow >/dev/null 2>&1; do sleep 1; done; " +
         "cd ../backend-java && " +
         `PORT=${BACKEND_PORT} ` +
+        "SPRING_PROFILES_ACTIVE=test,demo " +
         `DATABASE_URL=jdbc:postgresql://localhost:${PG_PORT}/escrowrail_escrow ` +
         "DATABASE_USER=escrowrail DATABASE_PASSWORD=escrowrail " +
         "JWT_SECRET=e2e-secret-e2e-secret-e2e-secret-32 " +

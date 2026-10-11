@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { accountsApi, apiError, demoApi, escrowApi } from "../api";
+import { accountsApi, apiError, demoApi, escrowApi, isDemoMode } from "../api";
 import type { Account, ContractView } from "../api";
 import NewTradeModal from "../components/NewTradeModal";
 import LedgerActivityFeed from "../components/LedgerActivityFeed";
@@ -46,6 +46,7 @@ export default function Dashboard() {
 
   useEffect(reload, [refreshKey]);
   useEffect(() => {
+    if (!isDemoMode()) return;
     demoApi.config().then((r) => setDemoEnabled(r.data.enabled)).catch(() => {});
   }, []);
   useEffect(() => {
@@ -218,7 +219,9 @@ export default function Dashboard() {
       </div>
 
       <div className="mt-4 space-y-4">
-        <WebhookSimulatorCard contracts={contracts} onSettled={refresh} />
+        {isDemoMode() && demoEnabled && (
+          <WebhookSimulatorCard contracts={contracts} onSettled={refresh} />
+        )}
         <LedgerActivityFeed accounts={accounts} refreshKey={refreshKey} />
       </div>
 
