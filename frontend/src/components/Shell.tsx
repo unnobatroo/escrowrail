@@ -1,23 +1,32 @@
 import { useEffect, useState } from "react";
-import { LogOut, Plus, ShieldCheck, ArrowLeftRight } from "lucide-react";
+import { LogOut, Plus, Settings, ShieldCheck, ArrowLeftRight } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { accountsApi, demoApi, isDemoMode } from "../api";
 import type { Account, DemoConfig } from "../api";
 import { useAuth } from "../auth";
 import { money } from "../format";
+import ProfileSettingsModal from "./ProfileSettingsModal";
 
 export default function Shell({ children }: { children: React.ReactNode }) {
   const { user, login, logout } = useAuth();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [demo, setDemo] = useState<DemoConfig | null>(null);
   const [switching, setSwitching] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
+  const loadAccounts = () =>
     accountsApi
       .list()
       .then((r) => setAccounts(r.data))
       .catch(() => {});
+
+  useEffect(() => {
+    loadAccounts();
+    // Re-fetch when the session user changes (login, profile save) so the
+    // balance pills reflect onboarding deposits and settings top-ups.
+  }, [user]);
+  useEffect(() => {
     if (isDemoMode()) {
       demoApi
         .config()
@@ -51,7 +60,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     accounts.find((a) => a.currency === cur)?.balance ?? "0.00";
 
   return (
-    <div className="min-h-screen bg-[#F4F5F7]">
+    <div className="min-h-screen bg-[#F4F5F0]">
       <nav className="bg-[#163300] text-white">
         <div className="mx-auto flex max-w-6xl items-center gap-4 px-6 py-3">
           <Link to="/dashboard" className="flex items-center gap-2 font-semibold">
@@ -95,6 +104,15 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               <Plus size={16} /> New Escrow Trade
             </button>
             <button
+              data-testid="profile-settings"
+              onClick={() => setSettingsOpen(true)}
+              className="flex items-center justify-center rounded-full bg-white/10 p-1.5 text-white/80 hover:bg-white/20 hover:text-white"
+              title="Profile settings"
+              aria-label="Profile settings"
+            >
+              <Settings size={18} />
+            </button>
+            <button
               data-testid="logout"
               onClick={() => {
                 logout();
@@ -109,6 +127,14 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         </div>
       </nav>
       <main className="mx-auto max-w-6xl px-6 py-6">{children}</main>
+      {settingsOpen && (
+        <ProfileSettingsModal
+          onClose={() => {
+            setSettingsOpen(false);
+            loadAccounts();
+          }}
+        />
+      )}
     </div>
   );
 }

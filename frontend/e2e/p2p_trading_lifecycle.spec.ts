@@ -62,6 +62,11 @@ test("Complete P2P Trade: Buyer creates and funds -> Seller receives settlement"
   await expect(page.getByTestId("quote-total")).toContainText("USD");
   await page.getByTestId("create-trade").click();
 
+  // Wait for the create POST to land (onCreated navigates to the contract
+  // page) before navigating away — going straight to /dashboard can abort
+  // the in-flight request.
+  await expect(page).toHaveURL(/\/contracts\//);
+
   // Trade lands in the table as INITIATED.
   await page.goto("/dashboard");
   const row = page.locator('[data-testid^="trade-row-"]', {
@@ -75,6 +80,7 @@ test("Complete P2P Trade: Buyer creates and funds -> Seller receives settlement"
   await expect(page.getByTestId("trade-drawer")).toBeVisible();
   await expect(page.getByTestId("status-badge")).toHaveText("INITIATED");
   await page.getByTestId("fund").click();
+  await page.getByTestId("confirm-fund").click();
   await expect(page.getByTestId("status-badge")).toHaveText("FUNDED");
   await expect(page.getByTestId("yield-ticker")).toBeVisible();
   await page.getByTestId("drawer-close").click();

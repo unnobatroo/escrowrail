@@ -57,6 +57,7 @@ export interface UserProfile {
   is_active: boolean;
   email_verified: boolean;
   status: string;
+  onboarding_completed: boolean;
   created_at: string;
   entity: Entity;
 }
@@ -90,6 +91,10 @@ export interface ContractView {
   tracking_key: string;
   funded_at: string | null;
   created_at: string;
+  // Unbundled funding receipt — only present on the fund response.
+  gross_debited?: string | null;
+  escrowrail_conversion_fee?: string | null;
+  net_vaulted?: string | null;
 }
 
 export interface Quote {
@@ -187,15 +192,21 @@ export const escrowApi = {
   list: () => api.get<ContractView[]>("/api/v1/escrow"),
   get: (id: string) => api.get<ContractView>(`/api/v1/escrow/${id}`),
   audit: (id: string) => api.get<LedgerEntry[]>(`/api/v1/escrow/${id}/audit`),
-  quote: (amount: string) =>
+  quote: (amount: string, targetCurrency = "EUR", sourceCurrency = "USD") =>
     api.get<Quote>("/api/v1/escrow/quote", {
-      params: { target_amount: amount, target_currency: "EUR", source_currency: "USD" },
+      params: {
+        target_amount: amount,
+        target_currency: targetCurrency,
+        source_currency: sourceCurrency,
+      },
     }),
   counterparty: (email: string) =>
     api.get<Counterparty>("/api/v1/escrow/counterparty", { params: { email } }),
   create: (body: {
     counterparty_email: string;
     target_amount: string;
+    target_currency?: string;
+    source_currency?: string;
     tracking_type: TrackingType;
     tracking_key: string;
   }) => api.post<ContractView | { status: "invited" }>("/api/v1/escrow", body),
@@ -206,6 +217,20 @@ export const escrowApi = {
 
 export const accountsApi = {
   list: () => api.get<Account[]>("/api/v1/accounts"),
+};
+
+/** Platform-supported currencies — whatever the clearing rails carry. */
+export const currenciesApi = {
+  supported: () => api.get<{ currencies: string[] }>("/api/v1/currencies"),
+};
+
+/** Self-service profile + one-time onboarding deposits. */
+export const profileApi = {
+  update: (body: {
+    legal_entity_name?: string;
+    tax_id?: string;
+    initial_deposits?: Record<string, string>;
+  }) => api.put<UserProfile>("/api/v1/profile", body),
 };
 
 export const ledgerApi = {

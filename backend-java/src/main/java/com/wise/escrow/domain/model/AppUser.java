@@ -12,6 +12,7 @@ public record AppUser(
     boolean active,
     boolean emailVerified,
     UserStatus status,
+    boolean onboardingCompleted,
     Instant createdAt
 ) {
     /** Lifecycle gate — verification transitions PENDING -> ACTIVE. */
@@ -35,6 +36,7 @@ public record AppUser(
             true,
             false,
             UserStatus.PENDING_VERIFICATION,
+            false,
             Instant.now()
         );
     }
@@ -42,7 +44,16 @@ public record AppUser(
     /** Returns a copy marked verified and active. */
     public AppUser verified() {
         return new AppUser(
-            id, email, passwordHash, entityId, active, true, UserStatus.ACTIVE, createdAt
+            id, email, passwordHash, entityId, active, true, UserStatus.ACTIVE,
+            onboardingCompleted, createdAt
+        );
+    }
+
+    /** Returns a copy with the onboarding window closed. */
+    public AppUser onboarded() {
+        return new AppUser(
+            id, email, passwordHash, entityId, active, emailVerified, status,
+            true, createdAt
         );
     }
 }

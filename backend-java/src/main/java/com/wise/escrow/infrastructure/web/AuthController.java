@@ -102,6 +102,7 @@ public class AuthController {
                 user.active(),
                 user.emailVerified(),
                 user.status().name(),
+                user.onboardingCompleted(),
                 new EntityView(
                         org.id(), org.legalName(), org.uboTaxId().value(), org.country()),
                 user.createdAt());

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Landmark, ShieldCheck, Timer } from "lucide-react";
-import { apiError, demoApi, escrowApi, isDemoMode } from "../api";
+import { accountsApi, apiError, demoApi, escrowApi, isDemoMode } from "../api";
+import FundingConfirmSheet from "../components/FundingConfirmSheet";
 import type { ContractView, LedgerEntry, Quote } from "../api";
 import Shell from "../components/Shell";
 import { money, yieldAccrued } from "../format";
@@ -17,6 +18,8 @@ export default function ContractDetail() {
   const [now, setNow] = useState(() => Date.now());
   const [quote, setQuote] = useState<Quote | null>(null);
   const [showCancel, setShowCancel] = useState(false);
+  const [showFundSheet, setShowFundSheet] = useState(false);
+  const [sourceBalance, setSourceBalance] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -37,7 +40,10 @@ export default function ContractDetail() {
 
   useEffect(reload, [reload]);
   useEffect(() => {
-    escrowApi.audit(id).then((r) => setAudit(r.data)).catch(() => {});
+    escrowApi
+      .audit(id)
+      .then((r) => setAudit(r.data))
+      .catch(() => {});
   }, [id, contract?.status]);
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 100);
@@ -45,9 +51,25 @@ export default function ContractDetail() {
   }, []);
   useEffect(() => {
     if (contract?.status === "INITIATED") {
-      escrowApi.quote(contract.target_amount).then((r) => setQuote(r.data)).catch(() => {});
+      escrowApi
+        .quote(
+          contract.target_amount,
+          contract.target_currency,
+          contract.source_currency,
+        )
+        .then((r) => setQuote(r.data))
+        .catch(() => {});
+      accountsApi
+        .list()
+        .then((r) =>
+          setSourceBalance(
+            r.data.find((a) => a.currency === contract.source_currency)
+              ?.balance,
+          ),
+        )
+        .catch(() => {});
     }
-  }, [contract?.status, contract?.target_amount]);
+  }, [contract?.status, contract?.target_amount, contract?.target_currency, contract?.source_currency]);
 
   const fund = async () => {
     if (!quote) return;
@@ -56,6 +78,7 @@ export default function ContractDetail() {
     try {
       const r = await escrowApi.fund(id, quote.total_deposit);
       setContract(r.data);
+      setShowFundSheet(false);
     } catch (err) {
       setError(apiError(err).message ?? "Funding failed");
     } finally {
@@ -87,7 +110,9 @@ export default function ContractDetail() {
       // through the real verification path — unsigned calls to /webhooks/*
       // are correctly rejected.
       const res = await demoApi.simulateWebhook(contract.id);
-      setNotice(`Webhook: ${res.data.status} (signature ${res.data.signature})`);
+      setNotice(
+        `Webhook: ${res.data.status} (signature ${res.data.signature})`,
+      );
       reload();
     } catch (err) {
       setError(apiError(err).message ?? "Simulation failed");
@@ -124,9 +149,12 @@ export default function ContractDetail() {
               >
                 ← All trades
               </button>
-              <h1 className="text-xl font-bold text-[#0E150E]">
-                {money(contract.target_amount, contract.target_currency)} escrow ·{" "}
-                {contract.role === "buyer" ? contract.seller_name : contract.buyer_name}
+              <h1 className="text-xl font-bold text-[#1B1C1D]">
+                {money(contract.target_amount, contract.target_currency)} escrow
+                ·{" "}
+                {contract.role === "buyer"
+                  ? contract.seller_name
+                  : contract.buyer_name}
               </h1>
               <p className="font-mono text-xs text-[#5C685B]">{contract.id}</p>
             </div>
@@ -173,7 +201,7 @@ export default function ContractDetail() {
           {tab === "overview" ? (
             <div className="grid grid-cols-2 gap-4">
               <div className="rounded-xl border border-slate-200 bg-white p-5">
-                <h2 className="mb-3 font-semibold text-[#0E150E]">Contract</h2>
+                <h2 className="mb-3 font-semibold text-[#1B1C1D]">Contract</h2>
                 <dl className="space-y-2 text-sm">
                   <Row k="Milestone" v={contract.tracking_type} />
                   <Row k="Tracking key" v={contract.tracking_key} mono />
@@ -191,34 +219,48 @@ export default function ContractDetail() {
                     testId="vault-balance"
                     v={
                       contract.escrowed_amount
-                        ? money(contract.escrowed_amount, contract.target_currency)
+                        ? money(
+                            contract.escrowed_amount,
+                            contract.target_currency,
+                          )
                         : "—"
                     }
                   />
                 </dl>
 
-                {contract.role === "buyer" && contract.status === "INITIATED" && (
-                  <div className="mt-4">
-                    {quote && (
-                      <p className="mb-2 text-sm text-[#5C685B]">
-                        Deposit {money(quote.total_deposit, quote.source_currency)}{" "}
-                        (incl. {money(quote.escrowrail_fee, quote.source_currency)} FX fee)
-                      </p>
-                    )}
-                    <button
-                      data-testid="fund"
-                      onClick={fund}
-                      disabled={busy || !quote}
-                      className="w-full rounded-full bg-[#9FE870] py-2.5 font-semibold text-[#163300] hover:bg-[#8fd960] disabled:opacity-50"
-                    >
-                      Fund Escrow via USD Balance
-                    </button>
-                  </div>
-                )}
-                {contract.role === "seller" && contract.status === "INITIATED" &&
-                  badge("Awaiting Buyer Deposit", "bg-[#FFF3CD] text-[#7A5800]")}
-                {contract.status === "FUNDED" && contract.role === "seller" &&
-                  badge("Funds Safeguarded in EMI Vault", "bg-[#CFF4FC] text-[#084298]")}
+                {contract.role === "buyer" &&
+                  contract.status === "INITIATED" && (
+                    <div className="mt-4">
+                      {quote && (
+                        <p className="mb-2 text-sm text-[#5C685B]">
+                          Deposit{" "}
+                          {money(quote.total_deposit, quote.source_currency)}{" "}
+                          (incl. {money(quote.escrowrail_fee, quote.source_currency)}{" "}
+                          FX fee)
+                        </p>
+                      )}
+                      <button
+                        data-testid="fund"
+                        onClick={() => setShowFundSheet(true)}
+                        disabled={busy || !quote}
+                        className="w-full rounded-full bg-[#9FE870] py-2.5 font-semibold text-[#163300] hover:bg-[#8fd960] disabled:opacity-50"
+                      >
+                        Fund via {contract.source_currency} Balance
+                      </button>
+                    </div>
+                  )}
+                {contract.role === "seller" &&
+                  contract.status === "INITIATED" &&
+                  badge(
+                    "Awaiting Buyer Deposit",
+                    "bg-[#FFF3CD] text-[#7A5800]",
+                  )}
+                {contract.status === "FUNDED" &&
+                  contract.role === "seller" &&
+                  badge(
+                    "Funds Safeguarded in EMI Vault",
+                    "bg-[#CFF4FC] text-[#084298]",
+                  )}
                 {contract.role === "buyer" && contract.status === "FUNDED" && (
                   <button
                     data-testid="cancel"
@@ -231,7 +273,7 @@ export default function ContractDetail() {
               </div>
 
               <div className="rounded-xl border border-slate-200 bg-white p-5">
-                <h2 className="mb-3 font-semibold text-[#0E150E]">Milestone</h2>
+                <h2 className="mb-3 font-semibold text-[#1B1C1D]">Milestone</h2>
                 {contract.status === "FUNDED" && (
                   <div className="mb-4 rounded-lg bg-[#CFF4FC] p-3 text-sm text-[#084298]">
                     <ShieldCheck size={16} className="mr-1 inline" />
@@ -243,7 +285,10 @@ export default function ContractDetail() {
                     <p className="flex items-center gap-1 text-xs text-[#5C685B]">
                       <Timer size={14} /> Accrued Float Yield (3.5% ECB)
                     </p>
-                    <p data-testid="yield-ticker" className="text-xl font-bold text-[#0F5132]">
+                    <p
+                      data-testid="yield-ticker"
+                      className="text-xl font-bold text-[#0F5132]"
+                    >
                       {accrued.toFixed(4)} {contract.target_currency}
                     </p>
                   </div>
@@ -260,7 +305,7 @@ export default function ContractDetail() {
                       data-testid="simulate"
                       onClick={simulate}
                       disabled={busy || contract.status !== "FUNDED"}
-                      className="w-full rounded-full border border-[#163300] py-2 text-sm font-semibold text-[#163300] hover:bg-[#F4F5F7] disabled:opacity-40"
+                      className="w-full rounded-full border border-[#163300] py-2 text-sm font-semibold text-[#163300] hover:bg-[#F4F5F0] disabled:opacity-40"
                     >
                       {contract.tracking_type === "GITHUB_PR"
                         ? "Simulate GitHub PR Merge"
@@ -272,8 +317,9 @@ export default function ContractDetail() {
             </div>
           ) : (
             <div className="rounded-xl border border-slate-200 bg-white">
-              <h2 className="border-b border-slate-200 px-5 py-3 font-semibold text-[#0E150E]">
-                <Landmark size={16} className="mr-1 inline" /> Double-entry trail
+              <h2 className="border-b border-slate-200 px-5 py-3 font-semibold text-[#1B1C1D]">
+                <Landmark size={16} className="mr-1 inline" /> Double-entry
+                trail
               </h2>
               <table className="w-full text-sm">
                 <thead>
@@ -285,7 +331,10 @@ export default function ContractDetail() {
                 </thead>
                 <tbody data-testid="audit-body">
                   {audit.map((e) => (
-                    <tr key={e.id} className="border-b border-slate-100 last:border-0">
+                    <tr
+                      key={e.id}
+                      className="border-b border-slate-100 last:border-0"
+                    >
                       <td className="px-5 py-2 font-mono text-xs text-[#5C685B]">
                         {new Date(e.created_at).toLocaleString()}
                       </td>
@@ -297,7 +346,10 @@ export default function ContractDetail() {
                   ))}
                   {audit.length === 0 && (
                     <tr>
-                      <td colSpan={3} className="px-5 py-6 text-center text-[#5C685B]">
+                      <td
+                        colSpan={3}
+                        className="px-5 py-6 text-center text-[#5C685B]"
+                      >
                         No ledger entries yet — the trail starts at funding.
                       </td>
                     </tr>
@@ -310,11 +362,13 @@ export default function ContractDetail() {
           {showCancel && (
             <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/40">
               <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-                <h3 className="mb-2 font-bold text-[#0E150E]">Cancel contract?</h3>
+                <h3 className="mb-2 font-bold text-[#1B1C1D]">
+                  Cancel contract?
+                </h3>
                 <p className="mb-4 text-sm text-[#5C685B]">
-                  Vaulted funds liquidate back to your originating USD account at
-                  the current spot rate — you absorb any FX movement. Escrowrail retains
-                  the original 0.5% conversion fee.
+                  Vaulted funds liquidate back to your originating USD account
+                  at the current spot rate — you absorb any FX movement. Escrowrail
+                  retains the original 0.5% conversion fee.
                 </p>
                 <div className="flex gap-2">
                   <button
@@ -334,6 +388,18 @@ export default function ContractDetail() {
                 </div>
               </div>
             </div>
+          )}
+
+          {showFundSheet && quote && contract && (
+            <FundingConfirmSheet
+              contract={contract}
+              quote={quote}
+              sourceBalance={sourceBalance}
+              busy={busy}
+              error={error}
+              onConfirm={fund}
+              onClose={() => setShowFundSheet(false)}
+            />
           )}
         </>
       )}

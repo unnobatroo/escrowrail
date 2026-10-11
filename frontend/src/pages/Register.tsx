@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { ShieldCheck } from "lucide-react";
+import { Dices, ShieldCheck } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { apiError } from "../api";
 import { useAuth } from "../auth";
+import { randomPersona } from "../utils/personaGenerator";
 
 export default function Register() {
   const { register } = useAuth();
@@ -60,9 +61,28 @@ export default function Register() {
         onSubmit={submit}
         className="w-full max-w-md rounded-xl bg-white p-8 shadow-lg"
       >
-        <div className="mb-6 flex items-center gap-2 text-[#163300]">
-          <ShieldCheck size={28} className="text-[#9FE870]" />
-          <h1 className="text-xl font-bold">Register your organization</h1>
+        <div className="mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-[#163300]">
+            <ShieldCheck size={28} className="text-[#9FE870]" />
+            <h1 className="text-xl font-bold">Register your organization</h1>
+          </div>
+          <button
+            type="button"
+            data-testid="randomize"
+            title="Fill with a random test company"
+            onClick={() => {
+              const p = randomPersona();
+              setForm({
+                ...form,
+                legal_name: p.legalName,
+                ubo_tax_id: p.taxId,
+                country: p.country,
+              });
+            }}
+            className="flex items-center gap-1 rounded-full border border-[#163300] px-3 py-1 text-xs font-semibold text-[#163300] hover:bg-[#F4F5F0]"
+          >
+            <Dices size={14} /> Randomize
+          </button>
         </div>
         {field("legal_name", "Organization legal name", "text", "Acme Hardware US")}
         {field("email", "Work email", "email", "you@company.com")}
