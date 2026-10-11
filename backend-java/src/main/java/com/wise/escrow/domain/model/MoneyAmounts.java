@@ -17,10 +17,21 @@ public final class MoneyAmounts {
 
     private MoneyAmounts() {}
 
+    /**
+     * Creates an amount without applying cent rounding; use {@link #cents} when needed.
+     *
+     * @throws javax.money.UnknownCurrencyException if the currency code is unknown
+     */
     public static MonetaryAmount of(BigDecimal amount, String currency) {
         return Money.of(amount, Monetary.getCurrency(currency));
     }
 
+    /**
+     * Parses a decimal amount without applying cent rounding.
+     *
+     * @throws NumberFormatException if the amount is not a valid decimal
+     * @throws javax.money.UnknownCurrencyException if the currency code is unknown
+     */
     public static MonetaryAmount of(String amount, String currency) {
         return of(new BigDecimal(amount), currency);
     }
@@ -29,6 +40,7 @@ public final class MoneyAmounts {
         return of(BigDecimal.ZERO, currency);
     }
 
+    /** Returns the amount rounded to two decimal places using HALF_EVEN, in the same currency. */
     public static MonetaryAmount cents(MonetaryAmount amount) {
         return Money.of(
             amount

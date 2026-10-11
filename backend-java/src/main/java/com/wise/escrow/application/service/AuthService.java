@@ -55,6 +55,17 @@ public class AuthService {
 
     public record Registration(AppUser user, Organization organization) {}
 
+    /**
+     * Registers an organization and active user with a trimmed, lowercase email and
+     * encoded password. In one transaction, funds new accounts with 50,000 USD and
+     * 10,000 EUR through the ledger and publishes a welcome-email request.
+     *
+     * @return the saved user and organization
+     * @throws DuplicateEmailException if the email exists or the named email constraint fails
+     * @throws IllegalArgumentException if the normalized tax ID is empty or too long
+     * @throws IllegalStateException if a seeded clearing account is missing
+     * @throws DataIntegrityViolationException if another database integrity constraint fails
+     */
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public Registration register(
         String email,
@@ -143,6 +154,13 @@ public class AuthService {
             );
     }
 
+    /**
+     * Returns the active user whose encoded password matches, normalizing the email
+     * by stripping surrounding whitespace and lowercasing it.
+     *
+     * @throws UnauthorizedException if the email is unknown, the password does not
+     *     match, or the account is inactive
+     */
     public AppUser authenticate(String email, String password) {
         AppUser user = users
             .findByEmail(email.strip().toLowerCase(java.util.Locale.ROOT))

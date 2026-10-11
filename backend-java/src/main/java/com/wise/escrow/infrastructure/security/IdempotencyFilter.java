@@ -142,6 +142,12 @@ public class IdempotencyFilter extends OncePerRequestFilter {
         wrappedResponse.copyBodyToResponse();
     }
 
+    /**
+     * Attempts to save a pending claim, retrying once after deleting an expired
+     * pending row. Returns false if a save-time integrity violation cannot be
+     * resolved. Completed rows are not evicted here; other persistence failures
+     * propagate.
+     */
     private boolean tryClaim(Record claim) {
         try {
             records.save(claim);
@@ -164,6 +170,11 @@ public class IdempotencyFilter extends OncePerRequestFilter {
         }
     }
 
+    /**
+     * Polls a claim with up to thirty 100 ms sleeps. Returns the fresh record,
+     * which may still be pending after the wait, or empty if absent or expired.
+     * Interruption restores the interrupt flag and returns empty.
+     */
     private Optional<Record> awaitCompleted(String key) {
         for (int i = 0; i < 30; i++) {
             Optional<Record> rec = records.findByKey(key).filter(this::fresh);
@@ -180,6 +191,11 @@ public class IdempotencyFilter extends OncePerRequestFilter {
         return records.findByKey(key).filter(this::fresh);
     }
 
+    /**
+     * Returns an idempotency discriminator from an unverified Bearer payload,
+     * preferring entity_id over sub. Missing claims or parsing failures fall back
+     * to a hash of the raw authorization header (empty when null).
+     */
     private static String callerIdentity(String auth) {
         if (auth != null && auth.startsWith("Bearer ")) {
             try {

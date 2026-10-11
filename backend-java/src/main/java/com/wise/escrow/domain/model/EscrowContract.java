@@ -97,6 +97,15 @@ public class EscrowContract {
         );
     }
 
+    /**
+     * Marks an initiated contract funded and stores the supplied funding snapshot.
+     * Callers are responsible for monetary validation and ledger transfers.
+     *
+     * @param deposit the original deposit in source currency, including the conversion fee
+     * @param escrowed the converted amount held in target currency
+     * @param spotRate target-currency units per source-currency unit at funding
+     * @throws InvalidStateTransitionException if the contract is not INITIATED
+     */
     public void fund(
         UUID buyerAccountId,
         MonetaryAmount deposit,
@@ -115,11 +124,23 @@ public class EscrowContract {
         this.status = EscrowStatus.FUNDED;
     }
 
+    /**
+     * Marks a funded contract settled, retaining its funding snapshot.
+     *
+     * @throws InvalidStateTransitionException if the contract is not FUNDED,
+     *     including when it is already SETTLED
+     */
     public void settle() {
         requireStatus(EscrowStatus.FUNDED, "settle");
         this.status = EscrowStatus.SETTLED;
     }
 
+    /**
+     * Marks an initiated or funded contract cancelled, retaining any funding snapshot.
+     * Callers handle any refund separately.
+     *
+     * @throws InvalidStateTransitionException if already SETTLED or CANCELLED
+     */
     public void cancel() {
         if (status == EscrowStatus.SETTLED) {
             throw new InvalidStateTransitionException(

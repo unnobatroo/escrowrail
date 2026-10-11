@@ -86,6 +86,11 @@ public class EscrowService {
 
     // ---------- reads (tenant-scoped) ----------
 
+    /**
+     * Returns a contract visible to its buyer or seller organization.
+     *
+     * @throws NotFoundException if the contract is absent or the entity is not a party
+     */
     @Transactional(readOnly = true)
     public EscrowContract getForEntity(UUID contractId, UUID entityId) {
         return contracts
@@ -100,13 +105,22 @@ public class EscrowService {
         return contracts.findAllForEntity(entityId);
     }
 
+    /**
+     * Returns ledger entries in creation order after checking the caller is a party.
+     *
+     * @throws NotFoundException if the contract is absent or the entity is not a party
+     */
     @Transactional(readOnly = true)
     public List<LedgerEntry> auditForEntity(UUID contractId, UUID entityId) {
         getForEntity(contractId, entityId); // tenancy gate before the trail
         return ledger.findByContractIdOrderByCreatedAt(contractId);
     }
 
-    /** Counterparty resolution for the invite flow. Empty if unregistered. */
+    /**
+     * Resolves a trimmed, lowercase email to its organization, or returns empty if
+     * the user or organization is absent. The UBO match is false if the requester
+     * organization is absent.
+     */
     @Transactional(readOnly = true)
     public Optional<Counterparty> resolveCounterparty(
         String email,
@@ -132,6 +146,8 @@ public class EscrowService {
      * Records a counterparty invite through the Modulith outbox. Must run
      * inside a transaction: AFTER_COMMIT listeners never see events
      * published on a transactionless thread.
+     *
+     * @throws NotFoundException if the inviter organization is absent
      */
     @Transactional
     public void inviteCounterparty(String email, UUID inviterEntityId) {
@@ -145,6 +161,14 @@ public class EscrowService {
 
     // ---------- lifecycle ----------
 
+    /**
+     * Saves an initiated contract after checking both organizations, their UBOs,
+     * and availability of an FX rate. The target amount is in the invoice currency.
+     *
+     * @throws NotFoundException if either organization is absent
+     * @throws CircularOwnershipException if both organizations share a normalized UBO tax ID
+     * @throws com.wise.escrow.domain.exception.UnsupportedCurrencyPairException if the FX provider cannot quote the pair
+     */
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public EscrowContract createContract(
         UUID buyerEntityId,
@@ -186,7 +210,20 @@ public class EscrowService {
 
     /**
      * Buyer funds the contract: 0.5% conversion fee in source currency,
-     * remainder converted at spot and vaulted in target currency.
+     * remainder converted at spot and vaulted in target currency. The fee has a
+     * minimum of 0.01 source units; fee and converted amount use HALF_EVEN cent
+     * rounding. Saves the funding snapshot and publishes a funded event atomically.
+     *
+     * @return the saved funded contract
+     * @throws NotFoundException if the contract or a required user account is absent,
+     *     or the actor is not a party
+     * @throws ForbiddenException if the actor is the seller
+     * @throws InvalidStateTransitionException if the contract is not INITIATED
+     * @throws com.wise.escrow.domain.exception.CurrencyMismatchException if the deposit is not in source currency
+     * @throws InsufficientFundsException if the deposit does not cover the target
+     *     after conversion or the buyer cannot cover the deposit
+     * @throws IllegalStateException if a required system account is missing
+     * @throws com.wise.escrow.domain.exception.UnsupportedCurrencyPairException if no FX rate is available
      */
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public EscrowContract fundContract(
@@ -345,7 +382,14 @@ public class EscrowService {
      * Webhook settlement: vault drains 0.8% to the Wise fee account and
      * the rest to the seller's target-currency account. Idempotent — a
      * repeated call on a SETTLED contract returns it unchanged so webhook
-     * redelivery never double-pays.
+     * redelivery never double-pays. Uses the stored escrowed amount, rounds the
+     * fee to cents with HALF_EVEN, and publishes a settled event on a new settlement.
+     *
+     * @return the saved or previously settled contract
+     * @throws NotFoundException if the contract or a required user/vault account is absent
+     * @throws InvalidStateTransitionException if neither FUNDED nor SETTLED
+     * @throws IllegalStateException if the system fee account is missing
+     * @throws InsufficientFundsException if the vault cannot cover the transfers
      */
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public EscrowContract settleMilestone(UUID contractId) {
@@ -423,6 +467,17 @@ public class EscrowService {
      * Buyer-only asymmetric cancellation: before funding it's free; after
      * funding the vault liquidates back to source currency at the current
      * spot rate (buyer absorbs FX drift; Wise keeps the conversion fee).
+     * Refunds use HALF_EVEN cent rounding. Saves and publishes cancellation once;
+     * an already CANCELLED contract is returned unchanged after checking the actor.
+     *
+     * @return the saved or previously cancelled contract
+     * @throws NotFoundException if the contract or a required refund account is absent,
+     *     or the actor is not a party
+     * @throws ForbiddenException if the actor is the seller
+     * @throws InvalidStateTransitionException if the contract is SETTLED
+     * @throws IllegalStateException if a required system account is missing
+     * @throws InsufficientFundsException if the vault cannot cover liquidation
+     * @throws com.wise.escrow.domain.exception.UnsupportedCurrencyPairException if no refund FX rate is available
      */
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public EscrowContract cancelContract(UUID contractId, UUID actorEntityId) {
@@ -515,7 +570,16 @@ public class EscrowService {
 
     // ---------- quote ----------
 
-    /** Smallest source deposit whose net conversion still covers target. */
+    /**
+     * Quotes a cent-rounded source deposit whose net conversion covers the positive
+     * target amount. The 0.5% fee is rounded HALF_EVEN with a 0.01 source-unit minimum;
+     * converted proceeds are rounded HALF_EVEN to cents when checking coverage.
+     *
+     * @return the target amount, target units per source unit, and principal, fee,
+     *     and total deposit in source currency; the rate is not reserved
+     * @throws com.wise.escrow.domain.exception.ValidationException if the target is null or nonpositive
+     * @throws com.wise.escrow.domain.exception.UnsupportedCurrencyPairException if no FX rate is available
+     */
     public Quote quote(
         String sourceCurrency,
         String targetCurrency,
@@ -577,6 +641,10 @@ public class EscrowService {
             BigDecimal totalCost
         ) {}
 
+        /**
+         * Returns a comparison cost: 3.8% of the total deposit rounded HALF_EVEN to
+         * cents, plus a fixed 150.00. The fixed fee is added without FX conversion.
+         */
         public BankEstimate traditionalBankEstimate() {
             BigDecimal spread = totalDeposit
                 .multiply(new BigDecimal("0.038"))
@@ -589,9 +657,10 @@ public class EscrowService {
     // ---------- helpers ----------
 
     /**
-     * Resolves (creating when missing) a system account's id without
-     * taking its row lock. Callers then lock it via lockAll in the
-     * transaction's global order.
+     * Resolves a seeded system account's id without taking its row lock.
+     * Callers then lock it via lockAll in the transaction's global order.
+     *
+     * @throws IllegalStateException if the system account is missing
      */
     private UUID systemAccountId(AccountType type, String currency) {
         // Supported currencies have their system accounts seeded by the

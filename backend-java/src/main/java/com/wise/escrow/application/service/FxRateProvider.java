@@ -26,6 +26,12 @@ class StaticFxRateProvider implements FxRateProvider {
         BigDecimal.ONE
     );
 
+    /**
+     * Returns target units per source unit from the static USD/EUR table, ignoring
+     * case. Identical codes return one without checking whether the currency exists.
+     *
+     * @throws UnsupportedCurrencyPairException if different codes are outside the table
+     */
     @Override
     public BigDecimal getRate(String source, String target) {
         String src = source.toUpperCase(java.util.Locale.ROOT);

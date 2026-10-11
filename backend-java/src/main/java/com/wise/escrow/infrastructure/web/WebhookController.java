@@ -51,6 +51,16 @@ public class WebhookController {
         this.logisticsSecret = logisticsSecret;
     }
 
+    /**
+     * Verifies the HMAC over the raw body and settles funded contracts matching a
+     * closed, merged PR's html_url. Other events or unmatched URLs return ignored.
+     *
+     * @return ignored, or settled with the last successfully settled contract's id
+     * @throws WebhookValidationException if unconfigured, the signature is invalid,
+     *     or every matched settlement fails
+     * @throws java.io.IOException if JSON parsing fails
+     * @throws IllegalStateException if HMAC initialization fails
+     */
     @PostMapping("/github")
     public WebhookResult github(
             @RequestBody byte[] body,
@@ -77,6 +87,15 @@ public class WebhookController {
 
     public record LogisticsWebhook(String carrier, String status, String tracking_key) {}
 
+    /**
+     * Verifies the shared secret and accepts DHL deliveries. Non-DELIVERED statuses
+     * return ignored before checking the tracking key; delivered events attempt
+     * settlement of all matching funded contracts.
+     *
+     * @return ignored if no delivery or match, otherwise settled with the last successful id
+     * @throws WebhookValidationException if unconfigured, the secret or carrier is
+     *     invalid, a delivered event lacks a tracking key, or all matched settlements fail
+     */
     @PostMapping("/logistics")
     public WebhookResult logistics(
             @RequestBody LogisticsWebhook body,
@@ -99,6 +118,14 @@ public class WebhookController {
         return settle(TrackingType.SHIPPING_CARRIER, body.tracking_key());
     }
 
+    /**
+     * Attempts each matching funded contract in its own transaction. Individual
+     * settlement runtime failures are caught so other contracts can still settle.
+     *
+     * @return ignored if none match, otherwise settled with the last successful id,
+     *     including when only some settlements succeed
+     * @throws WebhookValidationException if matches exist but every settlement fails
+     */
     private WebhookResult settle(TrackingType type, String key) {
         // More than one FUNDED contract can share a tracking key (e.g.
         // two invoices on the same PR); the event settles each of them.

@@ -9,6 +9,13 @@ import java.util.Objects;
  */
 public record TaxId(String value) {
 
+    /**
+     * Strips surrounding whitespace, removes ASCII whitespace and {@code .-_/}
+     * separators, and uppercases using the root locale for equality comparisons.
+     *
+     * @throws NullPointerException if the value is null
+     * @throws IllegalArgumentException if the normalized value is empty or exceeds 64 characters
+     */
     public TaxId {
         Objects.requireNonNull(value, "tax id");
         // Format-insensitive equality: separators and case are ignored so
