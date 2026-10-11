@@ -34,6 +34,7 @@ public class EscrowContract {
     /** Row version at load time — the adapter refuses to save staleness. */
     private long version;
 
+    /** Creates a new EscrowContract. */
     public EscrowContract(
         UUID id,
         UUID buyerId,
@@ -51,6 +52,7 @@ public class EscrowContract {
         );
     }
 
+    /** Creates a new EscrowContract. */
     public EscrowContract(
         UUID id,
         UUID buyerId,
@@ -76,6 +78,7 @@ public class EscrowContract {
         this.status = EscrowStatus.INITIATED;
     }
 
+    /** C. */
     public static EscrowContract create(
         UUID buyerId,
         UUID sellerId,
@@ -163,78 +166,97 @@ public class EscrowContract {
         }
     }
 
+    /** Whether buyer. */
     public boolean isBuyer(UUID entityId) {
         return buyerId.equals(entityId);
     }
 
+    /** I. */
     public boolean involves(UUID entityId) {
         return buyerId.equals(entityId) || sellerId.equals(entityId);
     }
 
+    /** I. */
     public UUID id() {
         return id;
     }
 
+    /** B id. */
     public UUID buyerId() {
         return buyerId;
     }
 
+    /** S id. */
     public UUID sellerId() {
         return sellerId;
     }
 
+    /** B account id. */
     public UUID buyerAccountId() {
         return buyerAccountId;
     }
 
+    /** V account id. */
     public UUID vaultAccountId() {
         return vaultAccountId;
     }
 
+    /** T currency. */
     public String targetCurrency() {
         return targetCurrency;
     }
 
+    /** S currency. */
     public String sourceCurrency() {
         return sourceCurrency;
     }
 
+    /** T amount. */
     public MonetaryAmount targetAmount() {
         return targetAmount;
     }
 
+    /** D amount. */
     public MonetaryAmount depositAmount() {
         return depositAmount;
     }
 
+    /** S spot rate. */
     public BigDecimal snapshotSpotRate() {
         return snapshotSpotRate;
     }
 
+    /** E amount. */
     public MonetaryAmount escrowedAmount() {
         return escrowedAmount;
     }
 
+    /** S. */
     public EscrowStatus status() {
         return status;
     }
 
+    /** T type. */
     public TrackingType trackingType() {
         return trackingType;
     }
 
+    /** T key. */
     public String trackingKey() {
         return trackingKey;
     }
 
+    /** F at. */
     public Instant fundedAt() {
         return fundedAt;
     }
 
+    /** C at. */
     public Instant createdAt() {
         return createdAt;
     }
 
+    /** V. */
     public long version() {
         return version;
     }

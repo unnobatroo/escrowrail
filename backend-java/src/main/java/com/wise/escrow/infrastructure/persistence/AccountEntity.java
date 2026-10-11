@@ -35,8 +35,10 @@ public class AccountEntity {
     @Column(nullable = false, precision = 20, scale = 2)
     private BigDecimal balance;
 
+    /** For JPA / reflective use only. */
     protected AccountEntity() {}
 
+    /** Creates a new AccountEntity. */
     public AccountEntity(UUID id, UUID entityId, AccountType type, String currency, BigDecimal balance) {
         this.id = id;
         this.entityId = entityId;
@@ -45,10 +47,16 @@ public class AccountEntity {
         this.balance = balance;
     }
 
+    /** Returns the id. */
     public UUID getId() { return id; }
+    /** Returns the entity id. */
     public UUID getEntityId() { return entityId; }
+    /** Returns the type. */
     public AccountType getType() { return type; }
+    /** Returns the currency. */
     public String getCurrency() { return currency; }
+    /** Returns the balance. */
     public BigDecimal getBalance() { return balance; }
+    /** Sets the balance. */
     public void setBalance(BigDecimal balance) { this.balance = balance; }
 }

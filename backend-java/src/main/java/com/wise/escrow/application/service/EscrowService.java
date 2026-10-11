@@ -64,6 +64,7 @@ public class EscrowService {
     private final FxRateProvider fx;
     private final ApplicationEventPublisher events;
 
+    /** Creates a new EscrowService. */
     public EscrowService(
         EscrowContractRepository contracts,
         AccountRepository accounts,
@@ -101,6 +102,7 @@ public class EscrowService {
     }
 
     @Transactional(readOnly = true)
+    /** L for entity. */
     public List<EscrowContract> listForEntity(UUID entityId) {
         return contracts.findAllForEntity(entityId);
     }

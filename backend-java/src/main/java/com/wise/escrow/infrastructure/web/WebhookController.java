@@ -38,6 +38,7 @@ public class WebhookController {
     private final String githubSecret;
     private final String logisticsSecret;
 
+    /** Creates a new WebhookController. */
     public WebhookController(
             EscrowService service,
             EscrowContractRepository contracts,

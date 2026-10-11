@@ -33,6 +33,7 @@ public class AuthController {
     private final AppUserRepository users;
     private final OrganizationRepository organizations;
 
+    /** Creates a new AuthController. */
     public AuthController(
             AuthService auth,
             JwtIssuer jwt,
@@ -46,6 +47,7 @@ public class AuthController {
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
+    /** R. */
     public RegisterResponse register(@Valid @RequestBody RegisterRequest body) {
         Registration reg = auth.register(
                 body.email(), body.password(), body.legalName(), body.uboTaxId(), body.country());
@@ -55,12 +57,14 @@ public class AuthController {
     }
 
     @PostMapping("/login")
+    /** L. */
     public TokenResponse login(@Valid @RequestBody LoginRequest body) {
         AppUser user = auth.authenticate(body.email(), body.password());
         return new TokenResponse(jwt.issue(user.id(), user.entityId()), "bearer");
     }
 
     @GetMapping("/me")
+    /** M. */
     public UserView me() {
         AppUser user = users
                 .findById(TenantPrincipal.userId())

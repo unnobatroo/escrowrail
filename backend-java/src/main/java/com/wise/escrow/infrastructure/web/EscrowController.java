@@ -35,6 +35,7 @@ public class EscrowController {
     private final EscrowService service;
     private final OrganizationRepository organizations;
 
+    /** Creates a new EscrowController. */
     public EscrowController(
             EscrowService service,
             OrganizationRepository organizations) {
@@ -43,17 +44,20 @@ public class EscrowController {
     }
 
     @GetMapping
+    /** L. */
     public List<ContractView> list() {
         UUID me = TenantPrincipal.entityId();
         return service.listForEntity(me).stream().map(c -> view(c, me)).toList();
     }
 
     @GetMapping("/{id}")
+    /** G. */
     public ContractView get(@PathVariable UUID id) {
         return view(service.getForEntity(id, TenantPrincipal.entityId()), TenantPrincipal.entityId());
     }
 
     @GetMapping("/{id}/audit")
+    /** A. */
     public List<LedgerEntryView> audit(@PathVariable UUID id) {
         return service.auditForEntity(id, TenantPrincipal.entityId()).stream()
                 .map(e -> new LedgerEntryView(
@@ -63,6 +67,7 @@ public class EscrowController {
     }
 
     @PostMapping
+    /** C. */
     public ResponseEntity<?> create(@Valid @RequestBody CreateContractRequest body) {
         UUID me = TenantPrincipal.entityId();
         var counterparty = service.resolveCounterparty(body.counterpartyEmail(), me);
@@ -84,6 +89,7 @@ public class EscrowController {
     }
 
     @PostMapping("/{id}/fund")
+    /** F. */
     public ContractView fund(@PathVariable UUID id, @Valid @RequestBody FundRequest body) {
         UUID me = TenantPrincipal.entityId();
         EscrowContract c = service.getForEntity(id, me);
@@ -94,12 +100,14 @@ public class EscrowController {
     }
 
     @PostMapping("/{id}/cancel")
+    /** C. */
     public ContractView cancel(@PathVariable UUID id) {
         UUID me = TenantPrincipal.entityId();
         return view(service.cancelContract(id, me), me);
     }
 
     @GetMapping("/counterparty")
+    /** C. */
     public CounterpartyView counterparty(@RequestParam String email) {
         UUID me = TenantPrincipal.entityId();
         return service
@@ -114,6 +122,7 @@ public class EscrowController {
     }
 
     @GetMapping("/quote")
+    /** Q. */
     public QuoteView quote(
             @RequestParam BigDecimal targetAmount,
             @RequestParam(defaultValue = "EUR") String targetCurrency,

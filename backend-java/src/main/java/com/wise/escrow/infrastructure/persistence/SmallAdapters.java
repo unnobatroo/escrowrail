@@ -27,11 +27,13 @@ class OrganizationRepositoryAdapter implements OrganizationRepository {
     }
 
     @Override
+    /** {@inheritDoc} */
     public Optional<Organization> findById(UUID id) {
         return jpa.findById(id).map(OrganizationRepositoryAdapter::toDomain);
     }
 
     @Override
+    /** {@inheritDoc} */
     public Organization save(Organization org) {
         return toDomain(jpa.save(new OrganizationEntity(
                 org.id(), org.legalName(), org.uboTaxId().value(), org.country(), org.createdAt())));
@@ -52,16 +54,19 @@ class AppUserRepositoryAdapter implements AppUserRepository {
     }
 
     @Override
+    /** {@inheritDoc} */
     public Optional<AppUser> findById(UUID id) {
         return jpa.findById(id).map(AppUserRepositoryAdapter::toDomain);
     }
 
     @Override
+    /** {@inheritDoc} */
     public Optional<AppUser> findByEmail(String email) {
         return jpa.findByEmail(email.strip().toLowerCase(java.util.Locale.ROOT)).map(AppUserRepositoryAdapter::toDomain);
     }
 
     @Override
+    /** {@inheritDoc} */
     public AppUser save(AppUser user) {
         return toDomain(jpa.save(new AppUserEntity(
                 user.id(), user.email(), user.passwordHash(), user.entityId(), user.active(), user.createdAt())));
@@ -90,6 +95,7 @@ class LedgerRepositoryAdapter implements LedgerRepository {
     }
 
     @Override
+    /** {@inheritDoc} */
     public LedgerEntry record(
             UUID debitAccountId,
             UUID creditAccountId,
@@ -109,6 +115,7 @@ class LedgerRepositoryAdapter implements LedgerRepository {
     }
 
     @Override
+    /** {@inheritDoc} */
     public List<LedgerEntry> findByContractIdOrderByCreatedAt(UUID contractId) {
         return jpa.findByContractIdOrderByCreatedAt(contractId).stream()
                 .map(LedgerRepositoryAdapter::toDomain)
@@ -116,6 +123,7 @@ class LedgerRepositoryAdapter implements LedgerRepository {
     }
 
     @Override
+    /** {@inheritDoc} */
     public List<LedgerEntry> findByAccountId(UUID accountId) {
         return jpa.findByAccountId(accountId).stream()
                 .map(LedgerRepositoryAdapter::toDomain)
@@ -133,12 +141,14 @@ class IdempotencyRecordRepositoryAdapter implements IdempotencyRecordRepository 
     }
 
     @Override
+    /** {@inheritDoc} */
     public Optional<Record> findByKey(String key) {
         return jpa.findByIdempotencyKey(key).map(e -> new Record(
                 e.getId(), e.getIdempotencyKey(), e.getResponseStatus(), e.getResponseBody(), e.getCreatedAt()));
     }
 
     @Override
+    /** {@inheritDoc} */
     public Record save(Record record) {
         IdempotencyRecordEntity e = jpa.save(new IdempotencyRecordEntity(
                 record.id(), record.idempotencyKey(), record.responseStatus(), record.responseBody(), record.createdAt()));
@@ -146,6 +156,7 @@ class IdempotencyRecordRepositoryAdapter implements IdempotencyRecordRepository 
     }
 
     @Override
+    /** {@inheritDoc} */
     public void delete(Record record) {
         jpa.deleteById(record.id());
     }

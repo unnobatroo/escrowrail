@@ -24,6 +24,7 @@ public class LedgerService {
     private final AccountRepository accounts;
     private final LedgerRepository ledger;
 
+    /** Creates a new LedgerService. */
     public LedgerService(AccountRepository accounts, LedgerRepository ledger) {
         this.accounts = accounts;
         this.ledger = ledger;
@@ -44,6 +45,7 @@ public class LedgerService {
         propagation = Propagation.REQUIRED,
         isolation = Isolation.READ_COMMITTED
     )
+    /** T. */
     public LedgerEntry transfer(
         UUID debitAccountId,
         UUID creditAccountId,

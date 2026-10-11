@@ -26,8 +26,10 @@ public class OrganizationEntity {
     @Column(nullable = false)
     private Instant createdAt;
 
+    /** For JPA / reflective use only. */
     protected OrganizationEntity() {}
 
+    /** Creates a new OrganizationEntity. */
     public OrganizationEntity(UUID id, String legalName, String uboTaxId, String country, Instant createdAt) {
         this.id = id;
         this.legalName = legalName;
@@ -36,9 +38,14 @@ public class OrganizationEntity {
         this.createdAt = createdAt;
     }
 
+    /** Returns the id. */
     public UUID getId() { return id; }
+    /** Returns the legal name. */
     public String getLegalName() { return legalName; }
+    /** Returns the ubo tax id. */
     public String getUboTaxId() { return uboTaxId; }
+    /** Returns the country. */
     public String getCountry() { return country; }
+    /** Returns the created at. */
     public Instant getCreatedAt() { return createdAt; }
 }

@@ -66,40 +66,171 @@ public class EscrowContractEntity {
     @jakarta.persistence.Version
     private long version;
 
+    /** For JPA / reflective use only. */
     protected EscrowContractEntity() {}
 
-    public long getVersion() { return version; }
+    /** Returns the version. */
+    public long getVersion() {
+        return version;
+    }
 
-    public UUID getId() { return id; }
-    public void setId(UUID id) { this.id = id; }
-    public UUID getBuyerId() { return buyerId; }
-    public void setBuyerId(UUID buyerId) { this.buyerId = buyerId; }
-    public UUID getSellerId() { return sellerId; }
-    public void setSellerId(UUID sellerId) { this.sellerId = sellerId; }
-    public UUID getBuyerAccountId() { return buyerAccountId; }
-    public void setBuyerAccountId(UUID v) { this.buyerAccountId = v; }
-    public UUID getVaultAccountId() { return vaultAccountId; }
-    public void setVaultAccountId(UUID v) { this.vaultAccountId = v; }
-    public String getTargetCurrency() { return targetCurrency; }
-    public void setTargetCurrency(String v) { this.targetCurrency = v; }
-    public String getSourceCurrency() { return sourceCurrency; }
-    public void setSourceCurrency(String v) { this.sourceCurrency = v; }
-    public BigDecimal getTargetAmount() { return targetAmount; }
-    public void setTargetAmount(BigDecimal v) { this.targetAmount = v; }
-    public BigDecimal getDepositAmount() { return depositAmount; }
-    public void setDepositAmount(BigDecimal v) { this.depositAmount = v; }
-    public BigDecimal getSnapshotSpotRate() { return snapshotSpotRate; }
-    public void setSnapshotSpotRate(BigDecimal v) { this.snapshotSpotRate = v; }
-    public BigDecimal getEscrowedAmount() { return escrowedAmount; }
-    public void setEscrowedAmount(BigDecimal v) { this.escrowedAmount = v; }
-    public EscrowStatus getStatus() { return status; }
-    public void setStatus(EscrowStatus v) { this.status = v; }
-    public TrackingType getTrackingType() { return trackingType; }
-    public void setTrackingType(TrackingType v) { this.trackingType = v; }
-    public String getTrackingKey() { return trackingKey; }
-    public void setTrackingKey(String v) { this.trackingKey = v; }
-    public Instant getFundedAt() { return fundedAt; }
-    public void setFundedAt(Instant v) { this.fundedAt = v; }
-    public Instant getCreatedAt() { return createdAt; }
-    public void setCreatedAt(Instant v) { this.createdAt = v; }
+    /** Returns the id. */
+    public UUID getId() {
+        return id;
+    }
+
+    /** Sets the id. */
+    public void setId(UUID id) {
+        this.id = id;
+    }
+
+    /** Returns the buyer id. */
+    public UUID getBuyerId() {
+        return buyerId;
+    }
+
+    /** Sets the buyer id. */
+    public void setBuyerId(UUID buyerId) {
+        this.buyerId = buyerId;
+    }
+
+    /** Returns the seller id. */
+    public UUID getSellerId() {
+        return sellerId;
+    }
+
+    /** Sets the seller id. */
+    public void setSellerId(UUID sellerId) {
+        this.sellerId = sellerId;
+    }
+
+    /** Returns the buyer account id. */
+    public UUID getBuyerAccountId() {
+        return buyerAccountId;
+    }
+
+    /** Sets the buyer account id. */
+    public void setBuyerAccountId(UUID v) {
+        this.buyerAccountId = v;
+    }
+
+    /** Returns the vault account id. */
+    public UUID getVaultAccountId() {
+        return vaultAccountId;
+    }
+
+    /** Sets the vault account id. */
+    public void setVaultAccountId(UUID v) {
+        this.vaultAccountId = v;
+    }
+
+    /** Returns the target currency. */
+    public String getTargetCurrency() {
+        return targetCurrency;
+    }
+
+    /** Sets the target currency. */
+    public void setTargetCurrency(String v) {
+        this.targetCurrency = v;
+    }
+
+    /** Returns the source currency. */
+    public String getSourceCurrency() {
+        return sourceCurrency;
+    }
+
+    /** Sets the source currency. */
+    public void setSourceCurrency(String v) {
+        this.sourceCurrency = v;
+    }
+
+    /** Returns the target amount. */
+    public BigDecimal getTargetAmount() {
+        return targetAmount;
+    }
+
+    /** Sets the target amount. */
+    public void setTargetAmount(BigDecimal v) {
+        this.targetAmount = v;
+    }
+
+    /** Returns the deposit amount. */
+    public BigDecimal getDepositAmount() {
+        return depositAmount;
+    }
+
+    /** Sets the deposit amount. */
+    public void setDepositAmount(BigDecimal v) {
+        this.depositAmount = v;
+    }
+
+    /** Returns the snapshot spot rate. */
+    public BigDecimal getSnapshotSpotRate() {
+        return snapshotSpotRate;
+    }
+
+    /** Sets the snapshot spot rate. */
+    public void setSnapshotSpotRate(BigDecimal v) {
+        this.snapshotSpotRate = v;
+    }
+
+    /** Returns the escrowed amount. */
+    public BigDecimal getEscrowedAmount() {
+        return escrowedAmount;
+    }
+
+    /** Sets the escrowed amount. */
+    public void setEscrowedAmount(BigDecimal v) {
+        this.escrowedAmount = v;
+    }
+
+    /** Returns the status. */
+    public EscrowStatus getStatus() {
+        return status;
+    }
+
+    /** Sets the status. */
+    public void setStatus(EscrowStatus v) {
+        this.status = v;
+    }
+
+    /** Returns the tracking type. */
+    public TrackingType getTrackingType() {
+        return trackingType;
+    }
+
+    /** Sets the tracking type. */
+    public void setTrackingType(TrackingType v) {
+        this.trackingType = v;
+    }
+
+    /** Returns the tracking key. */
+    public String getTrackingKey() {
+        return trackingKey;
+    }
+
+    /** Sets the tracking key. */
+    public void setTrackingKey(String v) {
+        this.trackingKey = v;
+    }
+
+    /** Returns the funded at. */
+    public Instant getFundedAt() {
+        return fundedAt;
+    }
+
+    /** Sets the funded at. */
+    public void setFundedAt(Instant v) {
+        this.fundedAt = v;
+    }
+
+    /** Returns the created at. */
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    /** Sets the created at. */
+    public void setCreatedAt(Instant v) {
+        this.createdAt = v;
+    }
 }

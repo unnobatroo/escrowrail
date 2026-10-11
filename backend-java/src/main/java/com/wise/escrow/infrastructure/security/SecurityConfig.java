@@ -96,6 +96,7 @@ public class SecurityConfig {
         private final JwtEncoder encoder;
         private final int expireMinutes;
 
+        /** Creates a new JwtIssuer. */
         public JwtIssuer(
             JwtEncoder encoder,
             @Value("${wise.jwt.expire-minutes:120}") int expireMinutes
@@ -104,6 +105,7 @@ public class SecurityConfig {
             this.expireMinutes = expireMinutes;
         }
 
+        /** Whether sue. */
         public String issue(UUID userId, UUID entityId) {
             Instant now = Instant.now();
             JwtClaimsSet claims = JwtClaimsSet.builder()

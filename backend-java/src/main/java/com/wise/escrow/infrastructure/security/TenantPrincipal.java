@@ -12,6 +12,7 @@ public final class TenantPrincipal {
 
     private TenantPrincipal() {}
 
+    /** U id. */
     public static UUID userId() {
         try {
             return UUID.fromString(jwt().getSubject());
@@ -20,6 +21,7 @@ public final class TenantPrincipal {
         }
     }
 
+    /** E id. */
     public static UUID entityId() {
         String claim = jwt().getClaimAsString("entity_id");
         if (claim == null) {

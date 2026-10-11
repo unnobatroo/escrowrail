@@ -18,6 +18,7 @@ public class EscrowContractRepositoryAdapter
 
     private final JpaEscrowContractRepository jpa;
 
+    /** Creates a new EscrowContractRepositoryAdapter. */
     public EscrowContractRepositoryAdapter(JpaEscrowContractRepository jpa) {
         this.jpa = jpa;
     }
@@ -94,11 +95,13 @@ public class EscrowContractRepositoryAdapter
     }
 
     @Override
+    /** {@inheritDoc} */
     public Optional<EscrowContract> findById(UUID id) {
         return jpa.findById(id).map(EscrowContractRepositoryAdapter::toDomain);
     }
 
     @Override
+    /** {@inheritDoc} */
     public Optional<EscrowContract> findByIdForUpdate(UUID id) {
         return jpa
             .findByIdForUpdate(id)
@@ -106,6 +109,7 @@ public class EscrowContractRepositoryAdapter
     }
 
     @Override
+    /** {@inheritDoc} */
     public Optional<EscrowContract> findByIdForEntity(UUID id, UUID entityId) {
         return jpa
             .findByIdForEntity(id, entityId)
@@ -113,6 +117,7 @@ public class EscrowContractRepositoryAdapter
     }
 
     @Override
+    /** {@inheritDoc} */
     public List<EscrowContract> findFundedByTracking(
         TrackingType trackingType,
         String trackingKey
@@ -125,6 +130,7 @@ public class EscrowContractRepositoryAdapter
     }
 
     @Override
+    /** {@inheritDoc} */
     public List<EscrowContract> findAllForEntity(UUID entityId) {
         return jpa
             .findAllForEntity(entityId)
@@ -134,6 +140,7 @@ public class EscrowContractRepositoryAdapter
     }
 
     @Override
+    /** {@inheritDoc} */
     public List<EscrowContract> findAllForEntityAndStatus(
         UUID entityId,
         EscrowStatus status

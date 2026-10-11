@@ -26,8 +26,10 @@ public class IdempotencyRecordEntity {
     @Column(nullable = false)
     private Instant createdAt;
 
+    /** For JPA / reflective use only. */
     protected IdempotencyRecordEntity() {}
 
+    /** Creates a new IdempotencyRecordEntity. */
     public IdempotencyRecordEntity(
             UUID id, String idempotencyKey, int responseStatus, String responseBody, Instant createdAt) {
         this.id = id;
@@ -37,9 +39,14 @@ public class IdempotencyRecordEntity {
         this.createdAt = createdAt;
     }
 
+    /** Returns the id. */
     public UUID getId() { return id; }
+    /** Returns the idempotency key. */
     public String getIdempotencyKey() { return idempotencyKey; }
+    /** Returns the response status. */
     public int getResponseStatus() { return responseStatus; }
+    /** Returns the response body. */
     public String getResponseBody() { return responseBody; }
+    /** Returns the created at. */
     public Instant getCreatedAt() { return createdAt; }
 }

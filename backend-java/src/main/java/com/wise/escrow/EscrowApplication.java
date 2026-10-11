@@ -8,6 +8,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableScheduling
 public class EscrowApplication {
 
+    /** M. */
     public static void main(String[] args) {
         SpringApplication.run(EscrowApplication.class, args);
     }

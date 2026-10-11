@@ -47,6 +47,7 @@ public class IdempotencyFilter extends OncePerRequestFilter {
 
     private final IdempotencyRecordRepository records;
 
+    /** Creates a new IdempotencyFilter. */
     public IdempotencyFilter(IdempotencyRecordRepository records) {
         this.records = records;
     }
@@ -256,23 +257,28 @@ public class IdempotencyFilter extends OncePerRequestFilter {
         }
 
         @Override
+        /** {@inheritDoc} */
         public ServletInputStream getInputStream() {
             ByteArrayInputStream in = new ByteArrayInputStream(body);
             return new ServletInputStream() {
                 @Override
+                /** {@inheritDoc} */
                 public boolean isFinished() {
                     return in.available() == 0;
                 }
 
                 @Override
+                /** {@inheritDoc} */
                 public boolean isReady() {
                     return true;
                 }
 
                 @Override
+                /** {@inheritDoc} */
                 public void setReadListener(ReadListener listener) {}
 
                 @Override
+                /** {@inheritDoc} */
                 public int read() {
                     return in.read();
                 }
@@ -280,6 +286,7 @@ public class IdempotencyFilter extends OncePerRequestFilter {
         }
 
         @Override
+        /** {@inheritDoc} */
         public BufferedReader getReader() {
             return new BufferedReader(
                 new InputStreamReader(getInputStream(), StandardCharsets.UTF_8)

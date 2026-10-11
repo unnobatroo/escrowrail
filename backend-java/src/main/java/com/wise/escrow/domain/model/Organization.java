@@ -11,6 +11,7 @@ public record Organization(
     String country,
     Instant createdAt
 ) {
+    /** R. */
     public static Organization register(
         String legalName,
         String uboTaxId,

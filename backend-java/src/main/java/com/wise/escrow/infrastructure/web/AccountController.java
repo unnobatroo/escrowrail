@@ -21,6 +21,7 @@ public class AccountController {
     private final LedgerRepository ledger;
     private final ViewMapper views;
 
+    /** Creates a new AccountController. */
     public AccountController(AccountRepository accounts, LedgerRepository ledger, ViewMapper views) {
         this.accounts = accounts;
         this.ledger = ledger;
@@ -28,6 +29,7 @@ public class AccountController {
     }
 
     @GetMapping
+    /** L. */
     public List<AccountView> list() {
         return accounts.findAllByEntityId(TenantPrincipal.entityId()).stream()
                 .map(views::toAccountView)
@@ -35,6 +37,7 @@ public class AccountController {
     }
 
     @GetMapping("/{id}")
+    /** G. */
     public AccountView get(@PathVariable UUID id) {
         return accounts
                 .findById(id)
@@ -44,6 +47,7 @@ public class AccountController {
     }
 
     @GetMapping("/{id}/ledger")
+    /** L. */
     public List<LedgerEntryView> ledger(@PathVariable UUID id) {
         accounts.findById(id)
                 .filter(a -> TenantPrincipal.entityId().equals(a.entityId()))

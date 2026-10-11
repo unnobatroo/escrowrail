@@ -17,6 +17,7 @@ public class Account {
     private final AccountType type;
     private MonetaryAmount balance;
 
+    /** Creates a new Account. */
     public Account(
         UUID id,
         UUID entityId,
@@ -29,6 +30,7 @@ public class Account {
         this.balance = balance;
     }
 
+    /** O. */
     public static Account open(
         UUID entityId,
         AccountType type,
@@ -42,22 +44,27 @@ public class Account {
         );
     }
 
+    /** I. */
     public UUID id() {
         return id;
     }
 
+    /** E id. */
     public UUID entityId() {
         return entityId;
     }
 
+    /** T. */
     public AccountType type() {
         return type;
     }
 
+    /** B. */
     public MonetaryAmount balance() {
         return balance;
     }
 
+    /** C. */
     public String currency() {
         return balance.getCurrency().getCurrencyCode();
     }

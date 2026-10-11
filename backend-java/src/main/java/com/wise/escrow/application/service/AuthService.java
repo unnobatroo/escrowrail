@@ -37,6 +37,7 @@ public class AuthService {
     private final PasswordEncoder passwords;
     private final ApplicationEventPublisher events;
 
+    /** Creates a new AuthService. */
     public AuthService(
         AppUserRepository users,
         OrganizationRepository organizations,

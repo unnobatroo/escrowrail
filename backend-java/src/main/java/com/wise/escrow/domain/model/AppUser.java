@@ -12,6 +12,7 @@ public record AppUser(
     boolean active,
     Instant createdAt
 ) {
+    /** R. */
     public static AppUser register(
         String email,
         String passwordHash,
