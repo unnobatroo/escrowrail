@@ -11,6 +11,7 @@ from decimal import Decimal
 
 import jwt
 from pwdlib import PasswordHash
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session
 
 from app.config import settings
@@ -53,37 +54,46 @@ class AuthService:
         email = email.lower().strip()
         if self.users.find_by_email(email) is not None:
             raise DuplicateEmailError("Email is already registered", context={"email": email})
-        entity = self.entities.create(
-            Entity(legal_name=legal_name, ubo_tax_id=ubo_tax_id, country=country)
-        )
-        user = self.users.create(
-            User(
+        try:
+            entity = Entity(legal_name=legal_name, ubo_tax_id=ubo_tax_id, country=country)
+            self.session.add(entity)
+            self.session.flush()
+            user = User(
                 email=email,
                 hashed_password=_password_hash.hash(password),
                 entity_id=entity.id,
             )
-        )
-        # Boot operating accounts in both settlement currencies. The
-        # simulated EMI rails credit a sandbox balance through the ledger
-        # so the account starts double-entry funded, not hand-set.
-        for currency, opening in (("USD", SANDBOX_USD), ("EUR", SANDBOX_EUR)):
-            account = self.accounts.create(
-                Account(
+            self.session.add(user)
+            self.session.flush()
+            # Boot operating accounts in both settlement currencies. The
+            # simulated EMI rails credit a sandbox balance through the ledger
+            # so the account starts double-entry funded, not hand-set.
+            for currency, opening in (("USD", SANDBOX_USD), ("EUR", SANDBOX_EUR)):
+                account = Account(
                     entity_id=entity.id,
                     account_type=AccountType.USER_ACCOUNT,
                     currency=currency,
                 )
-            )
-            clearing = self.accounts.get_or_create_system_account(
-                AccountType.WISE_CLEARING_ACCOUNT, currency
-            )
-            self.ledger.record_transfer(
-                clearing.id,
-                account.id,
-                opening,
-                currency,
-                "Sandbox opening balance",
-            )
+                self.session.add(account)
+                self.session.flush()
+                clearing = self.accounts.get_or_create_system_account(
+                    AccountType.WISE_CLEARING_ACCOUNT, currency
+                )
+                self.ledger.record_transfer(
+                    clearing.id,
+                    account.id,
+                    opening,
+                    currency,
+                    "Sandbox opening balance",
+                    commit=False,
+                )
+            self.session.commit()
+        except IntegrityError as exc:
+            self.session.rollback()
+            raise DuplicateEmailError(
+                "Email is already registered", context={"email": email}
+            ) from exc
+        self.session.refresh(user)
         return user, entity
 
     def authenticate(self, email: str, password: str) -> User:

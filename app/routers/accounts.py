@@ -12,7 +12,7 @@ from app.dependencies import (
     get_account_repo,
     get_entity_repo,
 )
-from app.exceptions import ForbiddenError, NotFoundError
+from app.exceptions import NotFoundError
 from app.models.entities import Account, AccountType, Entity
 from app.models.ledger import LedgerTransaction
 from app.repositories.account_repository import AccountRepository, EntityRepository
@@ -60,13 +60,8 @@ def get_account_ledger(
     accounts: AccountRepoDep,
 ) -> list[LedgerTransaction]:
     account = accounts.get(account_id)
-    if account is None:
+    if account is None or account.entity_id != user.entity_id:
         raise NotFoundError("Account not found", context={"account_id": str(account_id)})
-    if account.entity_id != user.entity_id:
-        raise ForbiddenError(
-            "Account belongs to a different organization",
-            context={"account_id": str(account_id)},
-        )
     stmt = (
         select(LedgerTransaction)
         .where(

@@ -2,13 +2,19 @@
 accounts or ledgers; only the buyer may fund or cancel."""
 
 from decimal import Decimal
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlmodel import Session
+from sqlmodel import Session, select
 
+from app.exceptions import DuplicateEmailError
 from app.models.auth import User
+from app.models.entities import Entity
+from app.repositories.account_repository import AccountRepository, EntityRepository
+from app.repositories.user_repository import UserRepository
 from app.services.auth_service import AuthService
+from app.services.ledger_service import LedgerService
 from tests.conftest import make_account, make_entity, make_user
 
 
@@ -149,10 +155,10 @@ def test_accounts_are_tenant_isolated(client: TestClient, session: Session) -> N
 
     # B cannot fetch A's account directly (404 — no existence leak).
     assert client.get(f"/api/v1/accounts/{acc_a.id}", headers=_bearer(user_b)).status_code == 404
-    # B cannot read A's account ledger either (403 — tenancy breach).
+    # The account ledger hides foreign accounts the same way (404).
     assert (
         client.get(f"/api/v1/accounts/{acc_a.id}/ledger", headers=_bearer(user_b)).status_code
-        == 403
+        == 404
     )
     # A reads its own fine.
     assert client.get(f"/api/v1/accounts/{acc_a.id}", headers=_bearer(user_a)).status_code == 200
@@ -161,17 +167,40 @@ def test_accounts_are_tenant_isolated(client: TestClient, session: Session) -> N
 def test_counterparty_resolution_and_invite(client: TestClient, tenants: dict[str, object]) -> None:
     buyer = tenants["buyer"]
     assert isinstance(buyer, User)
-    # Known counterparty resolves with its org + UBO for the AML guardrail.
+    # Known counterparty resolves with org details and a server-computed
+    # UBO-collision flag — the raw tax ID is never exposed cross-tenant.
     ok = client.get(
         "/api/v1/escrow/counterparty",
         params={"email": "seller@t.dev"},
         headers=_bearer(buyer),
     )
     assert ok.status_code == 200
-    assert ok.json()["ubo_tax_id"] == "UB-SELL"
     assert ok.json()["legal_name"] == "Seller Org"
+    assert ok.json()["same_ubo"] is False
+    assert "ubo_tax_id" not in ok.json()
 
-    # Unknown email → 404 on resolve, and create flags an external invite.
+    # A counterparty sharing the buyer's tax ID is flagged server-side.
+    client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "alter-ego@t.dev",
+            "password": "pw123456",
+            "legal_name": "Buyer Shell",
+            "ubo_tax_id": "UB-BUY",
+            "country": "US",
+        },
+    )
+    collision = client.get(
+        "/api/v1/escrow/counterparty",
+        params={"email": "alter-ego@t.dev"},
+        headers=_bearer(buyer),
+    )
+    assert collision.status_code == 200
+    assert collision.json()["same_ubo"] is True
+
+    # Unknown email → 404 on resolve; contract create returns 202 and the
+    # invite task stays attached to the response (FastAPI would drop it on
+    # an error response).
     assert (
         client.get(
             "/api/v1/escrow/counterparty",
@@ -190,7 +219,8 @@ def test_counterparty_resolution_and_invite(client: TestClient, tenants: dict[st
             "tracking_key": "k",
         },
     )
-    assert resp.status_code == 404
+    assert resp.status_code == 202
+    assert resp.json()["status"] == "invited"
 
 
 def test_register_login_me_flow(client: TestClient) -> None:
@@ -241,3 +271,25 @@ def test_register_login_me_flow(client: TestClient) -> None:
         ).status_code
         == 401
     )
+
+
+def test_register_race_rolls_back_atomically(session: Session) -> None:
+    """Two registrations racing on the same email must not 500 or leave an
+    orphaned entity — the unique constraint maps to 409 and rolls back."""
+    accounts = AccountRepository(session)
+    auth = AuthService(
+        session,
+        UserRepository(session),
+        EntityRepository(session),
+        accounts,
+        LedgerService(session, accounts),
+    )
+    auth.register("dup@t.dev", "pw123456", "Org A", "UB-A", "US")
+    # Simulate the check-then-act race: the pre-check finds nothing even
+    # though the row is committed, so the unique constraint fires instead.
+    with patch.object(UserRepository, "find_by_email", return_value=None):
+        with pytest.raises(DuplicateEmailError):
+            auth.register("dup@t.dev", "pw123456", "Org B", "UB-B", "US")
+    assert len(session.exec(select(Entity)).all()) == 1
+    # Session is usable after the rollback.
+    assert session.exec(select(User).where(User.email == "dup@t.dev")).one().entity_id

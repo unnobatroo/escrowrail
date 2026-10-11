@@ -94,8 +94,8 @@ export interface Counterparty {
   email: string;
   entity_id: string;
   legal_name: string;
-  ubo_tax_id: string;
   country: string;
+  same_ubo: boolean;
 }
 
 export interface LedgerEntry {
@@ -153,7 +153,7 @@ export const escrowApi = {
     target_amount: string;
     tracking_type: TrackingType;
     tracking_key: string;
-  }) => api.post<ContractView>("/api/v1/escrow", body),
+  }) => api.post<ContractView | { status: "invited" }>("/api/v1/escrow", body),
   fund: (id: string, deposit_amount: string) =>
     api.post<ContractView>(`/api/v1/escrow/${id}/fund`, { deposit_amount }),
   cancel: (id: string) => api.post<ContractView>(`/api/v1/escrow/${id}/cancel`),

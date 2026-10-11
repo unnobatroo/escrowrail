@@ -6,6 +6,7 @@ from decimal import ROUND_CEILING, Decimal
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from app.dependencies import (
@@ -80,8 +81,8 @@ class CounterpartyView(BaseModel):
     email: str
     entity_id: uuid.UUID
     legal_name: str
-    ubo_tax_id: str
     country: str
+    same_ubo: bool
 
 
 def _view(contract: EscrowContract, entities: EntityRepository, me_id: uuid.UUID) -> ContractView:
@@ -154,12 +155,13 @@ def resolve_counterparty(
     entity = entities.get(counterparty.entity_id)
     if entity is None:
         raise NotFoundError("Counterparty entity not found", context={})
+    me = entities.get(user.entity_id)
     return CounterpartyView(
         email=counterparty.email,
         entity_id=entity.id,
         legal_name=entity.legal_name,
-        ubo_tax_id=entity.ubo_tax_id,
         country=entity.country,
+        same_ubo=me is not None and me.ubo_tax_id == entity.ubo_tax_id,
     )
 
 
@@ -175,7 +177,12 @@ def list_contracts(
     ]
 
 
-@router.post("", status_code=201)
+@router.post(
+    "",
+    status_code=201,
+    response_model=None,
+    responses={202: {"description": "Counterparty invited"}},
+)
 def create_contract(
     body: CreateContractRequest,
     user: CurrentUser,
@@ -183,19 +190,24 @@ def create_contract(
     users: UserRepoDep,
     entities: EntityRepoDep,
     tasks: TaskQueueDep,
-) -> ContractView:
+) -> ContractView | JSONResponse:
     counterparty = users.find_by_email(body.counterparty_email)
     if counterparty is None:
-        # External invite: queue IO outside the transaction path.
+        # External invite: queue IO outside the transaction path. Returning
+        # a normal 202 (not an exception) keeps the enqueued BackgroundTasks
+        # attached to the response — an error response would discard them.
         buyer_entity = entities.get(user.entity_id)
         tasks.enqueue(
             send_counterparty_invite,
             body.counterparty_email,
             buyer_entity.legal_name if buyer_entity else "",
         )
-        raise NotFoundError(
-            "Counterparty is not on Wise Smart Escrow yet — an invite was sent",
-            context={"email": body.counterparty_email},
+        return JSONResponse(
+            status_code=202,
+            content={
+                "status": "invited",
+                "message": "Counterparty is not on Wise Smart Escrow yet — an invite was sent",
+            },
         )
     contract = service.create_contract(
         buyer_id=user.entity_id,

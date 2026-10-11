@@ -52,11 +52,17 @@ class Settings:
     # Informational ECB reference rate (%) — reserved for yield/disclosure
     # features; not used in settlement math.
     ecb_base_rate: str = field(default_factory=lambda: _env("ECB_BASE_RATE", "4.50"))
-    jwt_secret: str = field(
-        default_factory=lambda: _env("JWT_SECRET", "dev-only-insecure-secret-change-me")
-    )
+    jwt_secret: str = field(default_factory=lambda: _env("JWT_SECRET"))
     jwt_algorithm: str = field(default_factory=lambda: _env("JWT_ALGORITHM", "HS256"))
     jwt_expire_minutes: int = field(default_factory=lambda: int(_env("JWT_EXPIRE_MINUTES", "120")))
+
+    def __post_init__(self) -> None:
+        # The dev fallback is a public string — acceptable only where the
+        # whole deployment is throwaway anyway (local SQLite / tests).
+        if not self.jwt_secret:
+            if not self.database_url.startswith("sqlite"):
+                raise RuntimeError("JWT_SECRET must be set for non-SQLite deployments")
+            object.__setattr__(self, "jwt_secret", "dev-only-insecure-secret-change-me")
 
 
 settings = Settings()

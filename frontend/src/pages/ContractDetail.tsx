@@ -14,7 +14,7 @@ export default function ContractDetail() {
   const [contract, setContract] = useState<ContractView | null>(null);
   const [audit, setAudit] = useState<LedgerEntry[]>([]);
   const [tab, setTab] = useState<Tab>("overview");
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(() => Date.now());
   const [quote, setQuote] = useState<Quote | null>(null);
   const [showCancel, setShowCancel] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -247,18 +247,24 @@ export default function ContractDetail() {
                 )}
                 <p className="mb-3 text-sm text-[#5C685B]">
                   Settlement releases automatically when the milestone verifies.
-                  For local demos you can fire the event directly:
                 </p>
-                <button
-                  data-testid="simulate"
-                  onClick={simulate}
-                  disabled={busy || contract.status !== "FUNDED"}
-                  className="w-full rounded-full border border-[#163300] py-2 text-sm font-semibold text-[#163300] hover:bg-[#F4F5F7] disabled:opacity-40"
-                >
-                  {contract.tracking_type === "GITHUB_PR"
-                    ? "Simulate GitHub PR Merge"
-                    : "Simulate DHL Delivered"}
-                </button>
+                {import.meta.env.DEV && (
+                  <>
+                    <p className="mb-3 text-sm text-[#5C685B]">
+                      Dev build — you can fire the milestone event directly:
+                    </p>
+                    <button
+                      data-testid="simulate"
+                      onClick={simulate}
+                      disabled={busy || contract.status !== "FUNDED"}
+                      className="w-full rounded-full border border-[#163300] py-2 text-sm font-semibold text-[#163300] hover:bg-[#F4F5F7] disabled:opacity-40"
+                    >
+                      {contract.tracking_type === "GITHUB_PR"
+                        ? "Simulate GitHub PR Merge"
+                        : "Simulate DHL Delivered"}
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           ) : (

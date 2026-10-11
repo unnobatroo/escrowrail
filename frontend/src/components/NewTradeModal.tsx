@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ShieldAlert, X } from "lucide-react";
 import { apiError, escrowApi } from "../api";
 import type { ContractView, Counterparty, Quote, TrackingType } from "../api";
-import { useAuth } from "../auth";
+
 import { money } from "../format";
 
 interface Props {
@@ -11,7 +11,6 @@ interface Props {
 }
 
 export default function NewTradeModal({ onClose, onCreated }: Props) {
-  const { user } = useAuth();
   const [email, setEmail] = useState("");
   const [cp, setCp] = useState<Counterparty | null>(null);
   const [cpUnknown, setCpUnknown] = useState(false);
@@ -21,19 +20,28 @@ export default function NewTradeModal({ onClose, onCreated }: Props) {
   const [quote, setQuote] = useState<Quote | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [invited, setInvited] = useState(false);
 
   // Debounced counterparty resolution.
   useEffect(() => {
     setCp(null);
     setCpUnknown(false);
     if (!email.includes("@")) return;
+    let stale = false;
     const t = setTimeout(() => {
       escrowApi
         .counterparty(email)
-        .then((r) => setCp(r.data))
-        .catch(() => setCpUnknown(true));
+        .then((r) => {
+          if (!stale) setCp(r.data);
+        })
+        .catch(() => {
+          if (!stale) setCpUnknown(true);
+        });
     }, 300);
-    return () => clearTimeout(t);
+    return () => {
+      stale = true;
+      clearTimeout(t);
+    };
   }, [email]);
 
   // Live backend quote for the chosen amount.
@@ -43,17 +51,24 @@ export default function NewTradeModal({ onClose, onCreated }: Props) {
       setQuote(null);
       return;
     }
+    let stale = false;
     const t = setTimeout(() => {
       escrowApi
         .quote(amount)
-        .then((r) => setQuote(r.data))
-        .catch(() => setQuote(null));
+        .then((r) => {
+          if (!stale) setQuote(r.data);
+        })
+        .catch(() => {
+          if (!stale) setQuote(null);
+        });
     }, 300);
-    return () => clearTimeout(t);
+    return () => {
+      stale = true;
+      clearTimeout(t);
+    };
   }, [amount]);
 
-  const uboCollision =
-    cp !== null && user !== null && cp.ubo_tax_id === user.entity.ubo_tax_id;
+  const uboCollision = cp?.same_ubo === true;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,7 +81,11 @@ export default function NewTradeModal({ onClose, onCreated }: Props) {
         tracking_type: trackingType,
         tracking_key: trackingKey,
       });
-      onCreated(res.data);
+      if (res.status === 202) {
+        setInvited(true);
+      } else {
+        onCreated(res.data as ContractView);
+      }
     } catch (err) {
       setError(apiError(err).message ?? "Could not create the trade");
     } finally {
@@ -104,7 +123,7 @@ export default function NewTradeModal({ onClose, onCreated }: Props) {
         />
         {cp && (
           <p data-testid="cp-resolved" className="mb-2 text-xs text-[#0F5132]">
-            {cp.legal_name} · {cp.country} · {cp.ubo_tax_id}
+            {cp.legal_name} · {cp.country}
           </p>
         )}
         {cpUnknown && (
@@ -196,8 +215,8 @@ export default function NewTradeModal({ onClose, onCreated }: Props) {
             className="mb-3 flex items-start gap-2 rounded-lg bg-[#FFDAD6] px-3 py-2 text-sm text-[#BA1A1A]"
           >
             <ShieldAlert size={18} className="mt-0.5 shrink-0" />
-            Circular ownership detected (Tax ID: {cp?.ubo_tax_id}). Escrow
-            disabled under anti-tax-evasion rules.
+            Circular ownership detected — counterparty shares your
+            organization's tax ID. Escrow disabled under anti-collusion rules.
           </div>
         )}
         {error && (
@@ -209,14 +228,28 @@ export default function NewTradeModal({ onClose, onCreated }: Props) {
           </div>
         )}
 
-        <button
-          data-testid="create-trade"
-          type="submit"
-          disabled={busy || uboCollision || !cp}
-          className="w-full rounded-full bg-[#9FE870] py-2.5 font-semibold text-[#163300] hover:bg-[#8fd960] disabled:opacity-50"
-        >
-          {busy ? "Creating…" : "Create Escrow Trade"}
-        </button>
+        {invited ? (
+          <div
+            data-testid="invite-sent"
+            className="rounded-lg bg-[#D1E7DD] px-3 py-2 text-sm text-[#0F5132]"
+          >
+            Invitation sent to {email} — they can register and the trade can be
+            re-created once they join.
+          </div>
+        ) : (
+          <button
+            data-testid="create-trade"
+            type="submit"
+            disabled={busy || uboCollision || (!cp && !cpUnknown)}
+            className="w-full rounded-full bg-[#9FE870] py-2.5 font-semibold text-[#163300] hover:bg-[#8fd960] disabled:opacity-50"
+          >
+            {busy
+              ? "Creating…"
+              : cpUnknown
+                ? "Send Invitation"
+                : "Create Escrow Trade"}
+          </button>
+        )}
       </form>
     </div>
   );

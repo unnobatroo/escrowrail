@@ -17,6 +17,9 @@ from app.config import settings
 
 
 def build_engine(database_url: str) -> Engine:
+    if database_url.startswith("postgresql://"):
+        # Bare postgresql:// selects psycopg2; we ship psycopg 3.
+        database_url = "postgresql+psycopg://" + database_url[len("postgresql://") :]
     if database_url.startswith("sqlite"):
         engine = create_engine(
             database_url,
@@ -54,12 +57,13 @@ def _migrate(eng: Engine) -> None:
     """Idempotent column additions for databases created before a field
     existed. create_all never alters existing tables, so additive columns
     are applied explicitly until a real migration tool is introduced."""
-    from sqlalchemy import inspect, text
+    from sqlalchemy import DateTime, inspect, text
 
     existing = {c["name"] for c in inspect(eng).get_columns("escrow_contracts")}
     if "funded_at" not in existing:
+        col_type = DateTime().compile(dialect=eng.dialect)
         with eng.begin() as conn:
-            conn.execute(text("ALTER TABLE escrow_contracts ADD COLUMN funded_at DATETIME"))
+            conn.execute(text(f"ALTER TABLE escrow_contracts ADD COLUMN funded_at {col_type}"))
 
 
 def get_session() -> Iterator[Session]:
