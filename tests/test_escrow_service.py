@@ -62,7 +62,7 @@ def test_funding_converts_at_spot_and_collects_fee(
     make_account(session, seller.id, "EUR", Decimal("0"))
     contract = _make_contract(escrow_service, buyer.id, seller.id)
 
-    funded = escrow_service.fund_contract(contract.id, buyer_usd.id, Decimal("11000"))
+    funded = escrow_service.fund_contract(contract.id, buyer.id, buyer_usd.id, Decimal("11000"))
 
     assert funded.status == ContractStatus.FUNDED
     assert funded.deposit_amount == Decimal("11000")
@@ -86,7 +86,7 @@ def test_settlement_splits_99_2_and_0_8(session: Session, escrow_service: Escrow
     buyer_usd = make_account(session, buyer.id, "USD", Decimal("20000"))
     seller_eur = make_account(session, seller.id, "EUR", Decimal("0"))
     contract = _make_contract(escrow_service, buyer.id, seller.id)
-    escrow_service.fund_contract(contract.id, buyer_usd.id, Decimal("11000"))
+    escrow_service.fund_contract(contract.id, buyer.id, buyer_usd.id, Decimal("11000"))
 
     settled = escrow_service.settle_milestone(contract.id)
     assert settled.status == ContractStatus.SETTLED
@@ -108,7 +108,7 @@ def test_deposit_too_small_rejected(session: Session, escrow_service: EscrowServ
     buyer_usd = make_account(session, buyer.id, "USD", Decimal("20000"))
     contract = _make_contract(escrow_service, buyer.id, seller.id)
     with pytest.raises(InsufficientFundsError):
-        escrow_service.fund_contract(contract.id, buyer_usd.id, Decimal("5000"))
+        escrow_service.fund_contract(contract.id, buyer.id, buyer_usd.id, Decimal("5000"))
 
 
 def test_insufficient_buyer_balance_rejected(
@@ -118,7 +118,7 @@ def test_insufficient_buyer_balance_rejected(
     buyer_usd = make_account(session, buyer.id, "USD", Decimal("100"))
     contract = _make_contract(escrow_service, buyer.id, seller.id)
     with pytest.raises(InsufficientFundsError):
-        escrow_service.fund_contract(contract.id, buyer_usd.id, Decimal("11000"))
+        escrow_service.fund_contract(contract.id, buyer.id, buyer_usd.id, Decimal("11000"))
 
 
 def test_settle_requires_funded_status(session: Session, escrow_service: EscrowService) -> None:
@@ -132,9 +132,9 @@ def test_double_funding_rejected(session: Session, escrow_service: EscrowService
     buyer, seller = _buyer_seller(session)
     buyer_usd = make_account(session, buyer.id, "USD", Decimal("50000"))
     contract = _make_contract(escrow_service, buyer.id, seller.id)
-    escrow_service.fund_contract(contract.id, buyer_usd.id, Decimal("11000"))
+    escrow_service.fund_contract(contract.id, buyer.id, buyer_usd.id, Decimal("11000"))
     with pytest.raises(InvalidStateTransitionError):
-        escrow_service.fund_contract(contract.id, buyer_usd.id, Decimal("11000"))
+        escrow_service.fund_contract(contract.id, buyer.id, buyer_usd.id, Decimal("11000"))
 
 
 def test_cancellation_refunds_at_latest_spot(
@@ -143,11 +143,11 @@ def test_cancellation_refunds_at_latest_spot(
     buyer, seller = _buyer_seller(session)
     buyer_usd = make_account(session, buyer.id, "USD", Decimal("20000"))
     contract = _make_contract(escrow_service, buyer.id, seller.id)
-    escrow_service.fund_contract(contract.id, buyer_usd.id, Decimal("11000"))
+    escrow_service.fund_contract(contract.id, buyer.id, buyer_usd.id, Decimal("11000"))
 
     # EUR weakens: 1 EUR = 0.90 USD at cancellation -> buyer absorbs the loss.
     fx.usd_values["EUR"] = Decimal("0.90")
-    cancelled = escrow_service.cancel_contract(contract.id)
+    cancelled = escrow_service.cancel_contract(contract.id, buyer.id)
 
     assert cancelled.status == ContractStatus.CANCELLED
     session.refresh(buyer_usd)
@@ -165,7 +165,7 @@ def test_cancellation_refunds_at_latest_spot(
 def test_cancel_before_funding_is_noop(session: Session, escrow_service: EscrowService) -> None:
     buyer, seller = _buyer_seller(session)
     contract = _make_contract(escrow_service, buyer.id, seller.id)
-    cancelled = escrow_service.cancel_contract(contract.id)
+    cancelled = escrow_service.cancel_contract(contract.id, buyer.id)
     assert cancelled.status == ContractStatus.CANCELLED
 
 
@@ -174,7 +174,7 @@ def test_cancel_after_settle_rejected(session: Session, escrow_service: EscrowSe
     buyer_usd = make_account(session, buyer.id, "USD", Decimal("20000"))
     make_account(session, seller.id, "EUR", Decimal("0"))
     contract = _make_contract(escrow_service, buyer.id, seller.id)
-    escrow_service.fund_contract(contract.id, buyer_usd.id, Decimal("11000"))
+    escrow_service.fund_contract(contract.id, buyer.id, buyer_usd.id, Decimal("11000"))
     escrow_service.settle_milestone(contract.id)
     with pytest.raises(InvalidStateTransitionError):
-        escrow_service.cancel_contract(contract.id)
+        escrow_service.cancel_contract(contract.id, buyer.id)
