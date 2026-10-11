@@ -24,7 +24,22 @@ async function fireGithubWebhook(
 }
 const PASSWORD = "demo-password-1";
 
+/** Completes email verification for an address via the dev-token backdoor. */
+async function verifyViaApi(request: {
+  get: (url: string) => Promise<{ ok: () => boolean; json: () => Promise<{ token: string }> }>;
+  post: (url: string, opts: object) => Promise<{ ok: () => boolean }>;
+}, email: string) {
+  const tok = await request.get(`${API}/dev/verification-token?email=${email}`);
+  if (!tok.ok()) throw new Error(`no verification token for ${email}`);
+  const { token } = await tok.json();
+  const res = await request.post(`${API}/api/v1/auth/verify-email`, {
+    data: { token },
+  });
+  if (!res.ok()) throw new Error(`verify ${email} failed`);
+}
+
 async function registerViaApi(request: {
+  get: (url: string) => Promise<{ ok: () => boolean; json: () => Promise<{ token: string }> }>;
   post: (url: string, opts: object) => Promise<{ ok: () => boolean }>;
 }, email: string, name: string, ubo: string) {
   const res = await request.post(`${API}/api/v1/auth/register`, {
@@ -37,6 +52,7 @@ async function registerViaApi(request: {
     },
   });
   if (!res.ok()) throw new Error(`register ${email} failed`);
+  await verifyViaApi(request, email);
 }
 
 async function registerViaUi(
@@ -52,6 +68,14 @@ async function registerViaUi(
   await page.getByTestId("ubo_tax_id").fill(ubo);
   await page.getByTestId("country").fill("US");
   await page.getByTestId("submit").click();
+  // Registration lands on the verification gate — complete it.
+  await expect(page).toHaveURL(/\/verify-email/);
+  const tok = await page.request.get(
+    `${API}/dev/verification-token?email=${email}`,
+  );
+  const { token } = await tok.json();
+  await page.getByTestId("verify-token").fill(token);
+  await page.getByTestId("verify-submit").click();
   await expect(page).toHaveURL(/\/dashboard/);
 }
 

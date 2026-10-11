@@ -1,7 +1,9 @@
 package com.wise.escrow.infrastructure.web;
 
+import com.wise.escrow.application.dto.ApiDtos.EmailNotVerifiedView;
 import com.wise.escrow.application.dto.ApiDtos.ErrorView;
 import com.wise.escrow.domain.exception.DomainException;
+import com.wise.escrow.domain.exception.EmailNotVerifiedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -15,6 +17,12 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    @ExceptionHandler(EmailNotVerifiedException.class)
+    ResponseEntity<EmailNotVerifiedView> notVerified(EmailNotVerifiedException e) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(new EmailNotVerifiedView(e.code(), e.getMessage(), e.email()));
+    }
 
     @ExceptionHandler(DomainException.class)
     ResponseEntity<ErrorView> domain(DomainException e) {

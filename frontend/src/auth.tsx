@@ -14,6 +14,7 @@ interface AuthState {
     ubo_tax_id: string;
     country: string;
   }) => Promise<void>;
+  verifyEmail: (token: string) => Promise<void>;
   logout: () => void;
   refresh: () => Promise<void>;
 }
@@ -47,7 +48,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = useCallback(
     async (body: Parameters<typeof authApi.register>[0]) => {
-      const res = await authApi.register(body);
+      // Registration only queues the verification email — no session yet.
+      await authApi.register(body);
+    },
+    [],
+  );
+
+  const verifyEmail = useCallback(
+    async (token: string) => {
+      const res = await authApi.verifyEmail(token);
       setToken(res.data.access_token);
       setUser(res.data.user);
     },
@@ -60,7 +69,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, refresh }}>
+    <AuthContext.Provider
+      value={{ user, loading, login, register, verifyEmail, logout, refresh }}
+    >
       {children}
     </AuthContext.Provider>
   );

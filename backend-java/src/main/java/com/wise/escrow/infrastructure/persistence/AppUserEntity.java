@@ -1,7 +1,10 @@
 package com.wise.escrow.infrastructure.persistence;
 
+import com.wise.escrow.domain.model.AppUser.UserStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
@@ -33,6 +36,13 @@ public class AppUserEntity {
     private boolean active;
 
     @Column(nullable = false)
+    private boolean emailVerified;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 24)
+    private UserStatus status;
+
+    @Column(nullable = false)
     private Instant createdAt;
 
     /** For JPA / reflective use only. */
@@ -40,12 +50,21 @@ public class AppUserEntity {
 
     /** Creates a new AppUserEntity. */
     public AppUserEntity(
-            UUID id, String email, String passwordHash, UUID entityId, boolean active, Instant createdAt) {
+            UUID id,
+            String email,
+            String passwordHash,
+            UUID entityId,
+            boolean active,
+            boolean emailVerified,
+            UserStatus status,
+            Instant createdAt) {
         this.id = id;
         this.email = email;
         this.passwordHash = passwordHash;
         this.entityId = entityId;
         this.active = active;
+        this.emailVerified = emailVerified;
+        this.status = status;
         this.createdAt = createdAt;
     }
 
@@ -59,6 +78,10 @@ public class AppUserEntity {
     public UUID getEntityId() { return entityId; }
     /** Whether active. */
     public boolean isActive() { return active; }
+    /** Whether the email address was verified. */
+    public boolean isEmailVerified() { return emailVerified; }
+    /** Returns the lifecycle status. */
+    public UserStatus getStatus() { return status; }
     /** Returns the created at. */
     public Instant getCreatedAt() { return createdAt; }
 }

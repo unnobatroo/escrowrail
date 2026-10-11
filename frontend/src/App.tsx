@@ -4,11 +4,19 @@ import ContractDetail from "./pages/ContractDetail";
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import VerifyEmailView from "./pages/VerifyEmailView";
 
 function Guard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) return null;
   if (!user) return <Navigate to="/login" replace />;
+  if (!user.email_verified)
+    return (
+      <Navigate
+        to={`/verify-email?email=${encodeURIComponent(user.email)}`}
+        replace
+      />
+    );
   return children;
 }
 
@@ -24,6 +32,7 @@ export default function App() {
         path="/register"
         element={user ? <Navigate to="/dashboard" replace /> : <Register />}
       />
+      <Route path="/verify-email" element={<VerifyEmailView />} />
       <Route
         path="/dashboard"
         element={
