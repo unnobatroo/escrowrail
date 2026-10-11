@@ -1,31 +1,28 @@
-# Virtual environments
-.venv/
-venv/
-
-# Python artifacts
-__pycache__/
-*.pyc
-*.pyo
-*.egg-info/
+# Java / Gradle
+.gradle/
 build/
-dist/
+out/
+!gradle/wrapper/gradle-wrapper.jar
 
-# Tool caches & coverage
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.coverage
-.coverage.*
-htmlcov/
-pytest-report.xml
+# Node / Vite / Playwright
+node_modules/
+frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
+
+# IDE & OS
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# Environment
+.env
+.env.local
 
 # Local databases
 *.db
 *.sqlite3
-
-# Environment & OS
-.env
-.DS_Store
 
 # Agent vaults & tool state (local, not repo content)
 .agent-vault/
@@ -33,9 +30,3 @@ pytest-report.xml
 .agents/
 .devin/
 skills-lock.json
-
-# frontend
-frontend/node_modules/
-frontend/dist/
-frontend/test-results/
-frontend/playwright-report/

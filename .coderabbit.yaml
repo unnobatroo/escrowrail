@@ -9,29 +9,39 @@ reviews:
     enabled: true
     drafts: false
   path_instructions:
-    - path: "app/models/**"
-      instructions: |
-        REJECT any `float` type used for monetary attributes, balances, or
-        FX rates — everything must be `Decimal` (Numeric(20,2) for money,
-        Numeric(20,8) for rates). REJECT unconstrained string fields that
-        could carry monetary values. Integer division on money is forbidden.
-    - path: "app/services/**"
+    - path: "backend-java/src/main/java/**"
       instructions: |
         Strictly verify financial invariants:
-        1. All balance updates must execute through double-entry legs
+        1. REJECT any float/double primitive used for monetary attributes,
+           balances, or FX rates — everything must be BigDecimal or
+           javax.money.MonetaryAmount. Integer division on money is forbidden.
+        2. All balance updates must execute through double-entry legs
            (debit == credit) inside LedgerService — no direct balance writes.
-        2. Cross-currency transfers must route through WISE_CLEARING_ACCOUNT.
-        3. UBO circular ownership checks (HTTP 403) must never be bypassed.
-        4. No funds can move to SETTLED without third-party webhook
+        3. Cross-currency transfers must route through clearing accounts.
+        4. UBO circular ownership checks (HTTP 403) must never be bypassed.
+        5. No funds can move to SETTLED without third-party HMAC webhook
            verification — flag any manual/admin settle path.
-        5. Mutating endpoints must be covered by the idempotency engine —
+        6. Mutating endpoints must be covered by the idempotency filter —
            flag any ledger mutation reachable outside the dedup/claim path.
-        6. Multi-leg operations (fund/settle/cancel) must run inside a
+        7. Multi-leg operations (fund/settle/cancel) must run inside a
            single atomic transaction — flag partial-commit sequences.
-    - path: "tests/**"
+        8. Idempotency identity must derive from raw Authorization-header
+           hashes, never unverified JWT claims. Auth routes must stay
+           excluded from the response cache. Bodies over 64 KB -> 413.
+        9. Sensitive fields (tax IDs, webhook secrets) must stay behind the
+           AES-256-GCM JPA converter — flag any new plaintext column.
+    - path: "backend-java/src/test/**"
       instructions: |
-        FLAG any use of time.sleep or timing-based synchronization — tests
-        must be deterministic. FLAG brittle mocks that hardcode returns in
-        ways that bypass state-machine or invariant validation. Ensure tests
-        do not stub out the ledger or state transitions to make assertions
-        pass artificially.
+        FLAG any use of Thread.sleep or timing-based synchronization — tests
+        must be deterministic (latches/barriers). FLAG fakes that bypass
+        LedgerService or the escrow state machine to make assertions pass.
+    - path: "frontend/src/**"
+      instructions: |
+        FLAG monetary arithmetic done in TypeScript numbers — amounts are
+        wire strings and must only be formatted, never computed client-side.
+        FLAG new fetch/axios calls that hardcode URLs instead of using the
+        shared api client with VITE_API_BASE_URL.
+    - path: "frontend/e2e/**"
+      instructions: |
+        Webhook simulations must send properly HMAC-signed
+        X-Hub-Signature-256 payloads — flag unsigned settlement attempts.
