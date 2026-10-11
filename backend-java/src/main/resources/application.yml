@@ -23,9 +23,9 @@ server:
 
 wise:
   jwt:
-    # HS256 shared secret. Required: >= 32 bytes. In production this MUST
-    # come from the environment — the default is dev-only.
-    secret: ${JWT_SECRET:dev-only-insecure-secret-change-me}
+    # HS256 shared secret, >= 32 bytes. No default — the app refuses to
+    # boot without JWT_SECRET in the environment.
+    secret: ${JWT_SECRET:}
     expire-minutes: ${JWT_EXPIRE_MINUTES:120}
   webhooks:
     # Settlement webhooks release real funds — a blank secret DISABLES the
