@@ -130,7 +130,8 @@ class DomainInvariantPropertyTest {
         public LedgerEntry record(UUID debitAccountId, UUID creditAccountId,
                 BigDecimal amount, String currency, String description, UUID contractId) {
             LedgerEntry e = new LedgerEntry(UUID.randomUUID(), debitAccountId,
-                    creditAccountId, amount, currency, description, contractId, Instant.now());
+                    creditAccountId, amount, currency, description, contractId,
+                    Instant.now(), "test-hash");
             entries.add(e);
             return e;
         }

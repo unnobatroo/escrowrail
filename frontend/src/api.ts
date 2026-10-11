@@ -111,7 +111,21 @@ export interface LedgerEntry {
   amount: string;
   currency: string;
   description: string;
+  contract_id: string | null;
+  tx_type: string;
+  current_hash: string;
   created_at: string;
+}
+
+export interface DemoConfig {
+  enabled: boolean;
+  buyer_email: string;
+  seller_email: string;
+  demo_password: string;
+  github_webhook_url: string;
+  logistics_webhook_url: string;
+  github_secret: string;
+  logistics_secret: string;
 }
 
 export interface ApiError {
@@ -167,4 +181,19 @@ export const escrowApi = {
 
 export const accountsApi = {
   list: () => api.get<Account[]>("/api/v1/accounts"),
+};
+
+export const ledgerApi = {
+  transactions: () => api.get<LedgerEntry[]>("/api/v1/ledger/transactions"),
+};
+
+export const demoApi = {
+  config: () => api.get<DemoConfig>("/api/v1/demo/config"),
+  topup: (currency: string, amount: string) =>
+    api.post<Account>("/api/v1/demo/topup", { currency, amount }),
+  simulateWebhook: (contractId: string) =>
+    api.post<{ status: string; contract_id: string; signature: string }>(
+      "/api/v1/demo/simulate-webhook",
+      { contract_id: contractId },
+    ),
 };

@@ -60,9 +60,7 @@ public class EscrowController {
     /** A. */
     public List<LedgerEntryView> audit(@PathVariable UUID id) {
         return service.auditForEntity(id, TenantPrincipal.entityId()).stream()
-                .map(e -> new LedgerEntryView(
-                        e.id(), e.debitAccountId(), e.creditAccountId(),
-                        e.amount(), e.currency(), e.description(), e.createdAt()))
+                .map(LedgerEntryView::of)
                 .toList();
     }
 

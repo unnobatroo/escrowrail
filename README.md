@@ -132,7 +132,7 @@ Live components:
   — `GET /actuator/health` returns `{"status":"UP"}`.
 - **Database (Supabase)**: project `escrowrail` (`fxxxkctszerxgkyqeeqn`,
   eu-west-1) — schema + demo tenants migrated and seeded.
-  Demo logins: `buyer@escrowrail.demo` / `seller@escrowrail.demo` (password `demo1234`).
+  Demo logins: `buyer@demo.com` / `seller@demo.com` (password `EscrowDemo123!`).
 
 Backend deployment notes:
 

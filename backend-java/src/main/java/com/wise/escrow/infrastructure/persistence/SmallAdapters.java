@@ -95,7 +95,8 @@ class LedgerRepositoryAdapter implements LedgerRepository {
                 e.getCurrency(),
                 e.getDescription(),
                 e.getContractId(),
-                e.getCreatedAt());
+                e.getCreatedAt(),
+                e.getCurrentHash());
     }
 
     @Override

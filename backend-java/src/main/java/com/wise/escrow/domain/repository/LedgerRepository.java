@@ -14,7 +14,8 @@ public interface LedgerRepository {
         String currency,
         String description,
         UUID contractId,
-        Instant createdAt
+        Instant createdAt,
+        String currentHash
     ) {}
 
     LedgerEntry record(

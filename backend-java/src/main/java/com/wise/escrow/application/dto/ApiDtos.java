@@ -117,8 +117,36 @@ public final class ApiDtos {
         BigDecimal amount,
         String currency,
         String description,
+        UUID contractId,
+        String txType,
+        String currentHash,
         Instant createdAt
-    ) {}
+    ) {
+        /** Maps a domain entry to its wire view with a classified tx type. */
+        public static LedgerEntryView of(com.escrowrail.escrow.domain.repository.LedgerRepository.LedgerEntry e) {
+            return new LedgerEntryView(
+                    e.id(), e.debitAccountId(), e.creditAccountId(),
+                    e.amount(), e.currency(), e.description(), e.contractId(),
+                    classify(e.description()), e.currentHash(), e.createdAt());
+        }
+
+        /**
+         * Buckets free-text ledger descriptions into stable operation types for
+         * the activity feed. Descriptions are the only taxonomy on the row, so
+         * this is presentation-layer classification, not a persisted enum.
+         */
+        private static String classify(String description) {
+            String d = description.toLowerCase(java.util.Locale.ROOT);
+            if (d.contains("sandbox")) return "TOP_UP";
+            if (d.contains("fee")) return "FEE_DEDUCTION";
+            if (d.contains("vault funding")) return "VAULT_LOCK";
+            if (d.contains("payout")) return "ESCROW_PAYOUT";
+            if (d.contains("liquidation")) return "VAULT_LIQUIDATION";
+            if (d.contains("refund")) return "REFUND";
+            if (d.contains("fx")) return "FX_CONVERSION";
+            return "TRANSFER";
+        }
+    }
 
     public record WebhookResult(String status, UUID contractId) {}
 

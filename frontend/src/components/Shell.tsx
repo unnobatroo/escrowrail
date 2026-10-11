@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
-import { LogOut, Plus, ShieldCheck } from "lucide-react";
+import { LogOut, Plus, ShieldCheck, ArrowLeftRight } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { accountsApi } from "../api";
-import type { Account } from "../api";
+import { accountsApi, demoApi } from "../api";
+import type { Account, DemoConfig } from "../api";
 import { useAuth } from "../auth";
 import { money } from "../format";
 
 export default function Shell({ children }: { children: React.ReactNode }) {
-  const { user, logout } = useAuth();
+  const { user, login, logout } = useAuth();
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [demo, setDemo] = useState<DemoConfig | null>(null);
+  const [switching, setSwitching] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -16,7 +18,32 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       .list()
       .then((r) => setAccounts(r.data))
       .catch(() => {});
+    demoApi
+      .config()
+      .then((r) => setDemo(r.data))
+      .catch(() => {});
   }, []);
+
+  const otherDemoEmail =
+    demo && user
+      ? user.email === demo.buyer_email
+        ? demo.seller_email
+        : user.email === demo.seller_email
+          ? demo.buyer_email
+          : null
+      : null;
+
+  const switchAccount = async () => {
+    if (!demo || !otherDemoEmail) return;
+    setSwitching(true);
+    try {
+      await login(otherDemoEmail, demo.demo_password);
+      navigate("/dashboard");
+      window.location.reload();
+    } finally {
+      setSwitching(false);
+    }
+  };
 
   const balance = (cur: string) =>
     accounts.find((a) => a.currency === cur)?.balance ?? "0.00";
@@ -46,6 +73,18 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             >
               {money(balance("EUR"), "EUR")}
             </span>
+            {otherDemoEmail && (
+              <button
+                data-testid="demo-switch"
+                onClick={switchAccount}
+                disabled={switching}
+                className="flex items-center gap-1 rounded-full border border-[#9FE870] px-3 py-1.5 text-sm font-semibold text-[#9FE870] hover:bg-white/10 disabled:opacity-50"
+                title={`Switch to ${otherDemoEmail}`}
+              >
+                <ArrowLeftRight size={14} />
+                {otherDemoEmail === demo?.seller_email ? "Switch to Seller" : "Switch to Buyer"}
+              </button>
+            )}
             <button
               data-testid="new-trade"
               onClick={() => navigate("/dashboard?new=1")}
