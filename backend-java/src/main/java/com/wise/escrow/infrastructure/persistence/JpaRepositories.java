@@ -54,6 +54,8 @@ interface JpaAccountRepository extends JpaRepository<AccountEntity, UUID> {
             @Param("type") AccountType type, @Param("currency") String currency);
 
     List<AccountEntity> findAllByEntityId(UUID entityId);
+
+    List<AccountEntity> findByEntityIdIsNullAndType(AccountType type);
 }
 
 interface JpaEscrowContractRepository extends JpaRepository<EscrowContractEntity, UUID> {

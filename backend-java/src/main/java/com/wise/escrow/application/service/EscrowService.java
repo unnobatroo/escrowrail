@@ -346,7 +346,19 @@ public class EscrowService {
             );
         }
 
-        // Buyer must cover the whole deposit up front.
+        // Buyer must cover the whole deposit up front — no credit, no
+        // partial collateral. An empty account gets its own error code so
+        // the UI can send the user to a top-up, not a guessing game.
+        BigDecimal buyerBalance = buyerAccount
+            .balance()
+            .getNumber()
+            .numberValue(BigDecimal.class);
+        if (buyerBalance.signum() == 0) {
+            throw new com.wise.escrow.domain.exception.ZeroBalanceException(
+                "Your %s account is empty — it needs %s to fund this trade"
+                    .formatted(contract.sourceCurrency(), depositValue)
+            );
+        }
         if (buyerAccount.balance().subtract(deposit).isNegative()) {
             throw new InsufficientFundsException(
                 "Balance %s cannot cover deposit %s".formatted(

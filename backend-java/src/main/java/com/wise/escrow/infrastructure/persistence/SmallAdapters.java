@@ -54,7 +54,8 @@ class AppUserRepositoryAdapter implements AppUserRepository {
     static AppUser toDomain(AppUserEntity e) {
         return new AppUser(
                 e.getId(), e.getEmail(), e.getPasswordHash(), e.getEntityId(),
-                e.isActive(), e.isEmailVerified(), e.getStatus(), e.getCreatedAt());
+                e.isActive(), e.isEmailVerified(), e.getStatus(),
+                e.isOnboardingCompleted(), e.getCreatedAt());
     }
 
     @Override
@@ -74,7 +75,8 @@ class AppUserRepositoryAdapter implements AppUserRepository {
     public AppUser save(AppUser user) {
         return toDomain(jpa.save(new AppUserEntity(
                 user.id(), user.email(), user.passwordHash(), user.entityId(),
-                user.active(), user.emailVerified(), user.status(), user.createdAt())));
+                user.active(), user.emailVerified(), user.status(),
+                user.onboardingCompleted(), user.createdAt())));
     }
 }
 

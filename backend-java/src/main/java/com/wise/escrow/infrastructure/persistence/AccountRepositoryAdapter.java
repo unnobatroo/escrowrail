@@ -87,6 +87,14 @@ public class AccountRepositoryAdapter implements AccountRepository {
 
     @Override
     /** {@inheritDoc} */
+    public List<Account> findSystemAccounts(AccountType type) {
+        return jpa.findByEntityIdIsNullAndType(type).stream()
+                .map(AccountRepositoryAdapter::toDomain)
+                .toList();
+    }
+
+    @Override
+    /** {@inheritDoc} */
     public Account save(Account account) {
         // Update in place if the row is already attached; otherwise insert.
         AccountEntity entity = jpa.findById(account.id()).orElseGet(() -> {

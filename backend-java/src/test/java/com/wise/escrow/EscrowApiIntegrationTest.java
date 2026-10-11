@@ -2,6 +2,7 @@ package com.wise.escrow;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -69,10 +70,19 @@ class EscrowApiIntegrationTest extends AbstractPostgresIT {
             )
             .andExpect(status().isOk())
             .andReturn();
-        return JsonPath.read(
+        String jwt = JsonPath.read(
             res.getResponse().getContentAsString(),
             "$.access_token"
         );
+        // Registration grants nothing — deposit just enough to cover the
+        // test's 1,000 EUR trades through the one-time onboarding window.
+        mvc.perform(
+            put("/api/v1/profile")
+                .header("Authorization", "Bearer " + jwt)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"initial_deposits\":{\"USD\":\"2000.00\"}}")
+        ).andExpect(status().isOk());
+        return jwt;
     }
 
     private String createContract(String token, String sellerEmail, String key)
@@ -160,7 +170,8 @@ class EscrowApiIntegrationTest extends AbstractPostgresIT {
                 ).exists()
             );
 
-        // Seller EUR account holds 10000 sandbox + 992.00 payout.
+        // Seller EUR account holds the 992.00 payout — registration and
+        // onboarding grant no baseline balance.
         MvcResult sellerAccounts = mvc
             .perform(
                 get("/api/v1/accounts").header(
@@ -179,7 +190,7 @@ class EscrowApiIntegrationTest extends AbstractPostgresIT {
                 eurCount++;
                 org.assertj.core.api.Assertions.assertThat(
                     new java.math.BigDecimal(a.get("balance").asText())
-                ).isEqualByComparingTo("10992.00");
+                ).isEqualByComparingTo("992.00");
             }
         }
         org.assertj.core.api.Assertions.assertThat(eurCount).isEqualTo(1);

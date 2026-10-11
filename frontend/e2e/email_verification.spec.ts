@@ -40,8 +40,9 @@ test("registration requires email verification before dashboard access", async (
   await page.getByTestId("verify-token").fill(token);
   await page.getByTestId("verify-submit").click();
 
-  // Verified: straight into the dashboard with sandbox balance pills.
+  // Verified: straight into the dashboard — registration grants nothing,
+  // so balances start at zero until onboarding deposits.
   await expect(page).toHaveURL(/\/dashboard/);
-  await expect(page.getByTestId("balance-usd")).toHaveText(/50,000\.00 USD/);
-  await expect(page.getByTestId("balance-eur")).toHaveText(/10,000\.00 EUR/);
+  await expect(page.getByTestId("balance-usd")).toHaveText(/0\.00 USD/);
+  await expect(page.getByTestId("balance-eur")).toHaveText(/0\.00 EUR/);
 });

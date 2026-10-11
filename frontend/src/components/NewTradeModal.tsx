@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ShieldAlert, X } from "lucide-react";
-import { apiError, escrowApi } from "../api";
+import { apiError, currenciesApi, escrowApi } from "../api";
 import type { ContractView, Counterparty, Quote, TrackingType } from "../api";
 
 import { money } from "../format";
@@ -18,9 +18,28 @@ export default function NewTradeModal({ onClose, onCreated }: Props) {
   const [trackingType, setTrackingType] = useState<TrackingType>("GITHUB_PR");
   const [trackingKey, setTrackingKey] = useState("");
   const [quote, setQuote] = useState<Quote | null>(null);
+  // Currency pickers are fed by GET /api/v1/currencies — whatever rails
+  // the platform actually clears, not a hardcoded pair.
+  const [currencies, setCurrencies] = useState<string[]>([]);
+  const [sourceCurrency, setSourceCurrency] = useState("USD");
+  const [targetCurrency, setTargetCurrency] = useState("EUR");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [invited, setInvited] = useState(false);
+
+  useEffect(() => {
+    currenciesApi
+      .supported()
+      .then((r) => {
+        setCurrencies(r.data.currencies);
+        // Sensible defaults: first alphabetically is the pay-out side.
+        if (r.data.currencies.length > 1) {
+          setTargetCurrency(r.data.currencies[0]);
+          setSourceCurrency(r.data.currencies[1]);
+        }
+      })
+      .catch(() => setCurrencies(["EUR", "USD"]));
+  }, []);
 
   // Debounced counterparty resolution.
   useEffect(() => {
@@ -44,17 +63,17 @@ export default function NewTradeModal({ onClose, onCreated }: Props) {
     };
   }, [email]);
 
-  // Live backend quote for the chosen amount.
+  // Live backend quote for the chosen amount and currency pair.
   useEffect(() => {
     const n = Number(amount);
-    if (!n || n <= 0) {
+    if (!n || n <= 0 || sourceCurrency === targetCurrency) {
       setQuote(null);
       return;
     }
     let stale = false;
     const t = setTimeout(() => {
       escrowApi
-        .quote(amount)
+        .quote(amount, targetCurrency, sourceCurrency)
         .then((r) => {
           if (!stale) setQuote(r.data);
         })
@@ -66,7 +85,7 @@ export default function NewTradeModal({ onClose, onCreated }: Props) {
       stale = true;
       clearTimeout(t);
     };
-  }, [amount]);
+  }, [amount, sourceCurrency, targetCurrency]);
 
   const uboCollision = cp?.same_ubo === true;
 
@@ -78,6 +97,8 @@ export default function NewTradeModal({ onClose, onCreated }: Props) {
       const res = await escrowApi.create({
         counterparty_email: email,
         target_amount: amount,
+        target_currency: targetCurrency,
+        source_currency: sourceCurrency,
         tracking_type: trackingType,
         tracking_key: trackingKey,
       });
@@ -103,7 +124,7 @@ export default function NewTradeModal({ onClose, onCreated }: Props) {
         className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl"
       >
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-[#0E150E]">New Escrow Trade</h2>
+          <h2 className="text-lg font-bold text-[#1B1C1D]">New Escrow Trade</h2>
           <button type="button" onClick={onClose} className="text-[#5C685B]">
             <X size={20} />
           </button>
@@ -135,19 +156,50 @@ export default function NewTradeModal({ onClose, onCreated }: Props) {
         <div className="mt-3 grid grid-cols-2 gap-3">
           <div>
             <label className="mb-1 block text-sm font-medium text-[#5C685B]">
-              Invoice amount (EUR)
+              They receive
             </label>
-            <input
-              data-testid="amount"
-              type="number"
-              step="0.01"
-              min="0.01"
-              required
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className={input}
-            />
+            <div className="flex gap-2">
+              <input
+                data-testid="amount"
+                type="number"
+                step="0.01"
+                min="0.01"
+                required
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className={input}
+              />
+              <select
+                data-testid="target-currency"
+                value={targetCurrency}
+                onChange={(e) => setTargetCurrency(e.target.value)}
+                className="w-20 rounded-lg border border-slate-200 px-2 py-2 text-sm"
+              >
+                {currencies.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
           </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-[#5C685B]">
+              You deposit
+            </label>
+            <select
+              data-testid="source-currency"
+              value={sourceCurrency}
+              onChange={(e) => setSourceCurrency(e.target.value)}
+              className={input}
+            >
+              {currencies.map((c) => (
+                <option key={c} value={c}>
+                  {c} balance
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div className="mt-3 grid grid-cols-1 gap-3">
           <div>
             <label className="mb-1 block text-sm font-medium text-[#5C685B]">
               Milestone
@@ -183,7 +235,7 @@ export default function NewTradeModal({ onClose, onCreated }: Props) {
         {quote && (
           <div
             data-testid="quote"
-            className="mb-3 rounded-lg bg-[#F4F5F7] p-3 text-sm"
+            className="mb-3 rounded-lg bg-[#F4F5F0] p-3 text-sm"
           >
             <div className="flex justify-between">
               <span className="text-[#5C685B]">Mid-market rate</span>
@@ -193,15 +245,15 @@ export default function NewTradeModal({ onClose, onCreated }: Props) {
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-[#5C685B]">Principal</span>
-              <span>{money(quote.principal, quote.source_currency)}</span>
+              <span className="text-[#5C685B]">They receive</span>
+              <span>{money(quote.target_amount, quote.target_currency)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-[#5C685B]">Wise FX fee (0.5%)</span>
               <span>{money(quote.wise_fee, quote.source_currency)}</span>
             </div>
             <div className="mt-1 flex justify-between border-t border-slate-200 pt-1 font-semibold">
-              <span>Total deposit</span>
+              <span>You deposit</span>
               <span data-testid="quote-total">
                 {money(quote.total_deposit, quote.source_currency)}
               </span>
@@ -251,8 +303,8 @@ export default function NewTradeModal({ onClose, onCreated }: Props) {
             className="mb-3 flex items-start gap-2 rounded-lg bg-[#FFDAD6] px-3 py-2 text-sm text-[#BA1A1A]"
           >
             <ShieldAlert size={18} className="mt-0.5 shrink-0" />
-            Circular ownership detected — counterparty shares your
-            organization's tax ID. Escrow disabled under anti-collusion rules.
+            Hold on: buyer and seller share the same tax identity
+            (self-trading is blocked).
           </div>
         )}
         {error && (
