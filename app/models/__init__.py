@@ -1,3 +1,4 @@
+from app.models.auth import User
 from app.models.entities import Account, AccountType, Entity
 from app.models.escrow import ContractStatus, EscrowContract, TrackingType
 from app.models.idempotency import IdempotencyRecord, WebhookDeliveryLog
@@ -12,5 +13,6 @@ __all__ = [
     "IdempotencyRecord",
     "LedgerTransaction",
     "TrackingType",
+    "User",
     "WebhookDeliveryLog",
 ]

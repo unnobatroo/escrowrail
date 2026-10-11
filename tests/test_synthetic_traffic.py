@@ -18,29 +18,31 @@ from app.models.escrow import ContractStatus, EscrowContract, TrackingType
 from app.models.ledger import LedgerTransaction
 from app.repositories.account_repository import AccountRepository, EntityRepository
 from app.repositories.escrow_repository import EscrowRepository
+from app.services.auth_service import AuthService
 from app.services.escrow_service import EscrowService
 from app.services.ledger_service import LedgerService
+from tests.conftest import make_user
 from tests.test_concurrency_and_load import ParityFX, _post, file_engine, wired_app
 
 
 class ContractSpec(NamedTuple):
     contract_id: uuid.UUID
-    buyer_account_id: uuid.UUID
+    buyer_token: str
     tracking_key: str
 
 
 def _seed(
     engine: Engine, n_entities: int
-) -> tuple[dict[uuid.UUID, uuid.UUID], dict[uuid.UUID, uuid.UUID]]:
-    """Create buyers (funded USD accounts) and sellers (EUR accounts).
-    Returns ({entity_id: account_id}, {entity_id: account_id})."""
+) -> tuple[dict[uuid.UUID, tuple[uuid.UUID, str]], dict[uuid.UUID, uuid.UUID]]:
+    """Create buyers (funded USD accounts + login users) and sellers.
+    Returns ({entity_id: (account_id, bearer_token)}, {entity_id: account_id})."""
     with Session(engine) as session:
         entities = EntityRepository(session)
         accounts = AccountRepository(session)
         ledger = LedgerService(session, accounts)
         clearing = accounts.get_or_create_system_account(AccountType.WISE_CLEARING_ACCOUNT, "USD")
         session.commit()
-        buyers: dict[uuid.UUID, uuid.UUID] = {}
+        buyers: dict[uuid.UUID, tuple[uuid.UUID, str]] = {}
         sellers: dict[uuid.UUID, uuid.UUID] = {}
         for i in range(n_entities):
             buyer = entities.create(Entity(legal_name=f"B{i}", ubo_tax_id=f"UB{i}", country="US"))
@@ -62,7 +64,8 @@ def _seed(
             )
             session.commit()
             ledger.record_transfer(clearing.id, ba.id, Decimal("50000"), "USD", "seed")
-            buyers[buyer.id] = ba.id
+            user = make_user(session, buyer, email=f"buyer{i}@test.dev")
+            buyers[buyer.id] = (ba.id, AuthService.issue_token(user))
             sellers[seller.id] = sa.id
         return buyers, sellers
 
@@ -123,18 +126,16 @@ def test_synthetic_high_volume_traffic() -> None:
                     TrackingType.GITHUB_PR,
                     f"https://github.com/acme/repo/pull/{1000 + i}",
                 )
-                specs.append(ContractSpec(contract.id, buyers[buyer_id], contract.tracking_key))
+                specs.append(ContractSpec(contract.id, buyers[buyer_id][1], contract.tracking_key))
             assert ubo_rejections == 3
             assert len(specs) == 27
 
         # Interleaved fund -> (settle via duplicate webhooks | cancel).
         def fund(spec: ContractSpec) -> int:
             return _post(
-                f"/contracts/{spec.contract_id}/fund",
-                {
-                    "account_id": str(spec.buyer_account_id),
-                    "deposit_amount": "20000",
-                },
+                f"/api/v1/escrow/{spec.contract_id}/fund",
+                {"deposit_amount": "20000"},
+                spec.buyer_token,
             ).status_code
 
         with ThreadPoolExecutor(max_workers=8) as pool:
@@ -162,7 +163,9 @@ def test_synthetic_high_volume_traffic() -> None:
             return max(r1.status_code, r2.status_code)
 
         def cancel(spec: ContractSpec) -> int:
-            return _post(f"/contracts/{spec.contract_id}/cancel", {}).status_code
+            return _post(
+                f"/api/v1/escrow/{spec.contract_id}/cancel", {}, spec.buyer_token
+            ).status_code
 
         with ThreadPoolExecutor(max_workers=8) as pool:
             list(pool.map(settle, settle_specs))

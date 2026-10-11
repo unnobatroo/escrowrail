@@ -2,6 +2,7 @@
 
 import uuid
 
+from sqlalchemy import desc
 from sqlmodel import Session, select
 
 from app.models.escrow import ContractStatus, EscrowContract, TrackingType
@@ -14,6 +15,42 @@ class EscrowRepository:
 
     def get(self, contract_id: uuid.UUID) -> EscrowContract | None:
         return self.session.get(EscrowContract, contract_id)
+
+    def get_by_id_for_user(
+        self, contract_id: uuid.UUID, entity_id: uuid.UUID
+    ) -> EscrowContract | None:
+        """Tenant boundary: returns the contract only when the caller's
+        entity is a party (buyer or seller). Strangers get None — the
+        route layer turns that into 404 so existence is not leaked."""
+        stmt = select(EscrowContract).where(
+            EscrowContract.id == contract_id,
+            (EscrowContract.buyer_id == entity_id) | (EscrowContract.seller_id == entity_id),
+        )
+        return self.session.exec(stmt).first()
+
+    def get_by_id_for_user_for_update(
+        self, contract_id: uuid.UUID, entity_id: uuid.UUID
+    ) -> EscrowContract | None:
+        """Party-scoped fetch under a row-level write lock."""
+        stmt = (
+            select(EscrowContract)
+            .where(
+                EscrowContract.id == contract_id,
+                (EscrowContract.buyer_id == entity_id) | (EscrowContract.seller_id == entity_id),
+            )
+            .with_for_update()
+        )
+        return self.session.exec(stmt).first()
+
+    def list_for_entity(self, entity_id: uuid.UUID) -> list[EscrowContract]:
+        """All contracts where the entity is buyer or seller — the
+        dashboard's trade list."""
+        stmt = (
+            select(EscrowContract)
+            .where((EscrowContract.buyer_id == entity_id) | (EscrowContract.seller_id == entity_id))
+            .order_by(desc("created_at"))
+        )
+        return list(self.session.exec(stmt).all())
 
     def get_for_update(self, contract_id: uuid.UUID) -> EscrowContract | None:
         """Fetch the contract under a row-level write lock (FOR UPDATE on

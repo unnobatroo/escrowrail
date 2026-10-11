@@ -15,12 +15,13 @@ from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
 
 from app.config import settings
-from app.dependencies import get_escrow_repo, get_escrow_service
+from app.dependencies import TaskQueueDep, get_escrow_repo, get_escrow_service
 from app.exceptions import WebhookValidationError
 from app.middleware.metrics import CONTRACTS_SETTLED
 from app.models.escrow import TrackingType
 from app.repositories.escrow_repository import EscrowRepository
 from app.services.escrow_service import EscrowService
+from app.tasks import dispatch_settlement_notification
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
@@ -52,7 +53,10 @@ def _verify_github_signature(body: bytes, signature: str | None) -> None:
 
 @router.post("/github")
 async def github_webhook(
-    request: Request, service: EscrowServiceDep, contracts: EscrowRepoDep
+    request: Request,
+    service: EscrowServiceDep,
+    contracts: EscrowRepoDep,
+    tasks: TaskQueueDep,
 ) -> WebhookResult:
     body = await request.body()
     _verify_github_signature(body, request.headers.get("X-Hub-Signature-256"))
@@ -74,13 +78,17 @@ async def github_webhook(
     if contract is None:
         return WebhookResult(status="ignored")
     settled = service.settle_milestone(contract.id)
+    tasks.enqueue(dispatch_settlement_notification, str(settled.id), str(settled.seller_id))
     CONTRACTS_SETTLED.inc()
     return WebhookResult(status="settled", contract_id=settled.id)
 
 
 @router.post("/logistics")
 def logistics_webhook(
-    body: LogisticsWebhook, service: EscrowServiceDep, contracts: EscrowRepoDep
+    body: LogisticsWebhook,
+    service: EscrowServiceDep,
+    contracts: EscrowRepoDep,
+    tasks: TaskQueueDep,
 ) -> WebhookResult:
     if body.carrier != "DHL":
         raise WebhookValidationError(
@@ -93,4 +101,5 @@ def logistics_webhook(
     if contract is None:
         return WebhookResult(status="ignored")
     settled = service.settle_milestone(contract.id)
+    tasks.enqueue(dispatch_settlement_notification, str(settled.id), str(settled.seller_id))
     return WebhookResult(status="settled", contract_id=settled.id)
