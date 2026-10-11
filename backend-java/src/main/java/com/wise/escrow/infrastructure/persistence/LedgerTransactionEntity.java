@@ -36,6 +36,10 @@ public class LedgerTransactionEntity {
     @Column(nullable = false)
     private Instant createdAt;
 
+    /** SHA-256 chain link: hash(prev_hash, txn_id, debit, credit, amount, timestamp). */
+    @Column(nullable = false, length = 64)
+    private String currentHash;
+
     /** For JPA / reflective use only. */
     protected LedgerTransactionEntity() {}
 
@@ -48,7 +52,8 @@ public class LedgerTransactionEntity {
             String currency,
             String description,
             UUID contractId,
-            Instant createdAt) {
+            Instant createdAt,
+            String currentHash) {
         this.id = id;
         this.debitAccountId = debitAccountId;
         this.creditAccountId = creditAccountId;
@@ -57,6 +62,7 @@ public class LedgerTransactionEntity {
         this.description = description;
         this.contractId = contractId;
         this.createdAt = createdAt;
+        this.currentHash = currentHash;
     }
 
     /** Returns the id. */
@@ -75,4 +81,6 @@ public class LedgerTransactionEntity {
     public UUID getContractId() { return contractId; }
     /** Returns the created at. */
     public Instant getCreatedAt() { return createdAt; }
+    /** Returns the chain hash of this entry. */
+    public String getCurrentHash() { return currentHash; }
 }

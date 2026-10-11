@@ -186,10 +186,10 @@ export default function NewTradeModal({ onClose, onCreated }: Props) {
             className="mb-3 rounded-lg bg-[#F4F5F7] p-3 text-sm"
           >
             <div className="flex justify-between">
-              <span className="text-[#5C685B]">Spot rate</span>
+              <span className="text-[#5C685B]">Mid-market rate</span>
               <span>
-                1 {quote.target_currency} = {quote.display_rate.slice(0, 6)}{" "}
-                {quote.source_currency}
+                1 {quote.source_currency} ={" "}
+                {quote.mid_market_rate.slice(0, 8)} {quote.target_currency}
               </span>
             </div>
             <div className="flex justify-between">
@@ -198,7 +198,7 @@ export default function NewTradeModal({ onClose, onCreated }: Props) {
             </div>
             <div className="flex justify-between">
               <span className="text-[#5C685B]">Wise FX fee (0.5%)</span>
-              <span>{money(quote.fx_fee, quote.source_currency)}</span>
+              <span>{money(quote.wise_fee, quote.source_currency)}</span>
             </div>
             <div className="mt-1 flex justify-between border-t border-slate-200 pt-1 font-semibold">
               <span>Total deposit</span>
@@ -206,6 +206,42 @@ export default function NewTradeModal({ onClose, onCreated }: Props) {
                 {money(quote.total_deposit, quote.source_currency)}
               </span>
             </div>
+            <details
+              data-testid="bank-comparison"
+              className="mt-2 border-t border-slate-200 pt-2"
+            >
+              <summary className="cursor-pointer text-xs font-semibold text-[#5C685B]">
+                Compare with a traditional bank
+              </summary>
+              <div className="mt-1 space-y-0.5 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-[#5C685B]">
+                    Bank FX markup (3.8%)
+                  </span>
+                  <span>
+                    {money(quote.bank_spread_cost, quote.source_currency)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#5C685B]">SWIFT fee</span>
+                  <span>
+                    {money(quote.bank_swift_fee, quote.source_currency)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#5C685B]">Bank total cost</span>
+                  <span>
+                    {money(quote.bank_total_cost, quote.source_currency)}
+                  </span>
+                </div>
+                <div className="flex justify-between font-semibold text-[#163300]">
+                  <span>You save</span>
+                  <span data-testid="customer-savings">
+                    {money(quote.customer_savings, quote.source_currency)}
+                  </span>
+                </div>
+              </div>
+            </details>
           </div>
         )}
 

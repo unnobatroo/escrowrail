@@ -1,0 +1,30 @@
+spring:
+  datasource:
+    # Supabase / hosted Postgres. JDBC URL must include sslmode=require.
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 20000
+  jpa:
+    hibernate:
+      # Flyway owns the schema in every environment — Hibernate validates.
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+wise:
+  jwt:
+    secret: ${JWT_SECRET}
+    expire-minutes: ${JWT_EXPIRE_MINUTES:120}
+  webhooks:
+    github-secret: ${WISE_GITHUB_WEBHOOK_SECRET}
+    logistics-secret: ${WISE_LOGISTICS_WEBHOOK_SECRET}
+  encryption:
+    # AES-256 key for field-level encryption. Required — no default in prod.
+    key: ${WISE_FIELD_ENCRYPTION_KEY}
+  seed:
+    enabled: ${WISE_SEED_ENABLED:false}

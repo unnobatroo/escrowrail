@@ -14,7 +14,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwsHeader;
@@ -62,12 +62,35 @@ public class SecurityConfig {
 
     @Bean
     PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        return Argon2PasswordEncoder.defaultsForSpringSecurity_v5_8();
+    }
+
+    /**
+     * SPA cross-origin access. Origins come from WISE_CORS_ORIGINS
+     * (comma-separated); the default covers the local Vite dev server.
+     */
+    @Bean
+    org.springframework.web.cors.CorsConfigurationSource corsConfigurationSource(
+        @Value("${wise.cors.allowed-origins:http://localhost:5173}") String origins
+    ) {
+        var config = new org.springframework.web.cors.CorsConfiguration();
+        config.setAllowedOrigins(java.util.List.of(origins.split(",")));
+        config.setAllowedMethods(
+            java.util.List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+        );
+        config.setAllowedHeaders(
+            java.util.List.of("Authorization", "Content-Type", "X-Idempotency-Key")
+        );
+        var source =
+            new org.springframework.web.cors.UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", config);
+        return source;
     }
 
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http.csrf(csrf -> csrf.disable())
+        http.cors(cors -> {})
+            .csrf(csrf -> csrf.disable())
             .sessionManagement(s ->
                 s.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )

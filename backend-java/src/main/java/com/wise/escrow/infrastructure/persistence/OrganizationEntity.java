@@ -18,6 +18,8 @@ public class OrganizationEntity {
     private String legalName;
 
     @Column(nullable = false)
+    /** AES-256-GCM encrypted at rest — never store tax IDs in plaintext. */
+    @jakarta.persistence.Convert(converter = FieldEncryptionConverter.class)
     private String uboTaxId;
 
     @Column(nullable = false)

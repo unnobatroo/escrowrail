@@ -77,9 +77,13 @@ class AppUserRepositoryAdapter implements AppUserRepository {
 class LedgerRepositoryAdapter implements LedgerRepository {
 
     private final JpaLedgerTransactionRepository jpa;
+    private final JpaLedgerChainRepository chain;
 
-    LedgerRepositoryAdapter(JpaLedgerTransactionRepository jpa) {
+    LedgerRepositoryAdapter(
+            JpaLedgerTransactionRepository jpa,
+            JpaLedgerChainRepository chain) {
         this.jpa = jpa;
+        this.chain = chain;
     }
 
     static LedgerEntry toDomain(LedgerTransactionEntity e) {
@@ -103,15 +107,46 @@ class LedgerRepositoryAdapter implements LedgerRepository {
             String currency,
             String description,
             UUID contractId) {
+        UUID id = UUID.randomUUID();
+        Instant createdAt = Instant.now();
+        // Cryptographic audit chain: each entry links to the previous
+        // head, so tampering with any row invalidates everything after
+        // it. The chain row is locked last, after account locks, in every
+        // workflow — a consistent global order, so no deadlock cycle.
+        LedgerChainEntity head = chain
+                .findByIdForUpdate((short) 1)
+                .orElseThrow(() -> new IllegalStateException(
+                        "ledger_chain head row missing"));
+        String hash = sha256(
+                head.getCurrentHash()
+                        + id
+                        + debitAccountId
+                        + creditAccountId
+                        + amount.toPlainString()
+                        + createdAt);
+        head.setCurrentHash(hash);
+        chain.save(head);
         return toDomain(jpa.save(new LedgerTransactionEntity(
-                UUID.randomUUID(),
+                id,
                 debitAccountId,
                 creditAccountId,
                 amount,
                 currency,
                 description,
                 contractId,
-                Instant.now())));
+                createdAt,
+                hash)));
+    }
+
+    private static String sha256(String input) {
+        try {
+            return java.util.HexFormat.of().formatHex(
+                    java.security.MessageDigest.getInstance("SHA-256")
+                            .digest(input.getBytes(
+                                    java.nio.charset.StandardCharsets.UTF_8)));
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     @Override

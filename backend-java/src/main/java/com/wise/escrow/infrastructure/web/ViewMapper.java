@@ -21,6 +21,7 @@ public interface ViewMapper {
 
     @Mapping(target = "id", expression = "java(o.id())")
     @Mapping(target = "legalName", expression = "java(o.legalName())")
+    @Mapping(target = "uboTaxId", expression = "java(o.uboTaxId().value())")
     @Mapping(target = "country", expression = "java(o.country())")
     EntityView toEntityView(Organization o);
 }

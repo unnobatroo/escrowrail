@@ -30,11 +30,17 @@ public final class ApiDtos {
 
     public record TokenResponse(String accessToken, String tokenType) {}
 
-    public record EntityView(UUID id, String legalName, String country) {}
+    public record EntityView(
+        UUID id,
+        String legalName,
+        String uboTaxId,
+        String country
+    ) {}
 
     public record UserView(
         UUID id,
         String email,
+        boolean isActive,
         EntityView entity,
         Instant createdAt
     ) {}

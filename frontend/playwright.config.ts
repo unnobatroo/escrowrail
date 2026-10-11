@@ -2,29 +2,42 @@ import { defineConfig } from "@playwright/test";
 
 const BACKEND_PORT = 8619;
 const FRONTEND_PORT = 5173;
+const PG_PORT = 15432;
 
 export default defineConfig({
   testDir: "./e2e",
   timeout: 60_000,
   retries: 0,
-  workers: 1, // serialized — tests share the backend's single DB
+  workers: 1, // serialized — tests share one backend/DB
   use: {
     baseURL: `http://localhost:${FRONTEND_PORT}`,
   },
+  globalTeardown: "./e2e/teardown.ts",
   webServer: [
     {
-      // Fresh seeded SQLite DB per run — entities must exist for pickers.
+      // Fresh Postgres container + Spring Boot backend per run. The app's
+      // SeedRunner provisions demo entities/balances on the empty database.
       command:
-        "cd .. && rm -f wise_escrow_e2e.db && " +
-        `DATABASE_URL=sqlite:///./wise_escrow_e2e.db .venv/bin/python scripts/seed_demo_data.py && ` +
-        `DATABASE_URL=sqlite:///./wise_escrow_e2e.db .venv/bin/uvicorn app.main:app --port ${BACKEND_PORT}`,
-      port: BACKEND_PORT,
+        "docker rm -f wise-e2e-pg >/dev/null 2>&1 || true; " +
+        "docker run --rm -d --name wise-e2e-pg " +
+        "-e POSTGRES_USER=wise -e POSTGRES_PASSWORD=wise " +
+        `-e POSTGRES_DB=wise_escrow -p ${PG_PORT}:5432 postgres:16-alpine >/dev/null && ` +
+        "until docker exec wise-e2e-pg pg_isready -U wise -d wise_escrow >/dev/null 2>&1; do sleep 1; done; " +
+        "cd ../backend-java && " +
+        `PORT=${BACKEND_PORT} ` +
+        `DATABASE_URL=jdbc:postgresql://localhost:${PG_PORT}/wise_escrow ` +
+        "DATABASE_USER=wise DATABASE_PASSWORD=wise " +
+        "JWT_SECRET=e2e-secret-e2e-secret-e2e-secret-32 " +
+        "WISE_GITHUB_WEBHOOK_SECRET=e2e-gh-secret " +
+        "WISE_LOGISTICS_WEBHOOK_SECRET=e2e-logi-secret " +
+        "./gradlew bootRun --no-daemon",
+      url: `http://localhost:${BACKEND_PORT}/actuator/health`,
       reuseExistingServer: false,
-      timeout: 30_000,
+      timeout: 240_000,
     },
     {
       command: `npm run dev -- --port ${FRONTEND_PORT} --strictPort`,
-      env: { VITE_API_URL: `http://localhost:${BACKEND_PORT}` },
+      env: { VITE_API_BASE_URL: `http://localhost:${BACKEND_PORT}` },
       port: FRONTEND_PORT,
       reuseExistingServer: false,
       timeout: 30_000,
