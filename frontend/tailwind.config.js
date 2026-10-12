@@ -4,21 +4,29 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
+        // Escrowrail's real stack: "Escrowrail Sans" display face, Inter body fallback.
+        sans: ['"Escrowrail Sans"', "Inter", "ui-sans-serif", "system-ui", "sans-serif"],
       },
       colors: {
+        // Verified against escrowrail.com's shipped CSS (Dec 2025 snapshot):
+        // steel-blue body text, blue interactive accent, minimal shadows.
         brand: {
           forest: "#163300",
           neon: "#9FE870",
           neonHover: "#8CD65F",
           sand: "#F4F5F0",
           surface: "#FFFFFF",
-          charcoal: "#1B1C1D",
-          subtle: "#5D7052",
-          border: "#E2E6DC",
-          warning: "#E58300",
-          danger: "#D9381E",
+          charcoal: "#21231D",
+          steel: "#37517E",
+          subtle: "#5D7079",
+          border: "#C9CBCE",
+          interactive: "#00A2DD",
+          interactiveDark: "#0097C7",
+          warning: "#FADC65",
+          warningText: "#7A5800",
+          danger: "#E74848",
           dangerSurface: "#FDF2F0",
+          success: "#2EAD4B",
         },
         escrowrail: {
           forest: "#163300",
