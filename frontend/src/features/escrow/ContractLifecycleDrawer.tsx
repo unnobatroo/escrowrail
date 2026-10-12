@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { ShieldCheck, Timer, X } from "lucide-react";
 import { accountsApi, apiError, escrowApi } from "../../api";
@@ -6,6 +6,7 @@ import type { ContractView, LedgerEntry, Quote } from "../../api";
 import FundingConfirmSheet from "./FundingConfirmSheet";
 import EscrowMilestoneStepper from "./EscrowMilestoneStepper";
 import Tooltip from "../../shared/Tooltip";
+import { useDialogA11y } from "../../shared/useDialogA11y";
 import { money, yieldAccrued } from "../../shared/currencyFormatter";
 
 const STATUS_STYLE: Record<string, string> = {
@@ -40,6 +41,8 @@ export default function ContractLifecycleDrawer({
   const [liveBalance, setLiveBalance] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const dialogRef = useRef<HTMLElement>(null);
+  useDialogA11y(dialogRef, onClose);
 
   const reload = useCallback(() => {
     escrowApi
@@ -143,6 +146,8 @@ export default function ContractLifecycleDrawer({
         exit={{ x: "100%" }}
         transition={{ damping: 25, stiffness: 200 }}
         className="absolute right-0 top-0 flex h-full w-full max-w-xl flex-col overflow-y-auto bg-brand-surface shadow-modal"
+        ref={dialogRef as React.RefObject<HTMLElement>}
+        tabIndex={-1}
       >
         <div className="flex items-start justify-between border-b border-slate-200 px-6 py-4">
           <div>

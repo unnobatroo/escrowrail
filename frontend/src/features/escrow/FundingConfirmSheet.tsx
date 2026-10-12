@@ -1,5 +1,7 @@
+import { useRef } from "react";
 import type { ContractView, Quote } from "../../api";
 import { money } from "../../shared/currencyFormatter";
+import { useDialogA11y } from "../../shared/useDialogA11y";
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: "$",
@@ -37,6 +39,8 @@ export default function FundingConfirmSheet({
     sourceBalance != null && totalDeposit > available
       ? (totalDeposit - available).toFixed(2)
       : null;
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogA11y(dialogRef, onClose);
 
   return (
     <div className="fixed inset-0 z-30 flex items-end justify-center bg-black/40 sm:items-center">
@@ -44,6 +48,8 @@ export default function FundingConfirmSheet({
         role="dialog"
         aria-modal="true"
         aria-labelledby="fund-sheet-title"
+        ref={dialogRef}
+        tabIndex={-1}
         className="w-full max-w-md rounded-t-2xl bg-white p-6 shadow-xl sm:rounded-xl"
       >
         <h3 id="fund-sheet-title" className="mb-3 font-bold text-[#1B1C1D]">
