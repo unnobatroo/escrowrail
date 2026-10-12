@@ -26,15 +26,19 @@ import org.springframework.test.web.servlet.MvcResult;
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles(profiles = "demo", inheritProfiles = false)
-@TestPropertySource(properties = {
-    // Base yml requires these; the real datasource comes from the
-    // Testcontainers @ServiceConnection.
-    "DATABASE_USER=unused",
-    "DATABASE_PASSWORD=unused",
-    "JWT_SECRET=test-secret-test-secret-test-secret-32",
-    "ESCROWRAIL_GITHUB_WEBHOOK_SECRET=test-gh-secret",
-    "ESCROWRAIL_LOGISTICS_WEBHOOK_SECRET=test-logi-secret",
-})
+@TestPropertySource(
+    properties = {
+        // Base yml requires these; the real datasource comes from the
+        // Testcontainers @ServiceConnection.
+        "DATABASE_USER=unused",
+        "DATABASE_PASSWORD=unused",
+        "JWT_SECRET=test-secret-test-secret-test-secret-32",
+        "ESCROWRAIL_GITHUB_WEBHOOK_SECRET=test-gh-secret",
+        "ESCROWRAIL_LOGISTICS_WEBHOOK_SECRET=test-logi-secret",
+        "DEMO_BUYER_PASSWORD=EscrowDemo123!",
+        "DEMO_SELLER_PASSWORD=EscrowDemo123!",
+    }
+)
 class DemoProfileTest extends AbstractPostgresIT {
 
     @Autowired
@@ -49,7 +53,8 @@ class DemoProfileTest extends AbstractPostgresIT {
                 post("/api/v1/auth/login")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(
-                        "{\"email\":\"" + email +
+                        "{\"email\":\"" +
+                            email +
                             "\",\"password\":\"EscrowDemo123!\"}"
                     )
             )
@@ -80,7 +85,9 @@ class DemoProfileTest extends AbstractPostgresIT {
                         "{\"counterparty_email\":\"seller@demo.com\"," +
                             "\"target_amount\":\"500.00\"," +
                             "\"tracking_type\":\"GITHUB_PR\"," +
-                            "\"tracking_key\":\"" + trackingKey + "\"}"
+                            "\"tracking_key\":\"" +
+                            trackingKey +
+                            "\"}"
                     )
             )
             .andExpect(status().isCreated())
@@ -115,8 +122,10 @@ class DemoProfileTest extends AbstractPostgresIT {
 
         // Seller sees the same contract as FUNDED — tenant-scoped view.
         mvc.perform(
-            get("/api/v1/escrow/" + contractId)
-                .header("Authorization", "Bearer " + seller)
+            get("/api/v1/escrow/" + contractId).header(
+                "Authorization",
+                "Bearer " + seller
+            )
         )
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.status").value("FUNDED"));
@@ -124,7 +133,9 @@ class DemoProfileTest extends AbstractPostgresIT {
         // A correctly signed GitHub merge webhook settles it.
         byte[] ghBody = (
             "{\"action\":\"closed\",\"pull_request\":{\"merged\":true," +
-                "\"html_url\":\"" + trackingKey + "\"}}"
+            "\"html_url\":\"" +
+            trackingKey +
+            "\"}}"
         ).getBytes(java.nio.charset.StandardCharsets.UTF_8);
         mvc.perform(
             post("/webhooks/github")
@@ -140,7 +151,10 @@ class DemoProfileTest extends AbstractPostgresIT {
     void demoGatewayIsOnAndTokenBackdoorIsOff() throws Exception {
         String buyer = login("buyer@demo.com");
         mvc.perform(
-            get("/api/v1/demo/config").header("Authorization", "Bearer " + buyer)
+            get("/api/v1/demo/config").header(
+                "Authorization",
+                "Bearer " + buyer
+            )
         )
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.enabled").value(true));

@@ -29,6 +29,8 @@ export default defineConfig({
         `DATABASE_URL=jdbc:postgresql://localhost:${PG_PORT}/escrowrail_escrow ` +
         "DATABASE_USER=escrowrail DATABASE_PASSWORD=escrowrail " +
         "JWT_SECRET=e2e-secret-e2e-secret-e2e-secret-32 " +
+        "DEMO_BUYER_PASSWORD=EscrowDemo123! " +
+        "DEMO_SELLER_PASSWORD=EscrowDemo123! " +
         "ESCROWRAIL_GITHUB_WEBHOOK_SECRET=e2e-gh-secret " +
         "ESCROWRAIL_LOGISTICS_WEBHOOK_SECRET=e2e-logi-secret " +
         "./gradlew bootRun --no-daemon",

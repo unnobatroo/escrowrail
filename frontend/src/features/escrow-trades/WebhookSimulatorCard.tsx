@@ -74,13 +74,11 @@ export default function WebhookSimulatorCard({
             <span data-testid="gw-github-url">{config.github_webhook_url}</span>
             <span className="text-[#5C685B]">Logistics endpoint</span>
             <span>{config.logistics_webhook_url}</span>
-            <span className="text-[#5C685B]">HMAC secret</span>
-            <span data-testid="gw-secret" className="break-all">
-              {config.github_secret}
-            </span>
-            <span className="text-[#5C685B]">Logistics secret</span>
-            <span className="break-all">{config.logistics_secret}</span>
           </div>
+          <p className="text-xs text-[#5C685B]">
+            Signing secrets stay server-side — events are HMAC-signed in the backend
+            through the same verification path as real provider deliveries.
+          </p>
 
           <div className="flex flex-wrap items-center gap-2">
             <select

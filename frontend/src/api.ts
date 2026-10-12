@@ -148,11 +148,10 @@ export interface DemoConfig {
   enabled: boolean;
   buyer_email: string;
   seller_email: string;
-  demo_password: string;
+  buyer_password: string;
+  seller_password: string;
   github_webhook_url: string;
   logistics_webhook_url: string;
-  github_secret: string;
-  logistics_secret: string;
 }
 
 export interface ApiError {

@@ -32,7 +32,7 @@ public class SeedRunner implements CommandLineRunner {
     private final AccountRepository accounts;
     private final LedgerService ledgerService;
     private final boolean enabled;
-    private final String demoPassword;
+    private final DemoCredentials credentials;
 
     /** Creates a new SeedRunner. */
     public SeedRunner(
@@ -40,15 +40,15 @@ public class SeedRunner implements CommandLineRunner {
         AppUserRepository users,
         AccountRepository accounts,
         LedgerService ledgerService,
-        @Value("${escrowrail.seed.enabled:true}") boolean enabled,
-        @Value("${escrowrail.seed.password:EscrowDemo123!}") String demoPassword
+        DemoCredentials credentials,
+        @Value("${escrowrail.seed.enabled:true}") boolean enabled
     ) {
         this.auth = auth;
         this.users = users;
         this.accounts = accounts;
         this.ledgerService = ledgerService;
+        this.credentials = credentials;
         this.enabled = enabled;
-        this.demoPassword = demoPassword;
     }
 
     @Override
@@ -59,9 +59,9 @@ public class SeedRunner implements CommandLineRunner {
         // Buyer trades in USD only (50,000 USD / 0 EUR); the seller holds
         // its EUR operating balance (0 USD / 10,000 EUR).
         seed("buyer@demo.com", "Acme Industrial US", "US-1001", "US",
-            "USD", new BigDecimal("50000.00"));
+            "USD", new BigDecimal("50000.00"), credentials.buyerPassword());
         seed("seller@demo.com", "Berlin Robotics GmbH", "DE-2002", "DE",
-            "EUR", new BigDecimal("10000.00"));
+            "EUR", new BigDecimal("10000.00"), credentials.sellerPassword());
     }
 
     private void seed(
@@ -70,12 +70,13 @@ public class SeedRunner implements CommandLineRunner {
             String taxId,
             String country,
             String grantCurrency,
-            BigDecimal grantAmount
+            BigDecimal grantAmount,
+            String password
     ) {
         if (users.findByEmail(email).isPresent()) {
             return;
         }
-        var registration = auth.register(email, demoPassword, legalName, taxId, country);
+        var registration = auth.register(email, password, legalName, taxId, country);
         // Demo tenants are trusted fixtures — skip the email gate and the
         // onboarding setup window.
         users.save(registration.user().verified().onboarded());
