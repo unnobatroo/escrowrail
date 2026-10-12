@@ -100,6 +100,10 @@ public class SecurityConfig {
                         "/api/v1/auth/**",
                         "/webhooks/**",
                         "/dev/**",
+                        // Demo-tool routes exist only under dev/demo; under
+                        // prod they must answer 404 (no controller), which
+                        // requires the path to bypass auth first.
+                        "/api/v1/demo/**",
                         "/actuator/health",
                         "/v3/api-docs/**",
                         "/swagger-ui/**",

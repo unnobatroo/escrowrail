@@ -35,7 +35,6 @@ TAG=latest
 : "${ESCROWRAIL_GITHUB_WEBHOOK_SECRET:?set ESCROWRAIL_GITHUB_WEBHOOK_SECRET}"
 : "${ESCROWRAIL_LOGISTICS_WEBHOOK_SECRET:?set ESCROWRAIL_LOGISTICS_WEBHOOK_SECRET}"
 ESCROWRAIL_CORS_ORIGINS=${ESCROWRAIL_CORS_ORIGINS:-https://escrowrail.vercel.app}
-ESCROWRAIL_SEED_ENABLED=${ESCROWRAIL_SEED_ENABLED:-true}
 
 echo ">> building linux/amd64 image (no attestations) and pushing to $IMAGE_REPO:$TAG"
 docker buildx build --platform linux/amd64 --provenance=false --sbom=false \
@@ -75,7 +74,6 @@ else
       "ESCROWRAIL_GITHUB_WEBHOOK_SECRET=secretref:ghsec" \
       "ESCROWRAIL_LOGISTICS_WEBHOOK_SECRET=secretref:losec" \
       "ESCROWRAIL_CORS_ORIGINS=$ESCROWRAIL_CORS_ORIGINS" \
-      "ESCROWRAIL_SEED_ENABLED=$ESCROWRAIL_SEED_ENABLED" \
       "PORT=8080" \
     --output none
 fi

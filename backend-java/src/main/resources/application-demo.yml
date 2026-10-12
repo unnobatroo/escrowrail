@@ -1,0 +1,8 @@
+# Pitch/evaluation deployment profile: demo tenants, sandbox top-ups and
+# the server-side signed webhook simulator are enabled; the /dev token
+# backdoor stays off (that is a dev/test artifact only).
+escrowrail:
+  security:
+    allow-mock-webhooks: true
+  seed:
+    enabled: true

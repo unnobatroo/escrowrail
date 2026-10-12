@@ -20,7 +20,7 @@ import java.util.UUID;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Profile;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -29,13 +29,14 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * Sandbox/demo surface: webhook gateway introspection, signed webhook
- * simulation, and balance top-ups. Entire controller is absent unless
- * {@code escrowrail.demo.enabled=true} — production sets it false.
+ * simulation, and balance top-ups. The entire controller exists only under
+ * the {@code dev} or {@code demo} profiles — under {@code prod} these
+ * routes are unmapped and return HTTP 404.
  */
 @RestController
 @RequestMapping("/api/v1/demo")
-@ConditionalOnProperty(name = "escrowrail.demo.enabled", havingValue = "true")
-public class DemoController {
+@Profile({"dev", "demo"})
+public class DemoToolsController {
 
     private static final BigDecimal MAX_TOPUP = new BigDecimal("100000");
 
@@ -49,10 +50,11 @@ public class DemoController {
     private final String buyerEmail;
     private final String sellerEmail;
     private final String demoPassword;
+    private final boolean allowMockWebhooks;
     private final ViewMapper views;
 
-    /** Creates a new DemoController. */
-    public DemoController(
+    /** Creates a new DemoToolsController. */
+    public DemoToolsController(
             AccountRepository accounts,
             LedgerService ledgerService,
             EscrowContractRepository contracts,
@@ -63,7 +65,8 @@ public class DemoController {
             @Value("${escrowrail.webhooks.logistics-secret:}") String logisticsSecret,
             @Value("${escrowrail.demo.buyer-email:buyer@demo.com}") String buyerEmail,
             @Value("${escrowrail.demo.seller-email:seller@demo.com}") String sellerEmail,
-            @Value("${escrowrail.seed.password:demo1234}") String demoPassword) {
+            @Value("${escrowrail.seed.password:demo1234}") String demoPassword,
+            @Value("${escrowrail.security.allow-mock-webhooks:false}") boolean allowMockWebhooks) {
         this.accounts = accounts;
         this.ledgerService = ledgerService;
         this.contracts = contracts;
@@ -75,6 +78,7 @@ public class DemoController {
         this.buyerEmail = buyerEmail;
         this.sellerEmail = sellerEmail;
         this.demoPassword = demoPassword;
+        this.allowMockWebhooks = allowMockWebhooks;
     }
 
     /**
@@ -131,10 +135,15 @@ public class DemoController {
     /**
      * Fires the contract's milestone through the REAL webhook verification
      * path: the payload is HMAC-signed server-side and dispatched to the same
-     * handlers third-party webhooks hit.
+     * handlers third-party webhooks hit. Hard-gated by
+     * {@code escrowrail.security.allow-mock-webhooks} in addition to the profile
+     * gate — a demo profile deployed without the flag still refuses.
      */
     @PostMapping("/simulate-webhook")
     public SimulateResponse simulate(@RequestBody SimulateRequest body) throws java.io.IOException {
+        if (!allowMockWebhooks) {
+            throw new NotFoundException("Webhook simulation disabled");
+        }
         var contract = contracts
                 .findByIdForEntity(body.contract_id(), TenantPrincipal.entityId())
                 .orElseThrow(() -> new NotFoundException("Contract not found"));

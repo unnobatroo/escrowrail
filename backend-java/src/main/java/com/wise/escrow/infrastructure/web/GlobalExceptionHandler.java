@@ -69,6 +69,13 @@ public class GlobalExceptionHandler {
                 .body(new ErrorView("ERR_UNSUPPORTED_MEDIA_TYPE", "Unsupported media type"));
     }
 
+    /** Unmapped paths are 404, never 500 — profile-gated routes rely on it. */
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    ResponseEntity<ErrorView> notFound(Exception e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorView("ERR_NOT_FOUND", "Not found"));
+    }
+
     @ExceptionHandler(org.springframework.dao.OptimisticLockingFailureException.class)
     ResponseEntity<ErrorView> conflict(Exception e) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
