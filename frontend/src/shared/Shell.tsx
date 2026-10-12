@@ -3,8 +3,8 @@ import { LogOut, Plus, Settings, ShieldCheck, ArrowLeftRight } from "lucide-reac
 import { Link, useNavigate } from "react-router-dom";
 import { accountsApi, demoApi, isDemoMode } from "../api";
 import type { Account, DemoConfig } from "../api";
-import { useAuth } from "../auth";
-import { money } from "../currencyFormatter";
+import { useAuth } from "../features/auth/auth";
+import { money } from "./currencyFormatter";
 import ProfileSettingsModal from "./ProfileSettingsModal";
 
 export default function Shell({ children }: { children: React.ReactNode }) {

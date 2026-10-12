@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { accountsApi, apiError, demoApi, escrowApi, isDemoMode } from "../api";
-import type { Account, ContractView } from "../api";
-import EscrowCreationModal from "../components/EscrowCreationModal";
-import LedgerActivityFeed from "../components/LedgerActivityFeed";
-import ContractLifecycleDrawer from "../components/ContractLifecycleDrawer";
-import WebhookSimulatorCard from "../components/WebhookSimulatorCard";
-import ProfileSettingsModal from "../components/ProfileSettingsModal";
-import Shell from "../components/Shell";
-import { useAuth } from "../auth";
-import { money, yieldAccrued } from "../currencyFormatter";
+import { accountsApi, apiError, demoApi, escrowApi, isDemoMode } from "../../api";
+import type { Account, ContractView } from "../../api";
+import EscrowCreationModal from "./EscrowCreationModal";
+import LedgerActivityFeed from "../ledger/LedgerActivityFeed";
+import ContractLifecycleDrawer from "./ContractLifecycleDrawer";
+import WebhookSimulatorCard from "./WebhookSimulatorCard";
+import ProfileSettingsModal from "../../shared/ProfileSettingsModal";
+import Shell from "../../shared/Shell";
+import { useAuth } from "../auth/auth";
+import { money, yieldAccrued } from "../../shared/currencyFormatter";
 
 type Filter = "all" | "active" | "completed";
 

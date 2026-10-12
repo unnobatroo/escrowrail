@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { ShieldCheck, Timer, X } from "lucide-react";
-import { accountsApi, apiError, escrowApi } from "../api";
-import type { ContractView, LedgerEntry, Quote } from "../api";
+import { accountsApi, apiError, escrowApi } from "../../api";
+import type { ContractView, LedgerEntry, Quote } from "../../api";
 import FundingConfirmSheet from "./FundingConfirmSheet";
-import { money, yieldAccrued } from "../currencyFormatter";
+import { money, yieldAccrued } from "../../shared/currencyFormatter";
 
 const STATUS_STYLE: Record<string, string> = {
   INITIATED: "bg-[#FFF3CD] text-[#7A5800]",
