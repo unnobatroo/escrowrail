@@ -16,7 +16,8 @@ public class EscrowContract {
 
     private final UUID id;
     private final UUID buyerId;
-    private final UUID sellerId;
+    private UUID sellerId;
+    private String invitedEmail;
     private final String targetCurrency;
     private final String sourceCurrency;
     private final MonetaryAmount targetAmount;
@@ -101,6 +102,56 @@ public class EscrowContract {
     }
 
     /**
+     * Creates an INVITED contract for a counterparty that has not registered
+     * yet: the seller slot stays open and the invited email is remembered so
+     * a later signup with that address attaches itself automatically.
+     */
+    public static EscrowContract createInvited(
+        UUID buyerId,
+        MonetaryAmount targetAmount,
+        String sourceCurrency,
+        TrackingType trackingType,
+        String trackingKey,
+        String invitedEmail
+    ) {
+        EscrowContract c = new EscrowContract(
+            UUID.randomUUID(),
+            buyerId,
+            null,
+            targetAmount.getCurrency().getCurrencyCode(),
+            sourceCurrency,
+            targetAmount,
+            trackingType,
+            trackingKey,
+            Instant.now()
+        );
+        c.markInvited(invitedEmail);
+        return c;
+    }
+
+    /**
+     * Puts a seller-less contract into INVITED and records who it awaits.
+     * Used by {@link #createInvited} and by persistence rehydration.
+     */
+    public void markInvited(String email) {
+        this.invitedEmail = email;
+        this.status = EscrowStatus.INVITED;
+    }
+
+    /**
+     * Attaches the newly registered seller entity: INVITED -> INITIATED so the
+     * buyer can fund once the counterparty exists.
+     *
+     * @throws InvalidStateTransitionException if the contract is not INVITED
+     */
+    public void attachSeller(UUID entityId) {
+        requireStatus(EscrowStatus.INVITED, "attach seller to");
+        this.sellerId = entityId;
+        this.invitedEmail = null;
+        this.status = EscrowStatus.INITIATED;
+    }
+
+    /**
      * Marks an initiated contract funded and stores the supplied funding snapshot.
      * Callers are responsible for monetary validation and ledger transfers.
      *
@@ -173,7 +224,8 @@ public class EscrowContract {
 
     /** I. */
     public boolean involves(UUID entityId) {
-        return buyerId.equals(entityId) || sellerId.equals(entityId);
+        return buyerId.equals(entityId)
+            || (sellerId != null && sellerId.equals(entityId));
     }
 
     /** I. */
@@ -189,6 +241,11 @@ public class EscrowContract {
     /** S id. */
     public UUID sellerId() {
         return sellerId;
+    }
+
+    /** Invited counterparty email, while the seller slot is still open. */
+    public String invitedEmail() {
+        return invitedEmail;
     }
 
     /** B account id. */

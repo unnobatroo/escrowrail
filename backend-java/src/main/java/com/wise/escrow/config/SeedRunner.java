@@ -16,10 +16,10 @@ import org.springframework.stereotype.Component;
 
 /**
  * Idempotent demo seed: on an unseeded database, provisions a buyer and a
- * seller organization (with sandbox USD/EUR balances via the normal
- * registration path) so the dashboard and E2E flows have usable tenants.
- * Exists only under {@code dev}/{@code demo}/{@code test} — production
- * boots against a clean schema and never seeds automatically.
+ * seller organization and grants each their operating balance through the
+ * ledger — registration itself grants nothing, so demo funding must be
+ * explicit here. Exists only under {@code dev}/{@code demo}/{@code test} —
+ * production boots against a clean schema and never seeds automatically.
  */
 @Component
 @Profile({"dev", "demo", "test"})
@@ -56,11 +56,12 @@ public class SeedRunner implements CommandLineRunner {
         if (!enabled) {
             return;
         }
-        // Buyer trades in USD only: registration grants both sandbox
-        // balances, then the EUR grant is returned to clearing so the
-        // seeded shape is 50,000 USD / 0 EUR.
-        seed("buyer@demo.com", "Acme Industrial US", "US-1001", "US", "EUR");
-        seed("seller@demo.com", "Berlin Robotics GmbH", "DE-2002", "DE", "USD");
+        // Buyer trades in USD only (50,000 USD / 0 EUR); the seller holds
+        // its EUR operating balance (0 USD / 10,000 EUR).
+        seed("buyer@demo.com", "Acme Industrial US", "US-1001", "US",
+            "USD", new BigDecimal("50000.00"));
+        seed("seller@demo.com", "Berlin Robotics GmbH", "DE-2002", "DE",
+            "EUR", new BigDecimal("10000.00"));
     }
 
     private void seed(
@@ -68,24 +69,26 @@ public class SeedRunner implements CommandLineRunner {
             String legalName,
             String taxId,
             String country,
-            String zeroCurrency
+            String grantCurrency,
+            BigDecimal grantAmount
     ) {
         if (users.findByEmail(email).isPresent()) {
             return;
         }
         var registration = auth.register(email, demoPassword, legalName, taxId, country);
-        // Demo tenants are trusted fixtures — skip the email gate.
-        users.save(registration.user().verified());
-        zeroBalance(registration.organization().id(), zeroCurrency);
+        // Demo tenants are trusted fixtures — skip the email gate and the
+        // onboarding setup window.
+        users.save(registration.user().verified().onboarded());
+        grant(registration.organization().id(), grantCurrency, grantAmount);
         log.info("Seeded demo tenant {}", legalName);
     }
 
     /**
-     * Returns the freshly granted sandbox balance in {@code currency} to the
-     * clearing account through the ledger — the seeded demo shape keeps only
-     * the operating currency each tenant trades in.
+     * Credits the demo operating balance clearing -&gt; user through the
+     * ledger — the seeded shape grants only the currency each tenant
+     * trades in.
      */
-    private void zeroBalance(java.util.UUID entityId, String currency) {
+    private void grant(java.util.UUID entityId, String currency, BigDecimal amount) {
         var account = accounts
             .findByEntityIdAndTypeAndCurrency(entityId, AccountType.USER, currency)
             .orElseThrow(() -> new IllegalStateException(
@@ -94,17 +97,12 @@ public class SeedRunner implements CommandLineRunner {
             .findSystemAccountId(AccountType.WISE_CLEARING, currency)
             .orElseThrow(() -> new IllegalStateException(
                 "Clearing account missing for " + currency));
-        BigDecimal balance = account.balance()
-            .getNumber()
-            .numberValue(BigDecimal.class);
-        if (balance.signum() > 0) {
-            ledgerService.transfer(
-                account.id(),
-                clearing,
-                MoneyAmounts.of(balance, currency),
-                "Sandbox balance reset",
-                null
-            );
-        }
+        ledgerService.transfer(
+            clearing,
+            account.id(),
+            MoneyAmounts.of(amount, currency),
+            "Demo opening balance",
+            null
+        );
     }
 }

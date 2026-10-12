@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { accountsApi, apiError, demoApi, escrowApi, isDemoMode } from "../api";
 import type { Account, ContractView } from "../api";
-import NewTradeModal from "../components/NewTradeModal";
+import EscrowCreationModal from "../components/EscrowCreationModal";
 import LedgerActivityFeed from "../components/LedgerActivityFeed";
-import TradeDetailView from "../components/TradeDetailView";
+import ContractLifecycleDrawer from "../components/ContractLifecycleDrawer";
 import WebhookSimulatorCard from "../components/WebhookSimulatorCard";
+import ProfileSettingsModal from "../components/ProfileSettingsModal";
 import Shell from "../components/Shell";
-import { money, yieldAccrued } from "../format";
+import { useAuth } from "../auth";
+import { money, yieldAccrued } from "../currencyFormatter";
 
 type Filter = "all" | "active" | "completed";
 
@@ -22,6 +24,7 @@ const ACTIVE = new Set(["INITIATED", "FUNDED"]);
 const TOPUP_AMOUNT = "5000";
 
 export default function Dashboard() {
+  const { user } = useAuth();
   const [contracts, setContracts] = useState<ContractView[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [filter, setFilter] = useState<Filter>("all");
@@ -32,6 +35,9 @@ export default function Dashboard() {
   const [demoEnabled, setDemoEnabled] = useState(false);
   const [topupBusy, setTopupBusy] = useState("");
   const [notice, setNotice] = useState("");
+  // First visit after activation: the onboarding setup window is open
+  // until the profile is saved once.
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
 
@@ -77,8 +83,17 @@ export default function Dashboard() {
     }
   };
 
+  useEffect(() => {
+    if (user && !user.onboarding_completed) setOnboardingOpen(true);
+  }, [user]);
+
   const cash = (cur: string) =>
     accounts.find((a) => a.currency === cur)?.balance ?? "0.00";
+
+  const sourceBalance = (contract?: ContractView | null) =>
+    accounts.find(
+      (a) => a.currency === (contract?.source_currency ?? "USD"),
+    )?.balance;
 
   const safeguarded = useMemo(
     () =>
@@ -105,6 +120,13 @@ export default function Dashboard() {
 
   return (
     <Shell>
+      <p
+        data-testid="greeting"
+        className="mb-4 text-lg font-semibold text-[#1B1C1D]"
+      >
+        Welcome back, {user?.entity.legal_name ?? "there"}. Here is where
+        your money is working today.
+      </p>
       {/* Account cards — per-currency balances with sandbox top-up */}
       <div className="mb-4 grid grid-cols-2 gap-4">
         {(["USD", "EUR"] as const).map((cur) => (
@@ -116,7 +138,7 @@ export default function Dashboard() {
                   data-testid={`topup-${cur.toLowerCase()}`}
                   onClick={() => topUp(cur)}
                   disabled={topupBusy === cur}
-                  className="rounded-full border border-[#163300] px-3 py-1 text-xs font-semibold text-[#163300] hover:bg-[#F4F5F7] disabled:opacity-40"
+                  className="rounded-full border border-[#163300] px-3 py-1 text-xs font-semibold text-[#163300] hover:bg-[#F4F5F0] disabled:opacity-40"
                 >
                   + Add Funds
                 </button>
@@ -124,7 +146,7 @@ export default function Dashboard() {
             </div>
             <p
               data-testid={`metric-cash-${cur.toLowerCase()}`}
-              className="mt-1 text-2xl font-bold text-[#0E150E]"
+              className="mt-1 text-2xl font-bold text-[#1B1C1D]"
             >
               {money(cash(cur), cur)}
             </p>
@@ -158,7 +180,7 @@ export default function Dashboard() {
 
       <div className="rounded-xl border border-slate-200 bg-white">
         <div className="flex items-center gap-2 border-b border-slate-200 px-5 py-3">
-          <h2 className="mr-4 font-semibold text-[#0E150E]">My Trades</h2>
+          <h2 className="mr-4 font-semibold text-[#1B1C1D]">My Trades</h2>
           {(["all", "active", "completed"] as Filter[]).map((f) => (
             <button
               key={f}
@@ -188,10 +210,14 @@ export default function Dashboard() {
               <tr
                 key={c.id}
                 data-testid={`trade-row-${c.id}`}
-                onClick={() => setSelected(c.id)}
+                onClick={() => {
+                  setSelected(c.id);
+                  // Re-read accounts so the drawer sees post-topup balances.
+                  refresh();
+                }}
                 className="cursor-pointer border-b border-slate-100 last:border-0 hover:bg-slate-50"
               >
-                <td className="px-5 py-3 font-medium text-[#0E150E]">
+                <td className="px-5 py-3 font-medium text-[#1B1C1D]">
                   {c.role === "buyer" ? c.seller_name : c.buyer_name}
                 </td>
                 <td className="px-5 py-3">
@@ -226,15 +252,28 @@ export default function Dashboard() {
       </div>
 
       {selected && (
-        <TradeDetailView
+        <ContractLifecycleDrawer
           contractId={selected}
+          sourceBalance={sourceBalance(
+            contracts.find((c) => c.id === selected),
+          )}
           onClose={() => setSelected(null)}
           onChanged={refresh}
         />
       )}
 
+      {onboardingOpen && (
+        <ProfileSettingsModal
+          onClose={() => {
+            setOnboardingOpen(false);
+            // The onboarding deposit lands immediately — refresh balances.
+            refresh();
+          }}
+        />
+      )}
+
       {showNew && (
-        <NewTradeModal
+        <EscrowCreationModal
           onClose={() => setShowNew(false)}
           onCreated={(c) => {
             setShowNew(false);

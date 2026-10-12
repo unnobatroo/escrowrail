@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { ShieldCheck, Timer, X } from "lucide-react";
-import { apiError, escrowApi } from "../api";
+import { accountsApi, apiError, escrowApi } from "../api";
 import type { ContractView, LedgerEntry, Quote } from "../api";
-import { money, yieldAccrued } from "../format";
+import FundingConfirmSheet from "./FundingConfirmSheet";
+import { money, yieldAccrued } from "../currencyFormatter";
 
 const STATUS_STYLE: Record<string, string> = {
   INITIATED: "bg-[#FFF3CD] text-[#7A5800]",
@@ -15,12 +16,15 @@ const STATUS_STYLE: Record<string, string> = {
  * Execution side drawer: full contract detail, FX snapshot, live float
  * counter, cryptographic audit trail, and role-gated lifecycle actions.
  */
-export default function TradeDetailView({
+export default function ContractLifecycleDrawer({
   contractId,
+  sourceBalance,
   onClose,
   onChanged,
 }: {
   contractId: string;
+  /** Buyer's available balance in the contract's source currency. */
+  sourceBalance?: string;
   onClose: () => void;
   onChanged: () => void;
 }) {
@@ -29,6 +33,8 @@ export default function TradeDetailView({
   const [quote, setQuote] = useState<Quote | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [showCancel, setShowCancel] = useState(false);
+  const [showFundSheet, setShowFundSheet] = useState(false);
+  const [liveBalance, setLiveBalance] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -49,10 +55,30 @@ export default function TradeDetailView({
     return () => clearInterval(t);
   }, []);
   useEffect(() => {
+    if (!showFundSheet || !contract) return;
+    // Re-read the source balance when the sheet opens — a prop snapshot can
+    // be stale after the user tops up elsewhere in the app.
+    accountsApi
+      .list()
+      .then((r) =>
+        setLiveBalance(
+          r.data.find((a) => a.currency === contract.source_currency)?.balance,
+        ),
+      )
+      .catch(() => {});
+  }, [showFundSheet, contract]);
+  useEffect(() => {
     if (contract?.status === "INITIATED") {
-      escrowApi.quote(contract.target_amount).then((r) => setQuote(r.data)).catch(() => {});
+      escrowApi
+        .quote(
+          contract.target_amount,
+          contract.target_currency,
+          contract.source_currency,
+        )
+        .then((r) => setQuote(r.data))
+        .catch(() => {});
     }
-  }, [contract?.status, contract?.target_amount]);
+  }, [contract?.status, contract?.target_amount, contract?.target_currency, contract?.source_currency]);
 
   const fund = async () => {
     if (!quote) return;
@@ -61,6 +87,7 @@ export default function TradeDetailView({
     try {
       const r = await escrowApi.fund(contractId, quote.total_deposit);
       setContract(r.data);
+      setShowFundSheet(false);
       reload();
       onChanged();
     } catch (err) {
@@ -105,7 +132,7 @@ export default function TradeDetailView({
       <aside className="absolute right-0 top-0 flex h-full w-full max-w-xl flex-col overflow-y-auto bg-white shadow-2xl">
         <div className="flex items-start justify-between border-b border-slate-200 px-6 py-4">
           <div>
-            <h2 className="text-lg font-bold text-[#0E150E]">
+            <h2 className="text-lg font-bold text-[#1B1C1D]">
               {contract
                 ? `${money(contract.target_amount, contract.target_currency)} · ${
                     contract.role === "buyer" ? contract.seller_name : contract.buyer_name
@@ -155,7 +182,7 @@ export default function TradeDetailView({
 
               {/* FX snapshot */}
               <section className="rounded-xl border border-slate-200 p-4">
-                <h3 className="mb-3 text-sm font-semibold text-[#0E150E]">FX Snapshot</h3>
+                <h3 className="mb-3 text-sm font-semibold text-[#1B1C1D]">FX Snapshot</h3>
                 <dl className="space-y-2 text-sm">
                   <Row
                     k="Locked spot rate"
@@ -207,7 +234,7 @@ export default function TradeDetailView({
               {/* Cryptographic audit trail */}
               <section className="rounded-xl border border-slate-200">
                 <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5">
-                  <h3 className="text-sm font-semibold text-[#0E150E]">Cryptographic Audit Trail</h3>
+                  <h3 className="text-sm font-semibold text-[#1B1C1D]">Cryptographic Audit Trail</h3>
                   {audit.length > 0 && (
                     <span className="rounded-full bg-[#D1E7DD] px-2 py-0.5 text-xs font-semibold text-[#0F5132]">
                       Audit Integrity Verified
@@ -223,7 +250,7 @@ export default function TradeDetailView({
                   {audit.map((e) => (
                     <div key={e.id} className="border-b border-slate-100 px-4 py-2 last:border-0">
                       <div className="flex justify-between text-sm">
-                        <span className="text-[#0E150E]">{e.description}</span>
+                        <span className="text-[#1B1C1D]">{e.description}</span>
                         <span className="font-medium">{money(e.amount, e.currency)}</span>
                       </div>
                       <div className="mt-0.5 flex justify-between text-xs text-[#5C685B]">
@@ -239,11 +266,11 @@ export default function TradeDetailView({
               {contract.role === "buyer" && contract.status === "INITIATED" && (
                 <button
                   data-testid="fund"
-                  onClick={fund}
+                  onClick={() => setShowFundSheet(true)}
                   disabled={busy || !quote}
                   className="w-full rounded-full bg-[#9FE870] py-2.5 font-semibold text-[#163300] hover:bg-[#8fd960] disabled:opacity-50"
                 >
-                  Fund via USD Balance
+                  Fund via {contract.source_currency} Balance
                 </button>
               )}
               {contract.role === "buyer" && contract.status === "FUNDED" && (
@@ -273,7 +300,7 @@ export default function TradeDetailView({
       {showCancel && (
         <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/40">
           <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-            <h3 className="mb-2 font-bold text-[#0E150E]">Cancel contract?</h3>
+            <h3 className="mb-2 font-bold text-[#1B1C1D]">Cancel contract?</h3>
             <p className="mb-4 text-sm text-[#5C685B]">
               Vaulted funds liquidate back to your originating USD account at the
               current spot rate — you absorb any FX movement. Wise retains the
@@ -297,6 +324,19 @@ export default function TradeDetailView({
             </div>
           </div>
         </div>
+      )}
+
+      {/* What-you-see-is-what-you-pay funding sheet */}
+      {showFundSheet && quote && contract && (
+        <FundingConfirmSheet
+          contract={contract}
+          quote={quote}
+          sourceBalance={liveBalance ?? sourceBalance}
+          busy={busy}
+          error={error}
+          onConfirm={fund}
+          onClose={() => setShowFundSheet(false)}
+        />
       )}
     </div>
   );

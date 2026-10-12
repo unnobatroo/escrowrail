@@ -24,6 +24,9 @@ public interface EscrowContractRepository {
 
     List<EscrowContract> findAllForEntity(UUID entityId);
 
+    /** INVITED contracts awaiting a signup under this email. */
+    List<EscrowContract> findPendingInvites(String invitedEmail);
+
     List<EscrowContract> findAllForEntityAndStatus(
         UUID entityId,
         EscrowStatus status

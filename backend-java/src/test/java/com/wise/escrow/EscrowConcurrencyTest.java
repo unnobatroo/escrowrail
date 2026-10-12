@@ -46,6 +46,9 @@ class EscrowConcurrencyTest extends AbstractPostgresIT {
     @Autowired
     LedgerRepository ledger;
 
+    @Autowired
+    com.wise.escrow.application.service.ProfileService profiles;
+
     private record Parties(UUID buyer, UUID seller) {}
 
     private Parties parties(String tag) {
@@ -62,6 +65,15 @@ class EscrowConcurrencyTest extends AbstractPostgresIT {
             "Seller " + tag,
             "UB-" + tag + "-S",
             "DE"
+        );
+        // Registration opens empty accounts — fund the buyer through the
+        // one-time onboarding deposit.
+        profiles.update(
+            b.user().id(),
+            b.organization().id(),
+            null,
+            null,
+            java.util.Map.of("USD", new BigDecimal("50000.00"))
         );
         return new Parties(b.organization().id(), s.organization().id());
     }
@@ -138,7 +150,7 @@ class EscrowConcurrencyTest extends AbstractPostgresIT {
             .orElseThrow();
         assertThat(
             sellerAccount.balance().getNumber().numberValue(BigDecimal.class)
-        ).isEqualByComparingTo("10992.00"); // 10000 sandbox + 992 payout
+        ).isEqualByComparingTo("992.00"); // seller starts empty: 992 payout
     }
 
     @Test

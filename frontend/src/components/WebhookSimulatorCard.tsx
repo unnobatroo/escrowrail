@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ChevronDown, ChevronRight, Radio } from "lucide-react";
 import { apiError, demoApi } from "../api";
 import type { ContractView, DemoConfig } from "../api";
-import { money } from "../format";
+import { money } from "../currencyFormatter";
 
 /**
  * Developer gateway panel: exposes the sandbox webhook endpoints + tenant
@@ -61,7 +61,7 @@ export default function WebhookSimulatorCard({
       <button
         data-testid="gateway-toggle"
         onClick={() => setOpen(!open)}
-        className="flex w-full items-center gap-1.5 px-5 py-3 text-left font-semibold text-[#0E150E]"
+        className="flex w-full items-center gap-1.5 px-5 py-3 text-left font-semibold text-[#1B1C1D]"
       >
         {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
         <Radio size={16} /> Wise Platform Webhook Gateway

@@ -168,6 +168,13 @@ class DomainInvariantPropertyTest {
         }
 
         @Override
+        public List<Account> findSystemAccounts(
+            com.wise.escrow.domain.model.AccountType type
+        ) {
+            return List.of();
+        }
+
+        @Override
         public Account save(Account account) {
             store.put(account.id(), account);
             return account;

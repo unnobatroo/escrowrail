@@ -43,6 +43,9 @@ public class AppUserEntity {
     private UserStatus status;
 
     @Column(nullable = false)
+    private boolean onboardingCompleted;
+
+    @Column(nullable = false)
     private Instant createdAt;
 
     /** For JPA / reflective use only. */
@@ -57,6 +60,7 @@ public class AppUserEntity {
             boolean active,
             boolean emailVerified,
             UserStatus status,
+            boolean onboardingCompleted,
             Instant createdAt) {
         this.id = id;
         this.email = email;
@@ -65,6 +69,7 @@ public class AppUserEntity {
         this.active = active;
         this.emailVerified = emailVerified;
         this.status = status;
+        this.onboardingCompleted = onboardingCompleted;
         this.createdAt = createdAt;
     }
 
@@ -82,6 +87,8 @@ public class AppUserEntity {
     public boolean isEmailVerified() { return emailVerified; }
     /** Returns the lifecycle status. */
     public UserStatus getStatus() { return status; }
+    /** Whether the onboarding setup window is closed. */
+    public boolean isOnboardingCompleted() { return onboardingCompleted; }
     /** Returns the created at. */
     public Instant getCreatedAt() { return createdAt; }
 }
