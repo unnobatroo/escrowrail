@@ -21,28 +21,43 @@ import org.springframework.test.web.servlet.MvcResult;
 @AutoConfigureMockMvc
 class AuthVerificationTest extends AbstractPostgresIT {
 
-    @Autowired MockMvc mvc;
-    @Autowired ObjectMapper mapper;
+    @Autowired
+    MockMvc mvc;
+
+    @Autowired
+    ObjectMapper mapper;
 
     private String register(String email) throws Exception {
-        String body = mapper.writeValueAsString(java.util.Map.of(
-                "email", email,
-                "password", "pw123456",
-                "legal_name", "Verify Co",
-                "ubo_tax_id", "UB-" + System.nanoTime(),
-                "country", "US"));
-        mvc.perform(post("/api/v1/auth/register")
-                        .contentType(MediaType.APPLICATION_JSON).content(body))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.status").value("PENDING_VERIFICATION"))
-                .andExpect(jsonPath("$.email").value(email));
+        String body = mapper.writeValueAsString(
+            java.util.Map.of(
+                "email",
+                email,
+                "password",
+                "pw123456",
+                "legal_name",
+                "Verify Co",
+                "ubo_tax_id",
+                "UB-" + System.nanoTime(),
+                "country",
+                "US"
+            )
+        );
+        mvc.perform(
+            post("/api/v1/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body)
+        )
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.status").value("PENDING_VERIFICATION"))
+            .andExpect(jsonPath("$.email").value(email));
         return email;
     }
 
     private String latestToken(String email) throws Exception {
-        MvcResult res = mvc.perform(get("/dev/verification-token").param("email", email))
-                .andExpect(status().isOk())
-                .andReturn();
+        MvcResult res = mvc
+            .perform(get("/dev/verification-token").param("email", email))
+            .andExpect(status().isOk())
+            .andReturn();
         return JsonPath.read(res.getResponse().getContentAsString(), "$.token");
     }
 
@@ -50,12 +65,16 @@ class AuthVerificationTest extends AbstractPostgresIT {
     void registrationIsPendingAndUnverifiedLoginForbidden() throws Exception {
         String email = "pending-" + System.nanoTime() + "@t.dev";
         register(email);
-        mvc.perform(post("/api/v1/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"" + email + "\",\"password\":\"pw123456\"}"))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value("EMAIL_NOT_VERIFIED"))
-                .andExpect(jsonPath("$.email").value(email));
+        mvc.perform(
+            post("/api/v1/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    "{\"email\":\"" + email + "\",\"password\":\"pw123456\"}"
+                )
+        )
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.code").value("EMAIL_NOT_VERIFIED"))
+            .andExpect(jsonPath("$.email").value(email));
     }
 
     @Test
@@ -67,20 +86,26 @@ class AuthVerificationTest extends AbstractPostgresIT {
         // the email would carry.
         org.assertj.core.api.Assertions.assertThat(rawToken).hasSize(64);
 
-        mvc.perform(post("/api/v1/auth/verify-email")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"token\":\"" + rawToken + "\"}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.access_token").isString())
-                .andExpect(jsonPath("$.user.email_verified").value(true))
-                .andExpect(jsonPath("$.user.status").value("ACTIVE"));
+        mvc.perform(
+            post("/api/v1/auth/verify-email")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"token\":\"" + rawToken + "\"}")
+        )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.access_token").isString())
+            .andExpect(jsonPath("$.user.email_verified").value(true))
+            .andExpect(jsonPath("$.user.status").value("ACTIVE"));
 
         // Login works after verification.
-        mvc.perform(post("/api/v1/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"" + email + "\",\"password\":\"pw123456\"}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.access_token").isString());
+        mvc.perform(
+            post("/api/v1/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    "{\"email\":\"" + email + "\",\"password\":\"pw123456\"}"
+                )
+        )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.access_token").isString());
     }
 
     @Test
@@ -88,20 +113,23 @@ class AuthVerificationTest extends AbstractPostgresIT {
         String email = "reuse-" + System.nanoTime() + "@t.dev";
         register(email);
         String rawToken = latestToken(email);
-        mvc.perform(post("/api/v1/auth/verify-email")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"token\":\"" + rawToken + "\"}"))
-                .andExpect(status().isOk());
+        mvc.perform(
+            post("/api/v1/auth/verify-email")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"token\":\"" + rawToken + "\"}")
+        ).andExpect(status().isOk());
         // Second use of the same token must fail.
-        mvc.perform(post("/api/v1/auth/verify-email")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"token\":\"" + rawToken + "\"}"))
-                .andExpect(status().isBadRequest());
+        mvc.perform(
+            post("/api/v1/auth/verify-email")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"token\":\"" + rawToken + "\"}")
+        ).andExpect(status().isBadRequest());
         // A well-formed but unknown token is rejected identically.
-        mvc.perform(post("/api/v1/auth/verify-email")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"token\":\"" + "0".repeat(64) + "\"}"))
-                .andExpect(status().isBadRequest());
+        mvc.perform(
+            post("/api/v1/auth/verify-email")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"token\":\"" + "0".repeat(64) + "\"}")
+        ).andExpect(status().isBadRequest());
     }
 
     @Test
@@ -112,16 +140,22 @@ class AuthVerificationTest extends AbstractPostgresIT {
 
         // Immediate resend is inside the 60s cooldown — same response, and
         // the first token still verifies.
-        mvc.perform(post("/api/v1/auth/resend-verification")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"" + email + "\"}"))
-                .andExpect(status().isOk());
-        org.assertj.core.api.Assertions.assertThat(latestToken(email)).isEqualTo(first);
+        mvc.perform(
+            post("/api/v1/auth/resend-verification")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"" + email + "\"}")
+        ).andExpect(status().isOk());
+        org.assertj.core.api.Assertions.assertThat(
+            latestToken(email)
+        ).isEqualTo(first);
 
         // Unknown addresses get the same generic response.
-        mvc.perform(post("/api/v1/auth/resend-verification")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"ghost-" + System.nanoTime() + "@t.dev\"}"))
-                .andExpect(status().isOk());
+        mvc.perform(
+            post("/api/v1/auth/resend-verification")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    "{\"email\":\"ghost-" + System.nanoTime() + "@t.dev\"}"
+                )
+        ).andExpect(status().isOk());
     }
 }

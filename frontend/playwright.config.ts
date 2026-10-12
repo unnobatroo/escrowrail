@@ -25,6 +25,7 @@ export default defineConfig({
         "until docker exec wise-e2e-pg pg_isready -U wise -d wise_escrow >/dev/null 2>&1; do sleep 1; done; " +
         "cd ../backend-java && " +
         `PORT=${BACKEND_PORT} ` +
+        "SPRING_PROFILES_ACTIVE=test,demo " +
         `DATABASE_URL=jdbc:postgresql://localhost:${PG_PORT}/wise_escrow ` +
         "DATABASE_USER=wise DATABASE_PASSWORD=wise " +
         "JWT_SECRET=e2e-secret-e2e-secret-e2e-secret-32 " +

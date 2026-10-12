@@ -35,7 +35,6 @@ TAG=latest
 : "${WISE_GITHUB_WEBHOOK_SECRET:?set WISE_GITHUB_WEBHOOK_SECRET}"
 : "${WISE_LOGISTICS_WEBHOOK_SECRET:?set WISE_LOGISTICS_WEBHOOK_SECRET}"
 WISE_CORS_ORIGINS=${WISE_CORS_ORIGINS:-https://wise-escrow.vercel.app}
-WISE_SEED_ENABLED=${WISE_SEED_ENABLED:-true}
 
 echo ">> building linux/amd64 image (no attestations) and pushing to $IMAGE_REPO:$TAG"
 docker buildx build --platform linux/amd64 --provenance=false --sbom=false \
@@ -75,7 +74,6 @@ else
       "WISE_GITHUB_WEBHOOK_SECRET=secretref:ghsec" \
       "WISE_LOGISTICS_WEBHOOK_SECRET=secretref:losec" \
       "WISE_CORS_ORIGINS=$WISE_CORS_ORIGINS" \
-      "WISE_SEED_ENABLED=$WISE_SEED_ENABLED" \
       "PORT=8080" \
     --output none
 fi

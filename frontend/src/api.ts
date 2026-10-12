@@ -6,6 +6,14 @@ const baseURL =
 // after idle pays a cold-start penalty and must not time out early.
 export const api = axios.create({ baseURL, timeout: 60000 });
 
+/**
+ * Demo tooling (account switcher, webhook simulator, sandbox top-ups) is a
+ * build-time flag — a production bundle compiled without it never even
+ * requests the demo endpoints.
+ */
+export const isDemoMode = (): boolean =>
+  import.meta.env.VITE_ENABLE_DEMO_TOOLS === "true";
+
 const TOKEN_KEY = "wise_token";
 
 export function getToken(): string | null {

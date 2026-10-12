@@ -11,16 +11,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 /**
  * Idempotent demo seed: on an unseeded database, provisions a buyer and a
  * seller organization (with sandbox USD/EUR balances via the normal
  * registration path) so the dashboard and E2E flows have usable tenants.
- * Runs only when {@code wise.seed.enabled} is true and each demo email is
- * absent — safe to run on every boot.
+ * Exists only under {@code dev}/{@code demo}/{@code test} — production
+ * boots against a clean schema and never seeds automatically.
  */
 @Component
+@Profile({"dev", "demo", "test"})
 public class SeedRunner implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(SeedRunner.class);

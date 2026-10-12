@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { LogOut, Plus, ShieldCheck, ArrowLeftRight } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { accountsApi, demoApi } from "../api";
+import { accountsApi, demoApi, isDemoMode } from "../api";
 import type { Account, DemoConfig } from "../api";
 import { useAuth } from "../auth";
 import { money } from "../format";
@@ -18,10 +18,12 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       .list()
       .then((r) => setAccounts(r.data))
       .catch(() => {});
-    demoApi
-      .config()
-      .then((r) => setDemo(r.data))
-      .catch(() => {});
+    if (isDemoMode()) {
+      demoApi
+        .config()
+        .then((r) => setDemo(r.data))
+        .catch(() => {});
+    }
   }, []);
 
   const otherDemoEmail =

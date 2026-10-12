@@ -12,8 +12,10 @@ test-frontend:
 
 test: test-backend test-frontend
 
+# Local dev boots the `dev` profile — seeded tenants, demo tools, and the
+# /dev verification-token helper. prod runs with no demo surface at all.
 run-backend:
-	cd backend-java && ./gradlew bootRun
+	cd backend-java && SPRING_PROFILES_ACTIVE=dev ./gradlew bootRun
 
 run-frontend:
 	cd frontend && npm run dev

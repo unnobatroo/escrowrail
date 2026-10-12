@@ -3,7 +3,7 @@ package com.wise.escrow.infrastructure.web;
 import com.wise.escrow.application.service.VerificationEmailSender;
 import com.wise.escrow.domain.exception.NotFoundException;
 import java.util.Map;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Profile;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -12,12 +12,12 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * E2E backdoor: exposes the last verification token the dev log-mailer
  * issued for an address, so automated tests can complete the verification
- * flow without a mailbox. Exists only when {@code wise.demo.enabled} — the
- * production sender never retains raw tokens.
+ * flow without a mailbox. Strictly a {@code dev}/{@code test} artifact —
+ * under {@code prod} (and the demo deploy profile) this route is unmapped.
  */
 @RestController
 @RequestMapping("/dev")
-@ConditionalOnProperty(name = "wise.demo.enabled", havingValue = "true")
+@Profile({"dev", "test"})
 public class DevTokenController {
 
     private final VerificationEmailSender mailer;
