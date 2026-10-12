@@ -212,6 +212,48 @@ public class EscrowService {
     }
 
     /**
+     * Creates an INVITED contract for a counterparty that is not registered
+     * yet. The seller slot stays open; when a user later signs up under
+     * {@code invitedEmail}, {@link #attachPendingInvites} fills it and the
+     * contract becomes fundable.
+     */
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    public EscrowContract createInvitedContract(
+        UUID buyerEntityId,
+        MonetaryAmount targetAmount,
+        String sourceCurrency,
+        TrackingType trackingType,
+        String trackingKey,
+        String invitedEmail
+    ) {
+        fx.getRate(sourceCurrency, targetAmount.getCurrency().getCurrencyCode());
+        return contracts.save(
+            EscrowContract.createInvited(
+                buyerEntityId,
+                targetAmount,
+                sourceCurrency,
+                trackingType,
+                trackingKey,
+                invitedEmail
+            )
+        );
+    }
+
+    /**
+     * Attaches every INVITED contract addressed to {@code email} to the
+     * freshly registered entity, turning each into a normal INITIATED trade.
+     * Called from tenant onboarding inside the registration transaction so a
+     * new user's pending trades arrive with the account.
+     */
+    @Transactional
+    public void attachPendingInvites(String email, UUID sellerEntityId) {
+        for (EscrowContract c : contracts.findPendingInvites(email)) {
+            c.attachSeller(sellerEntityId);
+            contracts.save(c);
+        }
+    }
+
+    /**
      * Buyer funds the contract: 0.5% conversion fee in source currency,
      * remainder converted at spot and vaulted in target currency. The fee has a
      * minimum of 0.01 source units; fee and converted amount use HALF_EVEN cent
