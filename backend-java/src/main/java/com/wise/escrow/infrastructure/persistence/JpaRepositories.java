@@ -149,3 +149,16 @@ interface JpaEmailVerificationTokenRepository
 
     Optional<EmailVerificationTokenEntity> findTopByUserIdOrderByCreatedAtDesc(UUID userId);
 }
+
+interface JpaPasswordResetTokenRepository
+        extends JpaRepository<PasswordResetTokenEntity, UUID> {
+
+    /** Row-locked lookup so concurrent reset calls serialize on the token row. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "5000"))
+    Optional<PasswordResetTokenEntity> findByTokenHash(String tokenHash);
+
+    List<PasswordResetTokenEntity> findByUserIdAndUsedAtIsNull(UUID userId);
+
+    Optional<PasswordResetTokenEntity> findTopByUserIdOrderByCreatedAtDesc(UUID userId);
+}

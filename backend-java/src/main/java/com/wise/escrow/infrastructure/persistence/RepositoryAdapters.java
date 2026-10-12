@@ -2,6 +2,7 @@ package com.wise.escrow.infrastructure.persistence;
 
 import com.wise.escrow.domain.model.AppUser;
 import com.wise.escrow.domain.model.DirectoryEntry;
+import com.wise.escrow.domain.model.PasswordResetToken;
 import com.wise.escrow.domain.model.Organization;
 import com.wise.escrow.domain.model.TaxId;
 import com.wise.escrow.domain.model.VerificationToken;
@@ -10,6 +11,7 @@ import com.wise.escrow.domain.repository.DirectoryRepository;
 import com.wise.escrow.domain.repository.IdempotencyRecordRepository;
 import com.wise.escrow.domain.repository.LedgerRepository;
 import com.wise.escrow.domain.repository.OrganizationRepository;
+import com.wise.escrow.domain.repository.PasswordResetTokenRepository;
 import com.wise.escrow.domain.repository.VerificationTokenRepository;
 import java.time.Instant;
 import java.util.List;
@@ -139,6 +141,51 @@ class VerificationTokenRepositoryAdapter implements VerificationTokenRepository 
     /** {@inheritDoc} */
     public VerificationToken save(VerificationToken token) {
         return toDomain(jpa.save(new EmailVerificationTokenEntity(
+                token.id(), token.userId(), token.tokenHash(),
+                token.expiresAt(), token.usedAt(), token.createdAt())));
+    }
+}
+
+@Component
+class PasswordResetTokenRepositoryAdapter implements PasswordResetTokenRepository {
+
+    private final JpaPasswordResetTokenRepository jpa;
+
+    PasswordResetTokenRepositoryAdapter(JpaPasswordResetTokenRepository jpa) {
+        this.jpa = jpa;
+    }
+
+    static PasswordResetToken toDomain(PasswordResetTokenEntity e) {
+        return new PasswordResetToken(
+                e.getId(), e.getUserId(), e.getTokenHash(),
+                e.getExpiresAt(), e.getUsedAt(), e.getCreatedAt());
+    }
+
+    @Override
+    /** {@inheritDoc} */
+    public Optional<PasswordResetToken> findByTokenHash(String tokenHash) {
+        return jpa.findByTokenHash(tokenHash).map(PasswordResetTokenRepositoryAdapter::toDomain);
+    }
+
+    @Override
+    /** {@inheritDoc} */
+    public List<PasswordResetToken> findUnusedByUserId(UUID userId) {
+        return jpa.findByUserIdAndUsedAtIsNull(userId).stream()
+                .map(PasswordResetTokenRepositoryAdapter::toDomain)
+                .toList();
+    }
+
+    @Override
+    /** {@inheritDoc} */
+    public Optional<PasswordResetToken> findLatestByUserId(UUID userId) {
+        return jpa.findTopByUserIdOrderByCreatedAtDesc(userId)
+                .map(PasswordResetTokenRepositoryAdapter::toDomain);
+    }
+
+    @Override
+    /** {@inheritDoc} */
+    public PasswordResetToken save(PasswordResetToken token) {
+        return toDomain(jpa.save(new PasswordResetTokenEntity(
                 token.id(), token.userId(), token.tokenHash(),
                 token.expiresAt(), token.usedAt(), token.createdAt())));
     }
