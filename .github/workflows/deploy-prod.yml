@@ -1,0 +1,81 @@
+name: Deploy Production
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend-java/**"
+      - "frontend/**"
+      - "scripts/**"
+      - ".github/workflows/deploy-prod.yml"
+  workflow_dispatch:
+
+# One deploy at a time — two pushes must never race the same ACA revision.
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  deploy-backend:
+    runs-on: ubuntu-latest
+    env:
+      SPRING_DATASOURCE_URL: ${{ secrets.SPRING_DATASOURCE_URL }}
+      SPRING_DATASOURCE_USERNAME: ${{ secrets.SPRING_DATASOURCE_USERNAME }}
+      SPRING_DATASOURCE_PASSWORD: ${{ secrets.SPRING_DATASOURCE_PASSWORD }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      WISE_FIELD_ENCRYPTION_KEY: ${{ secrets.WISE_FIELD_ENCRYPTION_KEY }}
+      WISE_GITHUB_WEBHOOK_SECRET: ${{ secrets.WISE_GITHUB_WEBHOOK_SECRET }}
+      WISE_LOGISTICS_WEBHOOK_SECRET: ${{ secrets.WISE_LOGISTICS_WEBHOOK_SECRET }}
+      WISE_CORS_ORIGINS: "https://wise-escrow.vercel.app"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Set up QEMU + buildx (cross-build to linux/amd64)
+        uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: ACR login (admin creds via ARM, like the script's create path)
+        run: |
+          echo "$(az acr credential show -n wiseescrowacr \
+            --query 'passwords[0].value' -o tsv)" \
+            | docker login wiseescrowacr.azurecr.io -u wiseescrowacr --password-stdin
+
+      - name: Deploy backend to Azure Container Apps
+        run: ./scripts/deploy-azure.sh
+
+      - name: Health check
+        run: |
+          FQDN=$(az containerapp show -g wise-escrow-rg -n wise-escrow-api \
+            --query properties.configuration.ingress.fqdn -o tsv)
+          for i in $(seq 1 60); do
+            if curl -sf "https://$FQDN/actuator/health" | grep -q UP; then
+              echo "backend healthy at https://$FQDN"; exit 0
+            fi
+            sleep 5
+          done
+          echo "backend did not become healthy"; exit 1
+
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Pull Vercel env + build + deploy production
+        run: |
+          npx vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+          npx vercel build --prod --token="$VERCEL_TOKEN"
+          npx vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
