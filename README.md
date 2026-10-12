@@ -1,9 +1,27 @@
 # Escrowrail
 
+[![CI Pipeline](https://github.com/unnobatroo/escrowrail/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/unnobatroo/escrowrail/actions/workflows/ci.yml)
+[![Java](https://img.shields.io/badge/Java-21-007396?logo=openjdk&logoColor=white)](https://openjdk.org/projects/jdk/21/)
+[![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.5-6DB33F?logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev/)
+[![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC?logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+
 An enterprise B2B conditional settlement platform that combines mid-market
 foreign-exchange rails with automated milestone-based escrow vaults —
 Java 21 / Spring Boot 3.5 backend, React 19 / TypeScript dashboard,
 PostgreSQL double-entry ledger.
+
+## Live environments
+
+| Surface | Provider | URL | Status |
+| --- | --- | --- | --- |
+| **Frontend Web App** | Vercel | <https://escrowrail.vercel.app> | Production |
+| **Backend REST API** | Azure Container Apps | <https://escrowrail-api.redmoss-f42ffb4e.swedencentral.azurecontainerapps.io> (`/actuator/health`) | Production |
+| **Database** | Supabase | Managed PostgreSQL 16 (SSL enabled) | Active |
+| **Documentation** | `docs/wiki/` in-repo | [Wiki pages](docs/wiki/Home.md) | GitHub Wiki remote pending first manual page |
 
 ## The commercial deadlock
 
@@ -63,6 +81,36 @@ when that address signs up and verifies. Circular ownership — buyer and
 seller sharing a UBO tax ID — is rejected with HTTP 403 at creation time.
 
 ## Technical architecture
+
+```mermaid
+erDiagram
+    ACCOUNT ||--o{ LEDGER_TRANSACTION : "debited/credited"
+    LEDGER_CHAIN ||--|| LEDGER_TRANSACTION : "locks and updates"
+    ESCROW_CONTRACT ||--|| ACCOUNT : "owns segregated vault"
+
+    ACCOUNT {
+        uuid id PK
+        uuid entity_id FK
+        string currency "USD | EUR"
+        string type "USER | VAULT | CLEARING | FEE"
+        numeric balance "CHECK (balance >= 0)"
+    }
+
+    LEDGER_TRANSACTION {
+        uuid id PK
+        uuid debit_account_id FK
+        uuid credit_account_id FK
+        numeric amount "Scale <= 2"
+        string current_hash "SHA-256 Chained"
+        timestamp created_at
+    }
+
+    LEDGER_CHAIN {
+        int id PK "Singleton = 1"
+        string last_hash "FOR UPDATE write-lock"
+        timestamp updated_at
+    }
+```
 
 - **Backend** (`backend-java/`): Spring Boot 3.5 / Java 21, layered
   `domain.model` aggregates / `application.service` orchestrators /
