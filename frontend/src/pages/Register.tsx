@@ -26,7 +26,7 @@ export default function Register() {
     setError("");
     try {
       await register(form);
-      navigate("/dashboard");
+      navigate(`/verify-email?email=${encodeURIComponent(form.email)}`);
     } catch (err) {
       setError(apiError(err).message ?? "Registration failed");
     } finally {

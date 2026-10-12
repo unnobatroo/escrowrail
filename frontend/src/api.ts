@@ -47,6 +47,8 @@ export interface UserProfile {
   id: string;
   email: string;
   is_active: boolean;
+  email_verified: boolean;
+  status: string;
   created_at: string;
   entity: Entity;
 }
@@ -149,13 +151,28 @@ export const authApi = {
     legal_name: string;
     ubo_tax_id: string;
     country: string;
-  }) => api.post<{ access_token: string; user: UserProfile }>("/api/v1/auth/register", body),
+  }) =>
+    api.post<{ status: string; email: string }>("/api/v1/auth/register", body),
+  verifyEmail: (token: string) =>
+    api.post<{ access_token: string; user: UserProfile }>(
+      "/api/v1/auth/verify-email",
+      { token },
+    ),
+  resendVerification: (email: string) =>
+    api.post<{ status: string }>("/api/v1/auth/resend-verification", { email }),
   login: (email: string, password: string) =>
     api.post<{ access_token: string }>("/api/v1/auth/login", {
       email,
       password,
     }),
   me: () => api.get<UserProfile>("/api/v1/auth/me"),
+};
+
+export const devApi = {
+  latestVerificationToken: (email: string) =>
+    api.get<{ token: string }>("/dev/verification-token", {
+      params: { email },
+    }),
 };
 
 export const escrowApi = {

@@ -41,11 +41,23 @@ public final class ApiDtos {
         UUID id,
         String email,
         boolean isActive,
+        boolean emailVerified,
+        String status,
         EntityView entity,
         Instant createdAt
     ) {}
 
     public record RegisterResponse(String accessToken, UserView user) {}
+
+    /** Registration lands here — the account only activates via the emailed link. */
+    public record PendingVerificationView(String status, String email) {}
+
+    public record VerifyEmailRequest(@NotBlank String token) {}
+
+    public record ResendVerificationRequest(@NotBlank @Email String email) {}
+
+    /** Login rejection for unverified accounts — carries the email for resend UX. */
+    public record EmailNotVerifiedView(String code, String message, String email) {}
 
     public record AccountView(
         UUID id,

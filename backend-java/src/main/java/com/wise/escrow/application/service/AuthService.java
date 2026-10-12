@@ -2,16 +2,25 @@ package com.escrowrail.escrow.application.service;
 
 import com.escrowrail.escrow.application.dto.Events.WelcomeEmailRequested;
 import com.escrowrail.escrow.domain.exception.DuplicateEmailException;
+import com.escrowrail.escrow.domain.exception.EmailNotVerifiedException;
+import com.escrowrail.escrow.domain.exception.NotFoundException;
 import com.escrowrail.escrow.domain.exception.UnauthorizedException;
+import com.escrowrail.escrow.domain.exception.ValidationException;
 import com.escrowrail.escrow.domain.model.Account;
 import com.escrowrail.escrow.domain.model.AccountType;
 import com.escrowrail.escrow.domain.model.AppUser;
 import com.escrowrail.escrow.domain.model.MoneyAmounts;
 import com.escrowrail.escrow.domain.model.Organization;
+import com.escrowrail.escrow.domain.model.VerificationToken;
 import com.escrowrail.escrow.domain.repository.AccountRepository;
 import com.escrowrail.escrow.domain.repository.AppUserRepository;
 import com.escrowrail.escrow.domain.repository.OrganizationRepository;
+import com.escrowrail.escrow.domain.repository.VerificationTokenRepository;
 import java.math.BigDecimal;
+import java.security.SecureRandom;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.HexFormat;
 import java.util.UUID;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -30,12 +39,17 @@ public class AuthService {
     public static final BigDecimal SANDBOX_USD = new BigDecimal("50000.00");
     public static final BigDecimal SANDBOX_EUR = new BigDecimal("10000.00");
 
+    private static final Duration RESEND_COOLDOWN = Duration.ofSeconds(60);
+    private static final SecureRandom RANDOM = new SecureRandom();
+
     private final AppUserRepository users;
     private final OrganizationRepository organizations;
     private final AccountRepository accounts;
     private final LedgerService ledgerService;
     private final PasswordEncoder passwords;
     private final ApplicationEventPublisher events;
+    private final VerificationTokenRepository tokens;
+    private final VerificationEmailSender mailer;
 
     /** Creates a new AuthService. */
     public AuthService(
@@ -44,7 +58,9 @@ public class AuthService {
         AccountRepository accounts,
         LedgerService ledgerService,
         PasswordEncoder passwords,
-        ApplicationEventPublisher events
+        ApplicationEventPublisher events,
+        VerificationTokenRepository tokens,
+        VerificationEmailSender mailer
     ) {
         this.users = users;
         this.organizations = organizations;
@@ -52,6 +68,8 @@ public class AuthService {
         this.ledgerService = ledgerService;
         this.passwords = passwords;
         this.events = events;
+        this.tokens = tokens;
+        this.mailer = mailer;
     }
 
     public record Registration(AppUser user, Organization organization) {}
@@ -122,6 +140,7 @@ public class AuthService {
                 "Sandbox opening balance",
                 null
             );
+            issueVerification(user);
             events.publishEvent(
                 new WelcomeEmailRequested(user.email(), org.legalName())
             );
@@ -171,9 +190,78 @@ public class AuthService {
         if (!passwords.matches(password, user.passwordHash())) {
             throw new UnauthorizedException("Invalid email or password");
         }
+        if (!user.emailVerified()) {
+            throw new EmailNotVerifiedException(user.email());
+        }
         if (!user.active()) {
             throw new UnauthorizedException("Account is deactivated");
         }
         return user;
+    }
+
+    /**
+     * Consumes a verification token: marks it used and activates the user in
+     * one transaction so a token can never activate twice.
+     *
+     * @return the now-verified user
+     * @throws ValidationException if the token is unknown, expired, or already used
+     */
+    @Transactional
+    public AppUser verifyEmail(String rawToken) {
+        VerificationToken token = tokens
+            .findByTokenHash(sha256(rawToken))
+            .filter(VerificationToken::usable)
+            .orElseThrow(() ->
+                new ValidationException("Verification link is invalid or expired")
+            );
+        tokens.save(token.consumed());
+        AppUser user = users
+            .findById(token.userId())
+            .orElseThrow(() -> new NotFoundException("User not found"));
+        return users.save(user.verified());
+    }
+
+    /**
+     * Re-issues a verification email. Always succeeds from the caller's point
+     * of view (unknown addresses are silently dropped to prevent enumeration);
+     * a 60-second cooldown per user suppresses rapid re-sends.
+     */
+    @Transactional
+    public void resendVerification(String email) {
+        String normalized = email.strip().toLowerCase(java.util.Locale.ROOT);
+        var user = users.findByEmail(normalized);
+        if (user.isEmpty() || user.get().emailVerified()) {
+            return;
+        }
+        var latest = tokens.findLatestByUserId(user.get().id());
+        if (latest.isPresent()
+                && latest.get().createdAt().isAfter(Instant.now().minus(RESEND_COOLDOWN))) {
+            return;
+        }
+        // Invalidate outstanding links before issuing the new one — only the
+        // newest token may activate the account.
+        tokens.findUnusedByUserId(user.get().id())
+            .forEach(t -> tokens.save(t.consumed()));
+        issueVerification(user.get());
+    }
+
+    /** Generates a 256-bit token, persists its hash, and emails the raw value. */
+    private void issueVerification(AppUser user) {
+        byte[] bytes = new byte[32];
+        RANDOM.nextBytes(bytes);
+        String rawToken = HexFormat.of().formatHex(bytes);
+        tokens.save(VerificationToken.issue(user.id(), sha256(rawToken)));
+        mailer.sendVerificationEmail(user.email(), rawToken);
+    }
+
+    private static String sha256(String input) {
+        try {
+            return HexFormat.of().formatHex(
+                java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(input.getBytes(java.nio.charset.StandardCharsets.UTF_8))
+            );
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
     }
 }
