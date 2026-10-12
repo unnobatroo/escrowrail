@@ -141,7 +141,7 @@ test("buyer invites seller, funds in USD, webhook settles, seller paid EUR", asy
   await page.getByTestId("create-trade").click();
 
   // Contract detail: buyer funds; vault locks exactly 1,000.00 EUR.
-  await expect(page).toHaveURL(/\/contracts\//);
+  await expect(page.getByTestId("trade-drawer")).toBeVisible();
   await page.getByTestId("fund").click();
   await page.getByTestId("confirm-fund").click();
   await expect(page.getByTestId("status-badge")).toHaveText("FUNDED");
@@ -153,11 +153,11 @@ test("buyer invites seller, funds in USD, webhook settles, seller paid EUR", asy
     pull_request: { merged: true, html_url: trackingKey },
   });
   await page.reload();
+  await page.locator('[data-testid^="trade-row-"]').first().click();
   await expect(page.getByTestId("status-badge")).toHaveText("SETTLED");
 
   // Audit trail has the release legs.
-  await page.getByTestId("tab-audit").click();
-  await expect(page.getByText("Seller payout")).toBeVisible();
+  await expect(page.getByTestId("audit-body")).toContainText("Seller payout");
 
   // Seller session: dashboard shows the EUR payout in the nav pill.
   const ctx2 = await browser.newContext({ baseURL: "http://localhost:5173" });
@@ -193,7 +193,7 @@ test("buyer cancels funded escrow and receives refund", async ({ page, request }
   await page.getByTestId("amount").fill("1000.00");
   await page.getByTestId("tracking-key").fill(`cancel-${run}`);
   await page.getByTestId("create-trade").click();
-  await expect(page).toHaveURL(/\/contracts\//);
+  await expect(page.getByTestId("trade-drawer")).toBeVisible();
 
   await page.getByTestId("fund").click();
   await page.getByTestId("confirm-fund").click();

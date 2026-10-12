@@ -1,12 +1,12 @@
 package com.wise.escrow.infrastructure.web;
 
-import com.wise.escrow.application.dto.ApiDtos.ContractView;
-import com.wise.escrow.application.dto.ApiDtos.CounterpartyView;
-import com.wise.escrow.application.dto.ApiDtos.CreateContractRequest;
-import com.wise.escrow.application.dto.ApiDtos.FundRequest;
-import com.wise.escrow.application.dto.ApiDtos.InvitedResponse;
-import com.wise.escrow.application.dto.ApiDtos.LedgerEntryView;
-import com.wise.escrow.application.dto.ApiDtos.QuoteView;
+import com.wise.escrow.infrastructure.web.dto.escrow.EscrowTradeResponse;
+import com.wise.escrow.infrastructure.web.dto.escrow.CounterpartyResponse;
+import com.wise.escrow.infrastructure.web.dto.escrow.CreateEscrowTradeRequest;
+import com.wise.escrow.infrastructure.web.dto.escrow.FundEscrowTradeRequest;
+import com.wise.escrow.infrastructure.web.dto.escrow.TradeInvitedResponse;
+import com.wise.escrow.infrastructure.web.dto.ledger.LedgerTransactionResponse;
+import com.wise.escrow.infrastructure.web.dto.escrow.QuotePreviewResponse;
 import com.wise.escrow.application.service.EscrowService;
 import com.wise.escrow.domain.exception.NotFoundException;
 import com.wise.escrow.domain.model.EscrowContract;
@@ -44,29 +44,32 @@ public class EscrowController {
     }
 
     @GetMapping
-    /** L. */
-    public List<ContractView> list() {
+    /** Lists every contract where the caller's entity is buyer or seller. */
+    public List<EscrowTradeResponse> list() {
         UUID me = TenantPrincipal.entityId();
         return service.listForEntity(me).stream().map(c -> view(c, me)).toList();
     }
 
     @GetMapping("/{id}")
-    /** G. */
-    public ContractView get(@PathVariable UUID id) {
+    /** Returns one contract visible to the caller's entity. */
+    public EscrowTradeResponse get(@PathVariable UUID id) {
         return view(service.getForEntity(id, TenantPrincipal.entityId()), TenantPrincipal.entityId());
     }
 
     @GetMapping("/{id}/audit")
-    /** A. */
-    public List<LedgerEntryView> audit(@PathVariable UUID id) {
+    /** Returns the hash-chained ledger entries for a contract the caller is party to. */
+    public List<LedgerTransactionResponse> audit(@PathVariable UUID id) {
         return service.auditForEntity(id, TenantPrincipal.entityId()).stream()
-                .map(LedgerEntryView::of)
+                .map(LedgerTransactionResponse::of)
                 .toList();
     }
 
     @PostMapping
-    /** C. */
-    public ResponseEntity<?> create(@Valid @RequestBody CreateContractRequest body) {
+    /**
+     * Creates a trade against a registered counterparty, or an INVITED
+     * contract plus invite event when the email is not registered yet.
+     */
+    public ResponseEntity<?> create(@Valid @RequestBody CreateEscrowTradeRequest body) {
         UUID me = TenantPrincipal.entityId();
         var counterparty = service.resolveCounterparty(body.counterpartyEmail(), me);
         if (counterparty.isEmpty()) {
@@ -81,8 +84,8 @@ public class EscrowController {
                     body.counterpartyEmail());
             service.inviteCounterparty(body.counterpartyEmail(), me);
             return ResponseEntity.status(HttpStatus.ACCEPTED)
-                    .body(new InvitedResponse(
-                            "invited",
+                    .body(new TradeInvitedResponse(
+                            "INVITED",
                             "Counterparty is not on Wise Smart Escrow yet — an invite was sent and the trade is waiting for them"));
         }
         EscrowContract contract = service.createContract(
@@ -96,8 +99,8 @@ public class EscrowController {
     }
 
     @PostMapping("/{id}/fund")
-    /** F. */
-    public ContractView fund(@PathVariable UUID id, @Valid @RequestBody FundRequest body) {
+    /** Debits the buyer, converts at spot, and vaults the target amount. */
+    public EscrowTradeResponse fund(@PathVariable UUID id, @Valid @RequestBody FundEscrowTradeRequest body) {
         UUID me = TenantPrincipal.entityId();
         EscrowContract c = service.getForEntity(id, me);
         EscrowContract funded = service.fundContract(
@@ -112,19 +115,19 @@ public class EscrowController {
     }
 
     @PostMapping("/{id}/cancel")
-    /** C. */
-    public ContractView cancel(@PathVariable UUID id) {
+    /** Buyer-only cancellation; funded contracts liquidate back at current spot. */
+    public EscrowTradeResponse cancel(@PathVariable UUID id) {
         UUID me = TenantPrincipal.entityId();
         return view(service.cancelContract(id, me), me);
     }
 
     @GetMapping("/counterparty")
-    /** C. */
-    public CounterpartyView counterparty(@RequestParam String email) {
+    /** Resolves a counterparty email to its organization plus the UBO collision flag. */
+    public CounterpartyResponse counterparty(@RequestParam String email) {
         UUID me = TenantPrincipal.entityId();
         return service
                 .resolveCounterparty(email, me)
-                .map(cp -> new CounterpartyView(
+                .map(cp -> new CounterpartyResponse(
                         email,
                         cp.organization().id(),
                         cp.organization().legalName(),
@@ -134,15 +137,15 @@ public class EscrowController {
     }
 
     @GetMapping("/quote")
-    /** Q. */
-    public QuoteView quote(
+    /** Returns a cent-rounded source-deposit quote including the bank-cost comparison. */
+    public QuotePreviewResponse quote(
             @RequestParam("target_amount") BigDecimal targetAmount,
             @RequestParam(value = "target_currency", defaultValue = "EUR") String targetCurrency,
             @RequestParam(value = "source_currency", defaultValue = "USD") String sourceCurrency) {
         TenantPrincipal.entityId(); // auth gate
         EscrowService.Quote q = service.quote(sourceCurrency, targetCurrency, targetAmount);
         var bank = q.traditionalBankEstimate();
-        return new QuoteView(
+        return new QuotePreviewResponse(
                 q.sourceCurrency(),
                 q.targetCurrency(),
                 q.targetAmount(),
@@ -156,18 +159,18 @@ public class EscrowController {
                 bank.totalCost().subtract(q.wiseFee()));
     }
 
-    private ContractView view(EscrowContract c, UUID me) {
+    private EscrowTradeResponse view(EscrowContract c, UUID me) {
         return view(c, me, null, null, null);
     }
 
-    private ContractView view(
+    private EscrowTradeResponse view(
             EscrowContract c, UUID me,
             BigDecimal grossDebited, BigDecimal wiseFee, BigDecimal netVaulted) {
         String buyerName = organizations.findById(c.buyerId()).map(Organization::legalName).orElse("?");
         String sellerName = c.sellerId() == null
                 ? c.invitedEmail()
                 : organizations.findById(c.sellerId()).map(Organization::legalName).orElse("?");
-        return new ContractView(
+        return new EscrowTradeResponse(
                 c.id(),
                 c.buyerId(),
                 c.sellerId(),

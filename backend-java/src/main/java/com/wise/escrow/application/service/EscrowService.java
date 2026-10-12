@@ -103,7 +103,7 @@ public class EscrowService {
     }
 
     @Transactional(readOnly = true)
-    /** L for entity. */
+    /** Lists contracts where the entity is buyer or seller. */
     public List<EscrowContract> listForEntity(UUID entityId) {
         return contracts.findAllForEntity(entityId);
     }

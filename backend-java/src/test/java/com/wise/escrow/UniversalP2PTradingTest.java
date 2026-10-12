@@ -300,7 +300,7 @@ class UniversalP2PTradingTest extends AbstractPostgresIT {
                 )
         )
             .andExpect(status().isAccepted())
-            .andExpect(jsonPath("$.status").value("invited"));
+            .andExpect(jsonPath("$.status").value("INVITED"));
 
         // The buyer's list shows the pending INVITED trade with the email
         // standing in for the seller name.

@@ -1,7 +1,7 @@
 package com.wise.escrow.infrastructure.web;
 
-import com.wise.escrow.application.dto.ApiDtos.AccountView;
-import com.wise.escrow.application.dto.ApiDtos.EntityView;
+import com.wise.escrow.infrastructure.web.dto.ledger.AccountBalanceResponse;
+import com.wise.escrow.infrastructure.web.dto.profile.EntitySummaryResponse;
 import com.wise.escrow.domain.model.Account;
 import com.wise.escrow.domain.model.Organization;
 import org.mapstruct.Mapper;
@@ -17,11 +17,11 @@ public interface ViewMapper {
     @Mapping(
             target = "balance",
             expression = "java(a.balance().getNumber().numberValue(java.math.BigDecimal.class))")
-    AccountView toAccountView(Account a);
+    AccountBalanceResponse toAccountView(Account a);
 
     @Mapping(target = "id", expression = "java(o.id())")
     @Mapping(target = "legalName", expression = "java(o.legalName())")
     @Mapping(target = "uboTaxId", expression = "java(o.uboTaxId().value())")
     @Mapping(target = "country", expression = "java(o.country())")
-    EntityView toEntityView(Organization o);
+    EntitySummaryResponse toEntityView(Organization o);
 }

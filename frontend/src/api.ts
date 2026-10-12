@@ -70,7 +70,12 @@ export interface Account {
   balance: string;
 }
 
-export type ContractStatus = "INITIATED" | "FUNDED" | "SETTLED" | "CANCELLED";
+export type ContractStatus =
+  | "INVITED"
+  | "INITIATED"
+  | "FUNDED"
+  | "SETTLED"
+  | "CANCELLED";
 export type TrackingType = "GITHUB_PR" | "SHIPPING_CARRIER";
 
 export interface ContractView {
@@ -216,7 +221,7 @@ export const escrowApi = {
     source_currency?: string;
     tracking_type: TrackingType;
     tracking_key: string;
-  }) => api.post<ContractView | { status: "invited" }>("/api/v1/escrow", body),
+  }) => api.post<ContractView | { status: "INVITED" }>("/api/v1/escrow", body),
   fund: (id: string, deposit_amount: string) =>
     api.post<ContractView>(`/api/v1/escrow/${id}/fund`, { deposit_amount }),
   cancel: (id: string) => api.post<ContractView>(`/api/v1/escrow/${id}/cancel`),

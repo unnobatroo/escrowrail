@@ -1,159 +1,100 @@
 # Wise Smart Escrow
 
-A conditional B2B settlement layer operating on simulated Electronic Money
-Institution (EMI) rails. Java 21 + Spring Boot 3 backend, PostgreSQL via
-Spring Data JPA/Flyway, JWT authentication, and a React + Vite multi-tenant
-SaaS dashboard styled with Wise Neptune tokens.
+An enterprise B2B conditional settlement platform that combines mid-market
+foreign-exchange rails with automated milestone-based escrow vaults —
+Java 21 / Spring Boot 3.5 backend, React 19 / TypeScript dashboard,
+PostgreSQL double-entry ledger.
 
-## Repository layout
+## The commercial deadlock
 
-```
-backend-java/            Active service — Spring Boot 3 / Java 21
-frontend/                Multi-tenant SaaS dashboard — React 19 + Vite
-Makefile                 Unified install/build/test/run targets
-docker-compose.yml       Local Postgres for development
-render.yaml              One-click backend deployment (Render)
-```
+Cross-border business transactions suffer an inherent counterparty deadlock.
+A seller will not ship goods or deploy proprietary code without guaranteed
+payment; a buyer will not wire funds upfront because recovering assets
+across jurisdictions is slow, expensive, and often impossible. The legacy
+escape hatches — letters of credit and traditional escrow agents — charge
+opaque 3–4% FX markups, levy wire fees on every leg, and take days to
+confirm what a signed webhook proves in seconds.
 
-## Architecture (backend-java/)
+## The Wise solution
 
-```
-infrastructure/web/         Thin controllers — DTO validation + HTTP only.
-application/service/        Domain orchestration: EscrowService, LedgerService.
-application/dto/            Wire DTOs (snake_case JSON, money as strings).
-domain/                     Aggregates, value objects, typed exceptions.
-infrastructure/persistence/ JPA entities + repository adapters (ports).
-infrastructure/security/    JWT resource server, idempotency filter, CORS.
-```
+Applying Electronic Money Institution mechanics: when a buyer funds a
+contract, the deposit converts immediately at mid-market spot for a
+transparent 0.5% fee, and the proceeds land in a segregated per-contract
+vault — never lent, never leveraged, never pooled. Settlement requires no
+human approval: a cryptographically verified third-party event (a merged
+GitHub pull request, a carrier delivery confirmation) releases the vault —
+99.2% to the seller, 0.8% as the platform milestone fee. Every balance
+movement is a balanced double-entry row in a SHA-256 hash-chained ledger.
 
-Core invariants:
+## How it works
 
-- **No float for money.** All amounts are `BigDecimal` / JSR 354
-  `MonetaryAmount` (Moneta). Wire format carries money as JSON strings.
-- **Double-entry only.** Balances change exclusively via balanced
-  `LedgerTransaction` legs inside one atomic commit. Every leg is
-  SHA-256 hash-chained for tamper-evident audit.
-- **UBO anti-collusion.** `buyer.ubo_tax_id == seller.ubo_tax_id` → HTTP 403
-  (`CIRCULAR_OWNERSHIP_DETECTED`). Tax IDs are AES-256-GCM encrypted at rest.
-- **Convert first, then freeze.** Deposits convert at spot immediately;
-  the vault always holds the target invoice currency.
-- **Webhook-gated release.** `FUNDED → SETTLED` only via a merged GitHub PR
-  or a `DHL / DELIVERED` carrier event, verified by `X-Hub-Signature-256`
-  HMAC. There is no manual/admin settle path.
-- **Asymmetric cancellation.** Target funds liquidate back to source at the
-  _latest_ spot rate; the buyer absorbs FX losses; funds return only to the
-  originating account.
-- **Idempotent mutations.** Raw `Authorization`-header-keyed idempotency
-  records dedupe retries; auth routes are excluded; bodies over 64 KB are
-  rejected with 413.
-
-## Double-entry clearing ledger
-
-Cross-currency flows decompose into same-currency legs routed through
-`WISE_CLEARING_ACCOUNT` (Wise's settlement float — may run a net position).
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant B as Buyer (USD)
-    participant CS as WISE_CLEARING USD
-    participant CE as WISE_CLEARING EUR
-    participant V as ESCROW_VAULT EUR
-    participant F as WISE_FEE_ACCOUNT
-    participant S as Seller (EUR)
-
-    Note over B,S: FUND — buyer deposits USD, converted at spot r
-    B->>F: USD 0.5% conversion fee
-    B->>CS: USD deposit − fee
-    CE->>V: EUR (deposit − fee)·r
-
-    Note over V,S: SETTLE — escrowed E released on verified webhook
-    V->>F: EUR 0.8%·E escrow fee
-    V->>S: EUR 0.992·E
-
-    Note over B,V: CANCEL — liquidated back at latest spot r′
-    V->>CE: EUR E (liquidation)
-    CS->>B: USD E·r′ refund to originating account
+```text
+[ Buyer initiates trade ]
+           │
+           ▼
+[ Indicative quote: mid-market rate + 0.5% Wise fee ]
+           │
+           ▼
+[ Buyer funds contract ] ──► [ Spot rate locked at deposit ]
+           │                  [ USD converted to EUR & locked in EMI Vault ]
+                                       │
+                                       ▼ (ECB float yield ticker 3.5% — display-only, no ledger entries)
+[ Webhook proof arrives ] ◄── [ GitHub PR merged / Carrier confirms delivery ]
+           │
+           ▼
+[ Double-entry ledger executes settlement ]
+   ├── 99.2% net payout disbursed to Seller EUR account
+   └── 0.8% milestone fee routed to Wise fee account
 ```
 
-## API surface
+The lifecycle is `INVITED → INITIATED → FUNDED → SETTLED` (or `CANCELLED`
+before settlement). Any registered entity can buy on one contract and sell
+on the next — permissions are per contract, never global. A trade addressed
+to an unregistered email persists as `INVITED` and attaches automatically
+when that address signs up and verifies. Circular ownership — buyer and
+seller sharing a UBO tax ID — is rejected with HTTP 403 at creation time.
 
-| Method | Path                              | Purpose                                          |
-| ------ | --------------------------------- | ------------------------------------------------ |
-| POST   | `/api/v1/auth/register`           | Register org + user (sandbox balances seeded)    |
-| POST   | `/api/v1/auth/login`              | JWT bearer token                                 |
-| GET    | `/api/v1/auth/me`                 | Current user + entity profile                    |
-| GET    | `/api/v1/accounts`                | Tenant account balances                          |
-| GET    | `/api/v1/escrow`                  | List contracts (role-scoped)                     |
-| GET    | `/api/v1/escrow/counterparty`     | Resolve counterparty by business email           |
-| GET    | `/api/v1/escrow/quote`            | Spot quote + Wise-vs-bank cost comparison        |
-| POST   | `/api/v1/escrow`                  | Create contract (UBO check; 202 invite if new)   |
-| GET    | `/api/v1/escrow/{id}`             | Contract detail                                  |
-| GET    | `/api/v1/escrow/{id}/audit`       | Ledger legs for the contract                     |
-| POST   | `/api/v1/escrow/{id}/fund`        | Buyer deposit → convert → vault (FUNDED)         |
-| POST   | `/api/v1/escrow/{id}/cancel`      | Asymmetric cancellation (buyer only)             |
-| POST   | `/webhooks/github`                | Signed PR-merge release                          |
-| POST   | `/webhooks/logistics`             | Signed carrier-delivery release                  |
-| GET    | `/actuator/health`                | Liveness/readiness                               |
+## Technical architecture
 
-## Run locally
+- **Backend** (`backend-java/`): Spring Boot 3.5 / Java 21, layered
+  `domain.model` aggregates / `application.service` orchestrators /
+  `infrastructure` adapters / `infrastructure.web` controllers. Money is
+  JSR 354 Moneta with `HALF_EVEN` rounding and scale≤2 enforced in the
+  domain; event delivery uses the Spring Modulith transactional outbox;
+  concurrency relies on `SELECT … FOR UPDATE` locks taken in ascending-UUID
+  order.
+- **Frontend** (`frontend/`): React 19, TypeScript, Vite, Tailwind with
+  Wise Neptune tokens, Framer Motion (reduced-motion aware), feature-based
+  layout (`features/escrow-trades`, `features/authentication`,
+  `features/ledger-activity`, `features/company-profile`, `shared/`).
+- **Disclosures**: `StaticFxRateProvider` serves a deterministic mid-market
+  table (1 USD = 0.9259259 EUR) for reproducible evaluation — `fundContract`
+  locks the spot rate at deposit execution, and the quote is indicative.
+  `/api/v1/demo/config` is unauthenticated by design under the `demo`
+  profile (account switching, simulated webhook dispatch); the `prod`
+  profile excludes `DemoToolsController` entirely.
+
+## Local quickstart
 
 ```bash
-make install        # gradle build + npm install + playwright browsers
+make install        # backend build + npm install + Playwright browsers
 make db             # local Postgres via docker compose
-JWT_SECRET=$(openssl rand -hex 32) make run-backend   # → http://localhost:8080
-make run-frontend                                     # → http://localhost:5173
+make run-backend    # boots the dev profile (seeded tenants, demo tools)
+make run-frontend   # Vite dev server
+make test           # backend Testcontainers suite + Playwright e2e
 ```
 
-On first boot against an empty database the `SeedRunner` provisions demo
-entities and balances (`WISE_SEED_*` envs control this). All configuration
-keys are documented in `.env.example`.
+Seeded demo accounts (dev/demo profiles): `buyer@demo.com` /
+`seller@demo.com`, password `WiseDemo123!` — a one-click account switcher
+in the navbar toggles between them.
 
-## Testing
+## Documentation
 
-```bash
-make test       # gradlew clean test (Testcontainers + real Postgres) + e2e
-make test-e2e   # Playwright SaaS flow: register → fund → webhook settle
-```
+Full product and engineering documentation lives in `docs/wiki/` (and on
+the GitHub Wiki once enabled):
 
-- `DomainInvariantPropertyTest` — jqwik property tests (ledger conservation,
-  non-negative accounts, state-machine rigidity, cent-exact splits).
-- `EscrowApiIntegrationTest` — MockMvc full lifecycle, UBO rejection,
-  tenant isolation, webhook signature rejection.
-- `EscrowConcurrencyTest` — funding/settlement races on real Postgres locks.
-- `frontend/e2e` — Playwright against the live Spring Boot stack.
-
-## Deployment
-
-Live components:
-
-- **Frontend (Vercel)**: https://wise-escrow.vercel.app
-- **Backend (Azure Container Apps)**: https://wise-escrow-api.redmoss-f42ffb4e.swedencentral.azurecontainerapps.io
-  — `GET /actuator/health` returns `{"status":"UP"}`.
-- **Database (Supabase)**: project `wise-escrow` (`fxxxkctszerxgkyqeeqn`,
-  eu-west-1) — schema + demo tenants migrated and seeded.
-  Demo logins: `buyer@demo.com` / `seller@demo.com` (password `WiseDemo123!`).
-
-Backend deployment notes:
-
-- Image built from `backend-java/Dockerfile` and deployed to Azure
-  Container Apps (`wise-escrow-rg` / `wise-env`, consumption plan).
-  `make deploy-backend` (scripts/deploy-azure.sh) rebuilds the image and
-  updates the app — it encodes all platform gotchas:
-  - `linux/amd64` only — cross-build via `buildx --platform linux/amd64`.
-  - No OCI attestation manifests — `--provenance=false --sbom=false`.
-  - Tag pulls can resolve stale manifests — deploys pin the `@sha256`
-    digest instead.
-- **Cost profile (near-zero)**: scale-to-zero (`minReplicas: 0`) means
-  $0 compute when idle; Hikari is tuned to release idle connections fast
-  (`minimum-idle: 0`, 60s idle / 4min max lifetime) so the database can
-  sleep; JSON responses are gzipped to cut egress. Trade-off: the first
-  request after idle pays a ~30-90s JVM cold start — the frontend's
-  axios timeout is 60s to accommodate it.
-- Supabase direct connection is IPv6-only; the app connects via the
-  IPv4 pooler `aws-0-eu-west-1.pooler.supabase.com:5432` with user
-  `postgres.<project-ref>` (session mode).
-- `render.yaml` remains as an alternative one-click backend target;
-  Container Apps is the live deployment.
-
-See `.env.example` for the full variable reference.
+- [Overview & Business Model](docs/wiki/Home.md)
+- [System Architecture](docs/wiki/System-Architecture.md)
+- [Financial Core & Ledger](docs/wiki/Ledger-and-Financial-Integrity.md)
+- [Security & Cryptography](docs/wiki/Security-and-Cryptography.md)
+- [Deployment & Operations](docs/wiki/Deployment-and-Operations.md)

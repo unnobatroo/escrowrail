@@ -2,7 +2,7 @@ package com.wise.escrow.infrastructure.web;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.wise.escrow.application.dto.ApiDtos.WebhookResult;
+import com.wise.escrow.infrastructure.web.dto.escrow.WebhookResult;
 import com.wise.escrow.application.service.EscrowService;
 import com.wise.escrow.domain.exception.WebhookValidationException;
 import com.wise.escrow.domain.model.EscrowContract;

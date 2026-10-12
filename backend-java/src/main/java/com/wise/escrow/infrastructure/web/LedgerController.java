@@ -1,6 +1,6 @@
 package com.wise.escrow.infrastructure.web;
 
-import com.wise.escrow.application.dto.ApiDtos.LedgerEntryView;
+import com.wise.escrow.infrastructure.web.dto.ledger.LedgerTransactionResponse;
 import com.wise.escrow.domain.repository.AccountRepository;
 import com.wise.escrow.domain.repository.LedgerRepository;
 import com.wise.escrow.infrastructure.security.TenantPrincipal;
@@ -33,7 +33,7 @@ public class LedgerController {
 
     @GetMapping("/transactions")
     /** Latest ledger entries across all of the caller's accounts, newest first. */
-    public List<LedgerEntryView> transactions() {
+    public List<LedgerTransactionResponse> transactions() {
         var myAccounts = accounts.findAllByEntityId(TenantPrincipal.entityId());
         var dedup = new LinkedHashMap<java.util.UUID, LedgerRepository.LedgerEntry>();
         myAccounts.stream()
@@ -42,7 +42,7 @@ public class LedgerController {
         return dedup.values().stream()
                 .sorted(Comparator.comparing(LedgerRepository.LedgerEntry::createdAt).reversed())
                 .limit(FEED_LIMIT)
-                .map(LedgerEntryView::of)
+                .map(LedgerTransactionResponse::of)
                 .toList();
     }
 }

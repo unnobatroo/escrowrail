@@ -133,7 +133,7 @@ public class SecurityConfig {
             this.expireMinutes = expireMinutes;
         }
 
-        /** Whether sue. */
+        /** Issues a signed HS256 JWT carrying user id and tenant entity id. */
         public String issue(UUID userId, UUID entityId) {
             Instant now = Instant.now();
             JwtClaimsSet claims = JwtClaimsSet.builder()
