@@ -26,7 +26,7 @@ const STATUS_STYLE: Record<string, string> = {
   CANCELLED: "bg-stone-200 text-stone-700 font-medium",
 };
 
-const ACTIVE = new Set(["INITIATED", "FUNDED"]);
+const ACTIVE = new Set(["INVITED", "INITIATED", "FUNDED"]);
 const TOPUP_AMOUNT = "5000";
 
 export default function Dashboard() {

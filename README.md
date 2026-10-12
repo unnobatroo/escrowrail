@@ -32,12 +32,13 @@ movement is a balanced double-entry row in a SHA-256 hash-chained ledger.
 [ Buyer initiates trade ]
            │
            ▼
-[ Spot rate locked (1 USD = 0.9259 EUR) + 0.5% Wise fee ]
+[ Indicative quote: mid-market rate + 0.5% Wise fee ]
            │
            ▼
-[ Buyer funds contract ] ──► [ USD converted to EUR & locked in EMI Vault ]
+[ Buyer funds contract ] ──► [ Spot rate locked at deposit ]
+           │                  [ USD converted to EUR & locked in EMI Vault ]
                                        │
-                                       ▼ (ECB float yield accrues at 3.5%)
+                                       ▼ (ECB float yield ticker 3.5% — display-only, no ledger entries)
 [ Webhook proof arrives ] ◄── [ GitHub PR merged / Carrier confirms delivery ]
            │
            ▼

@@ -245,9 +245,9 @@ export default function NewEscrowTradeModal({
           </p>
         )}
         {cpUnknown && (
-          <p data-testid="cp-unknown" className="mb-2 text-xs text-[#BA1A1A]">
-            No registered member found for that address — they need to join the
-            platform before you can trade.
+          <p data-testid="cp-unknown" className="mb-2 text-xs text-brand-subtle">
+            Not on the platform yet — the trade will wait as INVITED and an
+            invite email goes out to them.
           </p>
         )}
 
@@ -400,7 +400,7 @@ export default function NewEscrowTradeModal({
         <motion.button
           data-testid="create-trade"
           type="submit"
-          disabled={busy || uboCollision || !cp}
+          disabled={busy || uboCollision || (!cp && !cpUnknown)}
           whileTap={{ scale: 0.98 }}
           className="w-full rounded-pill bg-brand-neon py-2.5 font-semibold text-brand-forest transition-colors hover:bg-brand-neonHover disabled:opacity-50"
         >

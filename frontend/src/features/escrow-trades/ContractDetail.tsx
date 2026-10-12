@@ -10,7 +10,7 @@ export default function ContractDetail() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
   useEffect(() => {
-    navigate(`/dashboard?trade=${id}`, { replace: true });
+    navigate(`/dashboard?trade=${encodeURIComponent(id)}`, { replace: true });
   }, [id, navigate]);
   return null;
 }

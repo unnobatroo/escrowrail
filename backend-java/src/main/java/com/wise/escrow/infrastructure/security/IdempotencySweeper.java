@@ -25,14 +25,25 @@ public class IdempotencySweeper {
         this.jdbc = jdbc;
     }
 
-    /** Deletes records older than 24 hours; logs the row count when nonzero. */
+    /**
+     * Deletes records older than 24 hours in bounded batches so a large
+     * backlog never becomes one giant lock-holding transaction. Repeats
+     * until the backlog is clear; logs the total when nonzero.
+     */
     @Scheduled(cron = "0 0 * * * *")
     public void sweepExpired() {
-        int deleted = jdbc.update(
-            "DELETE FROM idempotency_records WHERE created_at < NOW() - INTERVAL '24 HOURS'"
-        );
-        if (deleted > 0) {
-            log.info("idempotency sweep removed {} expired records", deleted);
+        int total = 0;
+        int batch;
+        do {
+            batch = jdbc.update(
+                "DELETE FROM idempotency_records WHERE id IN (" +
+                    "SELECT id FROM idempotency_records " +
+                    "WHERE created_at < NOW() - INTERVAL '24 HOURS' LIMIT 1000)"
+            );
+            total += batch;
+        } while (batch > 0);
+        if (total > 0) {
+            log.info("idempotency sweep removed {} expired records", total);
         }
     }
 }
