@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { LogOut, Plus, Settings, ShieldCheck, ArrowLeftRight } from "lucide-react";
+import { LogOut, Plus, Settings, ShieldCheck, ArrowLeftRight, Sparkles } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { accountsApi, demoApi, isDemoMode } from "../api";
 import type { Account, DemoConfig } from "../api";
 import { useAuth } from "../features/auth/auth";
 import { money } from "./currencyFormatter";
 import ProfileSettingsModal from "./ProfileSettingsModal";
+import HowItWorksModal from "./HowItWorksModal";
 
 export default function Shell({ children }: { children: React.ReactNode }) {
   const { user, login, logout } = useAuth();
@@ -13,6 +14,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const [demo, setDemo] = useState<DemoConfig | null>(null);
   const [switching, setSwitching] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
   const navigate = useNavigate();
 
   const loadAccounts = () =>
@@ -97,6 +99,13 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               </button>
             )}
             <button
+              data-testid="how-it-works"
+              onClick={() => setGuideOpen(true)}
+              className="flex items-center gap-1 rounded-full border border-white/30 px-3 py-1.5 text-sm font-semibold text-white/90 hover:bg-white/10"
+            >
+              <Sparkles size={14} /> How it works
+            </button>
+            <button
               data-testid="new-trade"
               onClick={() => navigate("/dashboard?new=1")}
               className="flex items-center gap-1 rounded-full bg-[#9FE870] px-3 py-1.5 text-sm font-semibold text-[#163300] hover:bg-[#8fd960]"
@@ -127,6 +136,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         </div>
       </nav>
       <main className="mx-auto max-w-6xl px-6 py-6">{children}</main>
+      {guideOpen && <HowItWorksModal onClose={() => setGuideOpen(false)} />}
       {settingsOpen && (
         <ProfileSettingsModal
           onClose={() => {

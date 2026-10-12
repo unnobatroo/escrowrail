@@ -1,0 +1,47 @@
+import { useEffect, useRef } from "react";
+import type { RefObject } from "react";
+
+const FOCUSABLE =
+  'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
+/**
+ * Modal keyboard contract: focus moves into the dialog on mount, Tab cycles
+ * inside it, Escape dismisses, and focus returns to the opener on unmount.
+ */
+export function useDialogA11y(
+  ref: RefObject<HTMLElement | null>,
+  onClose: () => void,
+) {
+  // Inline onClose props change identity every parent render — the effect
+  // must stay mounted once or the dialog would re-steal focus constantly.
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  useEffect(() => {
+    const prev = document.activeElement as HTMLElement | null;
+    const el = ref.current;
+    el?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        closeRef.current();
+        return;
+      }
+      if (e.key !== "Tab" || !el) return;
+      const f = el.querySelectorAll<HTMLElement>(FOCUSABLE);
+      if (f.length === 0) return;
+      const first = f[0];
+      const last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        last.focus();
+        e.preventDefault();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        first.focus();
+        e.preventDefault();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      prev?.focus();
+    };
+  }, [ref]);
+}

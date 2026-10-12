@@ -3,5 +3,24 @@
 @tailwind utilities;
 
 body {
-  @apply bg-wise-canvas text-wise-ink antialiased;
+  @apply bg-brand-sand text-brand-charcoal min-h-screen font-sans antialiased;
+}
+
+/* Every interactive control gets the same visible forest focus ring. */
+:focus-visible {
+  @apply outline-none ring-2 ring-brand-forest ring-offset-2;
+}
+
+/* Tabular figures for anything that ticks — kills layout shift on updates. */
+.num {
+  font-feature-settings: "tnum";
+  font-variant-numeric: tabular-nums;
+}
+
+/* CSS-side reduced motion (framer-motion is covered by MotionConfig). */
+@media (prefers-reduced-motion: reduce) {
+  .animate-ping,
+  .animate-pulse {
+    animation: none;
+  }
 }
