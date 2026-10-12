@@ -10,9 +10,18 @@ public record AppUser(
     String passwordHash,
     UUID entityId,
     boolean active,
+    boolean emailVerified,
+    UserStatus status,
     Instant createdAt
 ) {
-    /** R. */
+    /** Lifecycle gate — verification transitions PENDING -> ACTIVE. */
+    public enum UserStatus {
+        PENDING_VERIFICATION,
+        ACTIVE,
+        SUSPENDED
+    }
+
+    /** Registers a new user awaiting email verification. */
     public static AppUser register(
         String email,
         String passwordHash,
@@ -24,7 +33,16 @@ public record AppUser(
             passwordHash,
             entityId,
             true,
+            false,
+            UserStatus.PENDING_VERIFICATION,
             Instant.now()
+        );
+    }
+
+    /** Returns a copy marked verified and active. */
+    public AppUser verified() {
+        return new AppUser(
+            id, email, passwordHash, entityId, active, true, UserStatus.ACTIVE, createdAt
         );
     }
 }

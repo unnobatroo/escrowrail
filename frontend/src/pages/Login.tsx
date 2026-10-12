@@ -10,6 +10,7 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [unverified, setUnverified] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
@@ -20,7 +21,12 @@ export default function Login() {
       await login(email, password);
       navigate("/dashboard");
     } catch (err) {
-      setError(apiError(err).message ?? "Login failed");
+      const apiErr = apiError(err);
+      if (apiErr.code === "EMAIL_NOT_VERIFIED") {
+        setUnverified(true);
+      } else {
+        setError(apiErr.message ?? "Login failed");
+      }
     } finally {
       setBusy(false);
     }
@@ -54,6 +60,21 @@ export default function Login() {
           onChange={(e) => setPassword(e.target.value)}
           className="mb-4 w-full rounded-lg border border-slate-200 px-3 py-2"
         />
+        {unverified && (
+          <div
+            data-testid="unverified-banner"
+            className="mb-4 rounded-lg bg-[#FFF3CD] px-3 py-2 text-sm text-[#7A5800]"
+          >
+            Your account is not verified yet. Check your inbox or{" "}
+            <Link
+              to={`/verify-email?email=${encodeURIComponent(email)}`}
+              className="font-semibold underline"
+            >
+              resend verification email
+            </Link>
+            .
+          </div>
+        )}
         {error && (
           <div
             data-testid="login-error"
