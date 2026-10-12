@@ -1,7 +1,15 @@
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import { ShieldAlert, X } from "lucide-react";
-import { apiError, currenciesApi, directoryApi, escrowApi } from "../../api";
+import {
+  accountsApi,
+  apiError,
+  currenciesApi,
+  directoryApi,
+  escrowApi,
+} from "../../api";
 import type {
+  Account,
   ContractView,
   Counterparty,
   DirectoryMember,
@@ -10,21 +18,32 @@ import type {
 } from "../../api";
 
 import { money } from "../../shared/currencyFormatter";
+import { CurrencyFlag } from "../../shared/CurrencyFlag";
+import Tooltip from "../../shared/Tooltip";
+import FeeCalculationRail from "./FeeCalculationRail";
+import BankComparisonDropdown from "./BankComparisonDropdown";
 
 interface Props {
   onClose: () => void;
   onCreated: (c: ContractView) => void;
+  /** Optional pre-fill for demo/evaluator fast paths. */
+  preset?: { email?: string; amount?: string };
 }
 
-export default function EscrowCreationModal({ onClose, onCreated }: Props) {
-  const [email, setEmail] = useState("");
+export default function EscrowCreationModal({
+  onClose,
+  onCreated,
+  preset,
+}: Props) {
+  const [email, setEmail] = useState(preset?.email ?? "");
   const [cp, setCp] = useState<Counterparty | null>(null);
   const [cpUnknown, setCpUnknown] = useState(false);
   const [members, setMembers] = useState<DirectoryMember[]>([]);
-  const [amount, setAmount] = useState("10000.00");
+  const [amount, setAmount] = useState(preset?.amount ?? "10000.00");
   const [trackingType, setTrackingType] = useState<TrackingType>("GITHUB_PR");
   const [trackingKey, setTrackingKey] = useState("");
   const [quote, setQuote] = useState<Quote | null>(null);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   // Currency pickers are fed by GET /api/v1/currencies — whatever rails
   // the platform actually clears, not a hardcoded pair.
   const [currencies, setCurrencies] = useState<string[]>([]);
@@ -45,6 +64,10 @@ export default function EscrowCreationModal({ onClose, onCreated }: Props) {
         }
       })
       .catch(() => setCurrencies(["EUR", "USD"]));
+    accountsApi
+      .list()
+      .then((r) => setAccounts(r.data))
+      .catch(() => setAccounts([]));
   }, []);
 
   // Debounced counterparty resolution + member directory lookup.
@@ -133,14 +156,31 @@ export default function EscrowCreationModal({ onClose, onCreated }: Props) {
     "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm";
 
   return (
-    <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/40">
-      <form
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="fixed inset-0 z-10 flex items-center justify-center bg-brand-forest/30 p-4 backdrop-blur-md"
+    >
+      <motion.form
         onSubmit={submit}
-        className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl"
+        initial={{ scale: 0.95, opacity: 0, y: 16 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        transition={{ type: "spring", duration: 0.3 }}
+        className="w-full max-w-lg rounded-3xl bg-brand-surface p-6 shadow-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="New escrow trade"
       >
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-[#1B1C1D]">New Escrow Trade</h2>
-          <button type="button" onClick={onClose} className="text-[#5C685B]">
+          <h2 className="text-lg font-bold text-brand-charcoal">
+            New Escrow Trade
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close new trade"
+            className="rounded-full p-1 text-brand-subtle transition-colors hover:bg-brand-sand"
+          >
             <X size={20} />
           </button>
         </div>
@@ -188,8 +228,15 @@ export default function EscrowCreationModal({ onClose, onCreated }: Props) {
           )}
         </div>
         {cp && (
-          <p data-testid="cp-resolved" className="mb-2 text-xs text-[#0F5132]">
+          <p
+            data-testid="cp-resolved"
+            className="mb-2 flex items-center gap-1 text-xs text-[#0F5132]"
+          >
             {cp.legal_name} · {cp.country}
+            <Tooltip
+              label="About the ownership check"
+              text="Automated AML verification ensuring buyer and seller entities do not share common beneficial ownership or tax IDs."
+            />
           </p>
         )}
         {cpUnknown && (
@@ -199,50 +246,92 @@ export default function EscrowCreationModal({ onClose, onCreated }: Props) {
           </p>
         )}
 
-        <div className="mt-3 grid grid-cols-2 gap-3">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-[#5C685B]">
-              They receive
-            </label>
-            <div className="flex gap-2">
-              <input
-                data-testid="amount"
-                type="number"
-                step="0.01"
-                min="0.01"
-                required
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className={input}
-              />
+        {/* Wise two-tier conversion widget: "You pay" → fee rail → "They
+            receive". The editable field is the recipient amount (the API
+            contract is target_amount); the deposit tier recalculates live. */}
+        <div className="mt-3 rounded-2xl border border-brand-border bg-brand-surface p-4 transition-colors focus-within:border-brand-forest">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-brand-subtle">
+              You pay
+            </span>
+            <span className="num text-xs text-brand-subtle">
+              {(() => {
+                const acct = accounts.find(
+                  (a) => a.currency === sourceCurrency,
+                );
+                return acct
+                  ? `Available: ${money(acct.balance, acct.currency)}`
+                  : "Available: —";
+              })()}
+            </span>
+          </div>
+          <div className="mt-2 flex items-end justify-between gap-3">
+            <span
+              data-testid="quote-total"
+              className="num text-3xl font-bold text-brand-charcoal"
+            >
+              {quote ? money(quote.total_deposit, quote.source_currency) : "—"}
+            </span>
+            <span className="flex items-center gap-2">
+              <CurrencyFlag code={sourceCurrency} />
+              <select
+                data-testid="source-currency"
+                value={sourceCurrency}
+                onChange={(e) => setSourceCurrency(e.target.value)}
+                aria-label="Deposit currency"
+                className="rounded-lg border border-brand-border bg-transparent px-2 py-1 text-sm font-bold text-brand-charcoal"
+              >
+                {currencies.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </span>
+          </div>
+        </div>
+
+        {quote && <FeeCalculationRail quote={quote} />}
+
+        <div className="rounded-2xl border border-brand-border bg-brand-surface p-4 transition-colors focus-within:border-brand-forest">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-brand-subtle">
+              Recipient receives
+            </span>
+            {quote && (
+              <span className="num text-xs text-brand-subtle">
+                1 {quote.source_currency} ={" "}
+                {Number(quote.mid_market_rate).toFixed(6)}{" "}
+                {quote.target_currency}
+              </span>
+            )}
+          </div>
+          <div className="mt-2 flex items-end justify-between gap-3">
+            <input
+              data-testid="amount"
+              type="number"
+              step="0.01"
+              min="0.01"
+              required
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              aria-label="Amount the recipient receives"
+              className="num w-full bg-transparent text-3xl font-bold text-brand-forest outline-none"
+            />
+            <span className="flex items-center gap-2">
+              <CurrencyFlag code={targetCurrency} />
               <select
                 data-testid="target-currency"
                 value={targetCurrency}
                 onChange={(e) => setTargetCurrency(e.target.value)}
-                className="w-20 rounded-lg border border-slate-200 px-2 py-2 text-sm"
+                aria-label="Recipient currency"
+                className="rounded-lg border border-brand-border bg-transparent px-2 py-1 text-sm font-bold text-brand-charcoal"
               >
                 {currencies.map((c) => (
                   <option key={c} value={c}>{c}</option>
                 ))}
               </select>
-            </div>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-[#5C685B]">
-              You deposit
-            </label>
-            <select
-              data-testid="source-currency"
-              value={sourceCurrency}
-              onChange={(e) => setSourceCurrency(e.target.value)}
-              className={input}
-            >
-              {currencies.map((c) => (
-                <option key={c} value={c}>
-                  {c} balance
-                </option>
-              ))}
-            </select>
+            </span>
           </div>
         </div>
         <div className="mt-3 grid grid-cols-1 gap-3">
@@ -279,67 +368,8 @@ export default function EscrowCreationModal({ onClose, onCreated }: Props) {
         />
 
         {quote && (
-          <div
-            data-testid="quote"
-            className="mb-3 rounded-lg bg-[#F4F5F0] p-3 text-sm"
-          >
-            <div className="flex justify-between">
-              <span className="text-[#5C685B]">Mid-market rate</span>
-              <span>
-                1 {quote.source_currency} ={" "}
-                {quote.mid_market_rate.slice(0, 8)} {quote.target_currency}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-[#5C685B]">They receive</span>
-              <span>{money(quote.target_amount, quote.target_currency)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-[#5C685B]">Wise FX fee (0.5%)</span>
-              <span>{money(quote.wise_fee, quote.source_currency)}</span>
-            </div>
-            <div className="mt-1 flex justify-between border-t border-slate-200 pt-1 font-semibold">
-              <span>You deposit</span>
-              <span data-testid="quote-total">
-                {money(quote.total_deposit, quote.source_currency)}
-              </span>
-            </div>
-            <details
-              data-testid="bank-comparison"
-              className="mt-2 border-t border-slate-200 pt-2"
-            >
-              <summary className="cursor-pointer text-xs font-semibold text-[#5C685B]">
-                Compare with a traditional bank
-              </summary>
-              <div className="mt-1 space-y-0.5 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-[#5C685B]">
-                    Bank FX markup (3.8%)
-                  </span>
-                  <span>
-                    {money(quote.bank_spread_cost, quote.source_currency)}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[#5C685B]">SWIFT fee</span>
-                  <span>
-                    {money(quote.bank_swift_fee, quote.source_currency)}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[#5C685B]">Bank total cost</span>
-                  <span>
-                    {money(quote.bank_total_cost, quote.source_currency)}
-                  </span>
-                </div>
-                <div className="flex justify-between font-semibold text-[#163300]">
-                  <span>You save</span>
-                  <span data-testid="customer-savings">
-                    {money(quote.customer_savings, quote.source_currency)}
-                  </span>
-                </div>
-              </div>
-            </details>
+          <div data-testid="quote">
+            <BankComparisonDropdown quote={quote} />
           </div>
         )}
 
@@ -362,15 +392,16 @@ export default function EscrowCreationModal({ onClose, onCreated }: Props) {
           </div>
         )}
 
-        <button
+        <motion.button
           data-testid="create-trade"
           type="submit"
           disabled={busy || uboCollision || !cp}
-          className="w-full rounded-full bg-[#9FE870] py-2.5 font-semibold text-[#163300] hover:bg-[#8fd960] disabled:opacity-50"
+          whileTap={{ scale: 0.98 }}
+          className="w-full rounded-pill bg-brand-neon py-2.5 font-semibold text-brand-forest transition-colors hover:bg-brand-neonHover disabled:opacity-50"
         >
           {busy ? "Creating…" : "Create Escrow Trade"}
-        </button>
-      </form>
-    </div>
+        </motion.button>
+      </motion.form>
+    </motion.div>
   );
 }
