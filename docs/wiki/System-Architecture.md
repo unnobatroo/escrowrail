@@ -8,6 +8,21 @@ The platform is two deployable units. The backend is a Java 21 / Spring Boot 3.5
 
 Business rules live inside rich aggregates, not procedural service scripts. `Account` enforces its own invariants — a non-clearing account physically cannot be debited below zero, and any amount with more than two decimals is rejected before it can drift under Postgres's rounding. `EscrowContract` owns its state machine: `INVITED → INITIATED → FUNDED → SETTLED`, with `CANCELLED` reachable only before settlement. Attempting to fund an already-funded contract or cancel a settled one throws `InvalidStateTransitionException` inside the aggregate, before persistence — so an invalid state is unrepresentable, not merely filtered. Services (`EscrowService`, `LedgerService`, `AuthService`) orchestrate transactions and call the aggregates; they contain no invariants themselves.
 
+The complete `ContractStatus` machine, with the trigger for every edge:
+
+```mermaid
+stateDiagram-v2
+    [*] --> INVITED: Unregistered Counterparty Email
+    [*] --> INITIATED: Registered Counterparty Email
+    INVITED --> INITIATED: Seller Registers & Verifies Email
+    INITIATED --> FUNDED: Buyer Deposits Collateral (Pessimistic Write Lock)
+    INITIATED --> CANCELLED: Buyer Aborts Before Deposit
+    FUNDED --> SETTLED: Valid Webhook Signature (Milestone Proof)
+    FUNDED --> CANCELLED: Asymmetric Cancellation (Liquidate at Current Spot)
+    SETTLED --> [*]
+    CANCELLED --> [*]
+```
+
 ## Transactional outbox
 
 Every state change that produces a notification faces the dual-write problem: the database commit and the event dispatch cannot be atomic through two different channels. Persist the row and the event could be lost; publish first and a rollback leaves a phantom notification. Spring Modulith's `spring-modulith-starter-jpa` solves this with a transactional outbox — `@TransactionalEventListener` writes the event publication into the `event_publication` table inside the *same* database transaction as the business change, then dispatches asynchronously after commit. There is no custom scheduler, polling loop, or bespoke outbox entity; the framework owns the guarantee.
