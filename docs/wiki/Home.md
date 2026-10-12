@@ -12,23 +12,31 @@ Settlement is conditional and automatic, not manual. Each contract is bound to a
 
 ## The lifecycle
 
-```text
-[ Buyer initiates trade ]
-           │
-           ▼
-[ Indicative quote: mid-market rate + 0.5% Wise fee ]
-           │
-           ▼
-[ Buyer funds contract ] ──► [ Spot rate locked at deposit ]
-           │                  [ USD converted to EUR & locked in EMI Vault ]
-                                       │
-                                       ▼ (ECB float yield ticker 3.5% — display-only, no ledger entries)
-[ Webhook proof arrives ] ◄── [ GitHub PR merged / Carrier confirms delivery ]
-           │
-           ▼
-[ Double-entry ledger executes settlement ]
-   ├── 99.2% net payout disbursed to Seller EUR account
-   └── 0.8% milestone fee routed to Wise fee account
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Buyer
+    participant UI as React SaaS
+    participant API as Spring Boot API
+    participant Ledger as Double-Entry Ledger
+    participant Vault as Segregated Vault (EUR)
+    actor Seller
+    participant Ingress as Webhook Source (GitHub/DHL)
+
+    Buyer->>UI: Create trade (Target: 10,000 EUR)
+    UI->>API: POST /api/v1/escrow (indicative quote: mid-market + 0.5% fee)
+    API-->>UI: Contract INITIATED (Deposit required: 10,854.27 USD)
+    Buyer->>UI: Confirm and fund
+    UI->>API: POST /api/v1/escrow/{id}/fund (spot rate locked at execution)
+    API->>Ledger: Transfer USD (USER -> WISE_CLEARING -> WISE_FEE)
+    API->>Vault: Lock converted EUR (10,000.00 EUR)
+    API-->>UI: Status -> FUNDED (3.5% ECB yield ticker — display-only)
+    Note over Vault: Funds safeguarded under EMI regulations
+    Ingress->>API: POST /api/v1/webhooks/milestone (HMAC verified)
+    API->>Ledger: Settle payout (-0.8% milestone fee)
+    Ledger->>Seller: Credit 9,920.00 EUR
+    Ledger->>API: Credit 80.00 EUR (Wise Fee Account)
+    API-->>UI: Status -> SETTLED
 ```
 
 ## What the buyer and seller each get
