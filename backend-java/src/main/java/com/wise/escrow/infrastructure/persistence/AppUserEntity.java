@@ -81,7 +81,7 @@ public class AppUserEntity {
     public String getPasswordHash() { return passwordHash; }
     /** Returns the entity id. */
     public UUID getEntityId() { return entityId; }
-    /** Whether active. */
+    /** Whether the account is active (verified and not disabled). */
     public boolean isActive() { return active; }
     /** Whether the email address was verified. */
     public boolean isEmailVerified() { return emailVerified; }

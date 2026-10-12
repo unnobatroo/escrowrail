@@ -13,12 +13,12 @@ public abstract class DomainException extends RuntimeException {
         this.httpStatus = httpStatus;
     }
 
-    /** C. */
+    /** Returns the stable machine-readable error code for API responses. */
     public String code() {
         return code;
     }
 
-    /** H status. */
+    /** Returns the HTTP status this exception maps to. */
     public int httpStatus() {
         return httpStatus;
     }

@@ -12,7 +12,7 @@ public final class TenantPrincipal {
 
     private TenantPrincipal() {}
 
-    /** U id. */
+    /** Returns the authenticated user id from the security context. */
     public static UUID userId() {
         try {
             return UUID.fromString(jwt().getSubject());
@@ -21,7 +21,7 @@ public final class TenantPrincipal {
         }
     }
 
-    /** E id. */
+    /** Returns the authenticated tenant entity id from the security context. */
     public static UUID entityId() {
         String claim = jwt().getClaimAsString("entity_id");
         if (claim == null) {

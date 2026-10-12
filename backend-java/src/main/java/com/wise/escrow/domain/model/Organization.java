@@ -11,7 +11,7 @@ public record Organization(
     String country,
     Instant createdAt
 ) {
-    /** R. */
+    /** Creates a new organization with a normalized UBO tax id. */
     public static Organization register(
         String legalName,
         String uboTaxId,

@@ -1,7 +1,7 @@
 package com.escrowrail.escrow.infrastructure.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.escrowrail.escrow.application.dto.ApiDtos.AccountView;
+import com.escrowrail.escrow.infrastructure.web.dto.ledger.AccountBalanceResponse;
 import com.escrowrail.escrow.application.service.LedgerService;
 import com.escrowrail.escrow.domain.exception.NotFoundException;
 import com.escrowrail.escrow.domain.exception.ValidationException;
@@ -103,7 +103,7 @@ public class DemoToolsController {
 
     /** Test credit: clearing -> caller's account in the requested currency. */
     @PostMapping("/topup")
-    public AccountView topUp(@RequestBody TopUpRequest body) {
+    public AccountBalanceResponse topUp(@RequestBody TopUpRequest body) {
         String currency = body.currency() == null ? "" : body.currency().toUpperCase(java.util.Locale.ROOT);
         if (!currency.equals("USD") && !currency.equals("EUR")) {
             throw new ValidationException("Unsupported currency: " + currency);

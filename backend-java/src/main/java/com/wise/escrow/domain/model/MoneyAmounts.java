@@ -36,7 +36,7 @@ public final class MoneyAmounts {
         return of(new BigDecimal(amount), currency);
     }
 
-    /** Z. */
+    /** Returns a zero amount in the given currency. */
     public static MonetaryAmount zero(String currency) {
         return of(BigDecimal.ZERO, currency);
     }

@@ -79,7 +79,7 @@ public class EscrowContract {
         this.status = EscrowStatus.INITIATED;
     }
 
-    /** C. */
+    /** Creates a contract in INITIATED between two registered entities. */
     public static EscrowContract create(
         UUID buyerId,
         UUID sellerId,
@@ -217,28 +217,28 @@ public class EscrowContract {
         }
     }
 
-    /** Whether buyer. */
+    /** Whether the entity is the contract's buyer. */
     public boolean isBuyer(UUID entityId) {
         return buyerId.equals(entityId);
     }
 
-    /** I. */
+    /** Whether the entity is buyer or seller on this contract. */
     public boolean involves(UUID entityId) {
         return buyerId.equals(entityId)
             || (sellerId != null && sellerId.equals(entityId));
     }
 
-    /** I. */
+    /** Returns the contract id. */
     public UUID id() {
         return id;
     }
 
-    /** B id. */
+    /** Returns the buyer entity id. */
     public UUID buyerId() {
         return buyerId;
     }
 
-    /** S id. */
+    /** Returns the seller entity id, or null while INVITED. */
     public UUID sellerId() {
         return sellerId;
     }
@@ -248,72 +248,72 @@ public class EscrowContract {
         return invitedEmail;
     }
 
-    /** B account id. */
+    /** Returns the funding account recorded at deposit time. */
     public UUID buyerAccountId() {
         return buyerAccountId;
     }
 
-    /** V account id. */
+    /** Returns the segregated vault account created at funding. */
     public UUID vaultAccountId() {
         return vaultAccountId;
     }
 
-    /** T currency. */
+    /** Returns the invoice (seller payout) currency. */
     public String targetCurrency() {
         return targetCurrency;
     }
 
-    /** S currency. */
+    /** Returns the buyer deposit currency. */
     public String sourceCurrency() {
         return sourceCurrency;
     }
 
-    /** T amount. */
+    /** Returns the target amount in invoice currency. */
     public MonetaryAmount targetAmount() {
         return targetAmount;
     }
 
-    /** D amount. */
+    /** Returns the source-currency deposit recorded at funding. */
     public MonetaryAmount depositAmount() {
         return depositAmount;
     }
 
-    /** S spot rate. */
+    /** Returns the spot rate locked at funding. */
     public BigDecimal snapshotSpotRate() {
         return snapshotSpotRate;
     }
 
-    /** E amount. */
+    /** Returns the converted amount vaulted in target currency. */
     public MonetaryAmount escrowedAmount() {
         return escrowedAmount;
     }
 
-    /** S. */
+    /** Returns the lifecycle status. */
     public EscrowStatus status() {
         return status;
     }
 
-    /** T type. */
+    /** Returns the milestone proof type (GitHub PR or carrier). */
     public TrackingType trackingType() {
         return trackingType;
     }
 
-    /** T key. */
+    /** Returns the milestone proof key (PR URL or tracking number). */
     public String trackingKey() {
         return trackingKey;
     }
 
-    /** F at. */
+    /** Returns the funding timestamp, or null before funding. */
     public Instant fundedAt() {
         return fundedAt;
     }
 
-    /** C at. */
+    /** Returns the creation timestamp. */
     public Instant createdAt() {
         return createdAt;
     }
 
-    /** V. */
+    /** Returns the JPA optimistic-lock version. */
     public long version() {
         return version;
     }

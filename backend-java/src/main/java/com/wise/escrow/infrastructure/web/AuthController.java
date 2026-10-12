@@ -1,14 +1,14 @@
 package com.escrowrail.escrow.infrastructure.web;
 
-import com.escrowrail.escrow.application.dto.ApiDtos.EntityView;
-import com.escrowrail.escrow.application.dto.ApiDtos.LoginRequest;
-import com.escrowrail.escrow.application.dto.ApiDtos.PendingVerificationView;
-import com.escrowrail.escrow.application.dto.ApiDtos.RegisterRequest;
-import com.escrowrail.escrow.application.dto.ApiDtos.RegisterResponse;
-import com.escrowrail.escrow.application.dto.ApiDtos.ResendVerificationRequest;
-import com.escrowrail.escrow.application.dto.ApiDtos.TokenResponse;
-import com.escrowrail.escrow.application.dto.ApiDtos.UserView;
-import com.escrowrail.escrow.application.dto.ApiDtos.VerifyEmailRequest;
+import com.escrowrail.escrow.infrastructure.web.dto.profile.EntitySummaryResponse;
+import com.escrowrail.escrow.infrastructure.web.dto.auth.LoginUserRequest;
+import com.escrowrail.escrow.infrastructure.web.dto.auth.PendingVerificationResponse;
+import com.escrowrail.escrow.infrastructure.web.dto.auth.RegisterUserRequest;
+import com.escrowrail.escrow.infrastructure.web.dto.auth.RegisterResponse;
+import com.escrowrail.escrow.infrastructure.web.dto.auth.ResendVerificationRequest;
+import com.escrowrail.escrow.infrastructure.web.dto.auth.AuthTokenResponse;
+import com.escrowrail.escrow.infrastructure.web.dto.profile.UserProfileResponse;
+import com.escrowrail.escrow.infrastructure.web.dto.auth.VerifyEmailRequest;
 import com.escrowrail.escrow.application.service.AuthService;
 import com.escrowrail.escrow.application.service.AuthService.Registration;
 import com.escrowrail.escrow.domain.model.AppUser;
@@ -51,10 +51,10 @@ public class AuthController {
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
     /** Registers an unverified account — a JWT is only issued on verification. */
-    public PendingVerificationView register(@Valid @RequestBody RegisterRequest body) {
+    public PendingVerificationResponse register(@Valid @RequestBody RegisterUserRequest body) {
         Registration reg = auth.register(
                 body.email(), body.password(), body.legalName(), body.uboTaxId(), body.country());
-        return new PendingVerificationView("PENDING_VERIFICATION", reg.user().email());
+        return new PendingVerificationResponse("PENDING_VERIFICATION", reg.user().email());
     }
 
     @PostMapping("/verify-email")
@@ -77,15 +77,15 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    /** L. */
-    public TokenResponse login(@Valid @RequestBody LoginRequest body) {
+    /** Authenticates credentials and issues a bearer JWT. */
+    public AuthTokenResponse login(@Valid @RequestBody LoginUserRequest body) {
         AppUser user = auth.authenticate(body.email(), body.password());
-        return new TokenResponse(jwt.issue(user.id(), user.entityId()), "bearer");
+        return new AuthTokenResponse(jwt.issue(user.id(), user.entityId()), "bearer");
     }
 
     @GetMapping("/me")
-    /** M. */
-    public UserView me() {
+    /** Returns the authenticated caller's profile. */
+    public UserProfileResponse me() {
         AppUser user = users
                 .findById(TenantPrincipal.userId())
                 .orElseThrow(() -> new NotFoundException("User not found"));
@@ -95,15 +95,15 @@ public class AuthController {
         return toView(user, org);
     }
 
-    private static UserView toView(AppUser user, Organization org) {
-        return new UserView(
+    private static UserProfileResponse toView(AppUser user, Organization org) {
+        return new UserProfileResponse(
                 user.id(),
                 user.email(),
                 user.active(),
                 user.emailVerified(),
                 user.status().name(),
                 user.onboardingCompleted(),
-                new EntityView(
+                new EntitySummaryResponse(
                         org.id(), org.legalName(), org.uboTaxId().value(), org.country()),
                 user.createdAt());
     }

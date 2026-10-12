@@ -30,7 +30,7 @@ public class Account {
         this.balance = balance;
     }
 
-    /** O. */
+    /** Opens a new account with a zero balance in the given currency. */
     public static Account open(
         UUID entityId,
         AccountType type,
@@ -44,27 +44,27 @@ public class Account {
         );
     }
 
-    /** I. */
+    /** Returns the account id. */
     public UUID id() {
         return id;
     }
 
-    /** E id. */
+    /** Returns the owning entity id, or null for a Escrowrail system account. */
     public UUID entityId() {
         return entityId;
     }
 
-    /** T. */
+    /** Returns the account type (user, vault, clearing, fee). */
     public AccountType type() {
         return type;
     }
 
-    /** B. */
+    /** Returns the current balance. */
     public MonetaryAmount balance() {
         return balance;
     }
 
-    /** C. */
+    /** Returns the ISO currency code of the balance. */
     public String currency() {
         return balance.getCurrency().getCurrencyCode();
     }

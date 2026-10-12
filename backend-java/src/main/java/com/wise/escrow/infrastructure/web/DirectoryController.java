@@ -1,6 +1,6 @@
 package com.escrowrail.escrow.infrastructure.web;
 
-import com.escrowrail.escrow.application.dto.ApiDtos.DirectoryMemberView;
+import com.escrowrail.escrow.infrastructure.web.dto.escrow.DirectoryMemberResponse;
 import com.escrowrail.escrow.application.service.DirectoryService;
 import com.escrowrail.escrow.infrastructure.security.TenantPrincipal;
 import java.util.List;
@@ -28,10 +28,10 @@ public class DirectoryController {
 
     @GetMapping
     /** Verified members matching the query by email or legal name. */
-    public Map<String, List<DirectoryMemberView>> search(@RequestParam String query) {
+    public Map<String, List<DirectoryMemberResponse>> search(@RequestParam String query) {
         UUID me = TenantPrincipal.entityId();
         return Map.of("members", service.search(query, me).stream()
-            .map(m -> new DirectoryMemberView(m.email(), m.entityId(), m.legalName(), m.country()))
+            .map(m -> new DirectoryMemberResponse(m.email(), m.entityId(), m.legalName(), m.country()))
             .toList());
     }
 }

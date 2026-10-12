@@ -65,7 +65,7 @@ test("Complete P2P Trade: Buyer creates and funds -> Seller receives settlement"
   // Wait for the create POST to land (onCreated navigates to the contract
   // page) before navigating away — going straight to /dashboard can abort
   // the in-flight request.
-  await expect(page).toHaveURL(/\/contracts\//);
+  await expect(page.getByTestId("trade-drawer")).toBeVisible();
 
   // Trade lands in the table as INITIATED.
   await page.goto("/dashboard");

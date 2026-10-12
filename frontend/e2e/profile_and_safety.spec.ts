@@ -60,7 +60,7 @@ test("randomize identity → onboarding → shortfall → top-up → fund", asyn
   await page.getByTestId("tracking-key").fill(`safety-${Date.now()}`);
   await expect(page.getByTestId("quote-total")).toContainText("USD");
   await page.getByTestId("create-trade").click();
-  await expect(page).toHaveURL(/\/contracts\//);
+  await expect(page.getByTestId("trade-drawer")).toBeVisible();
 
   // ---------- 4. Insufficient balance → friendly shortfall, no debt ----------
   await page.getByTestId("fund").click();
