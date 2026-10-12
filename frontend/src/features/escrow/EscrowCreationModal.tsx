@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { ShieldAlert, X } from "lucide-react";
 import {
@@ -22,6 +22,7 @@ import { CurrencyFlag } from "../../shared/CurrencyFlag";
 import Tooltip from "../../shared/Tooltip";
 import FeeCalculationRail from "./FeeCalculationRail";
 import BankComparisonDropdown from "./BankComparisonDropdown";
+import { useDialogA11y } from "../../shared/useDialogA11y";
 
 interface Props {
   onClose: () => void;
@@ -51,6 +52,8 @@ export default function EscrowCreationModal({
   const [targetCurrency, setTargetCurrency] = useState("EUR");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const dialogRef = useRef<HTMLElement>(null);
+  useDialogA11y(dialogRef, onClose);
 
   useEffect(() => {
     currenciesApi
@@ -170,6 +173,8 @@ export default function EscrowCreationModal({
         role="dialog"
         aria-modal="true"
         aria-label="New escrow trade"
+        ref={dialogRef as React.RefObject<HTMLFormElement>}
+        tabIndex={-1}
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold text-brand-charcoal">

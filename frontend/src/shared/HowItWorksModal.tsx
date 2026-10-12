@@ -1,5 +1,7 @@
+import { useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { BadgeCheck, Landmark, Lock, X, Zap } from "lucide-react";
+import { useDialogA11y } from "./useDialogA11y";
 
 const STAGES = [
   {
@@ -26,6 +28,8 @@ const STAGES = [
 
 /** "How Wise Escrow Works" — 4-stage explainer drawer from the header. */
 export default function HowItWorksModal({ onClose }: { onClose: () => void }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogA11y(dialogRef, onClose);
   return (
     <AnimatePresence>
       <motion.div
@@ -42,6 +46,8 @@ export default function HowItWorksModal({ onClose }: { onClose: () => void }) {
           animate={{ scale: 1, opacity: 1, y: 0 }}
           transition={{ type: "spring", duration: 0.3 }}
           className="w-full max-w-md rounded-3xl bg-brand-surface p-6 shadow-modal"
+          ref={dialogRef}
+          tabIndex={-1}
         >
           <div className="mb-5 flex items-center justify-between">
             <h2 className="text-lg font-bold text-brand-charcoal">

@@ -43,15 +43,15 @@ export default function BankComparisonDropdown({ quote }: { quote: Quote }) {
                 </span>
               </div>
               <div className="flex justify-between text-brand-subtle">
-                <span>FX markup (3.8%) + SWIFT fee</span>
+                <span>FX markup (3.8%)</span>
                 <span className="num">
-                  {money(
-                    (
-                      parseFloat(quote.bank_spread_cost) +
-                      parseFloat(quote.bank_swift_fee)
-                    ).toFixed(2),
-                    ccy,
-                  )}
+                  {money(quote.bank_spread_cost, ccy)}
+                </span>
+              </div>
+              <div className="flex justify-between text-brand-subtle">
+                <span>SWIFT fee</span>
+                <span className="num">
+                  {money(quote.bank_swift_fee, ccy)}
                 </span>
               </div>
               <div className="flex justify-between text-brand-subtle">

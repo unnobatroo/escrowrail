@@ -16,3 +16,11 @@ body {
   font-feature-settings: "tnum";
   font-variant-numeric: tabular-nums;
 }
+
+/* CSS-side reduced motion (framer-motion is covered by MotionConfig). */
+@media (prefers-reduced-motion: reduce) {
+  .animate-ping,
+  .animate-pulse {
+    animation: none;
+  }
+}

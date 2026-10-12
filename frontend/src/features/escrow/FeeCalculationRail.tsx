@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Info } from "lucide-react";
 import Tooltip from "../../shared/Tooltip";
 import { money } from "../../shared/currencyFormatter";
 import type { Quote } from "../../api";
@@ -57,7 +56,6 @@ export default function FeeCalculationRail({ quote }: { quote: Quote }) {
           />
           <span className="relative inline-flex h-2 w-2 rounded-full bg-brand-neon" />
         </span>
-        <Info size={12} className="sr-only" />
       </div>
     </div>
   );
