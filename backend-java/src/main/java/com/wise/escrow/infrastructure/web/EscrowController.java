@@ -70,11 +70,20 @@ public class EscrowController {
         UUID me = TenantPrincipal.entityId();
         var counterparty = service.resolveCounterparty(body.counterpartyEmail(), me);
         if (counterparty.isEmpty()) {
+            // The trade still exists: an INVITED contract binds the invited
+            // email and attaches to the counterparty's entity on signup.
+            service.createInvitedContract(
+                    me,
+                    MoneyAmounts.of(body.targetAmount(), currency(body.targetCurrency(), "EUR")),
+                    currency(body.sourceCurrency(), "USD"),
+                    body.trackingType(),
+                    body.trackingKey(),
+                    body.counterpartyEmail());
             service.inviteCounterparty(body.counterpartyEmail(), me);
             return ResponseEntity.status(HttpStatus.ACCEPTED)
                     .body(new InvitedResponse(
                             "invited",
-                            "Counterparty is not on Escrowrail yet — an invite was sent"));
+                            "Counterparty is not on Escrowrail yet — an invite was sent and the trade is waiting for them"));
         }
         EscrowContract contract = service.createContract(
                 me,
@@ -91,10 +100,15 @@ public class EscrowController {
     public ContractView fund(@PathVariable UUID id, @Valid @RequestBody FundRequest body) {
         UUID me = TenantPrincipal.entityId();
         EscrowContract c = service.getForEntity(id, me);
-        return view(
-                service.fundContract(
-                        id, me, MoneyAmounts.of(body.depositAmount(), c.sourceCurrency())),
-                me);
+        EscrowContract funded = service.fundContract(
+                id, me, MoneyAmounts.of(body.depositAmount(), c.sourceCurrency()));
+        // Explicit, unbundled cost summary: what left the buyer, what Escrowrail
+        // kept, and what landed in the segregated vault.
+        var q = service.quote(
+                c.sourceCurrency(), c.targetCurrency(),
+                c.targetAmount().getNumber().numberValue(BigDecimal.class));
+        return view(funded, me, body.depositAmount(), q.wiseFee(),
+                funded.escrowedAmount().getNumber().numberValue(BigDecimal.class));
     }
 
     @PostMapping("/{id}/cancel")
@@ -143,8 +157,16 @@ public class EscrowController {
     }
 
     private ContractView view(EscrowContract c, UUID me) {
+        return view(c, me, null, null, null);
+    }
+
+    private ContractView view(
+            EscrowContract c, UUID me,
+            BigDecimal grossDebited, BigDecimal wiseFee, BigDecimal netVaulted) {
         String buyerName = organizations.findById(c.buyerId()).map(Organization::legalName).orElse("?");
-        String sellerName = organizations.findById(c.sellerId()).map(Organization::legalName).orElse("?");
+        String sellerName = c.sellerId() == null
+                ? c.invitedEmail()
+                : organizations.findById(c.sellerId()).map(Organization::legalName).orElse("?");
         return new ContractView(
                 c.id(),
                 c.buyerId(),
@@ -166,7 +188,10 @@ public class EscrowController {
                 c.trackingType(),
                 c.trackingKey(),
                 c.fundedAt(),
-                c.createdAt());
+                c.createdAt(),
+                grossDebited,
+                wiseFee,
+                netVaulted);
     }
 
     private static String currency(String value, String fallback) {

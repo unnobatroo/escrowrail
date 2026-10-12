@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Landmark } from "lucide-react";
 import { ledgerApi } from "../api";
 import type { Account, LedgerEntry } from "../api";
-import { money } from "../format";
+import { money } from "../currencyFormatter";
 
 const TYPE_STYLE: Record<string, string> = {
   TOP_UP: "bg-[#D1E7DD] text-[#0F5132]",
@@ -55,7 +55,7 @@ export default function LedgerActivityFeed({
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white">
-      <h2 className="flex items-center gap-1.5 border-b border-slate-200 px-5 py-3 font-semibold text-[#0E150E]">
+      <h2 className="flex items-center gap-1.5 border-b border-slate-200 px-5 py-3 font-semibold text-[#1B1C1D]">
         <Landmark size={16} /> Cryptographic Ledger Activity
       </h2>
       <div data-testid="ledger-feed" className="max-h-96 overflow-y-auto">
@@ -75,7 +75,7 @@ export default function LedgerActivityFeed({
               <span className="text-xs text-[#5C685B]">
                 {label(e.debit_account_id)} → {label(e.credit_account_id)}
               </span>
-              <span className="ml-auto font-medium text-[#0E150E]">{signed(e)}</span>
+              <span className="ml-auto font-medium text-[#1B1C1D]">{signed(e)}</span>
             </div>
             <div className="mt-0.5 flex justify-between text-xs text-[#5C685B]">
               <span>

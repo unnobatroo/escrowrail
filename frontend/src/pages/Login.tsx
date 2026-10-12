@@ -17,6 +17,7 @@ export default function Login() {
     e.preventDefault();
     setBusy(true);
     setError("");
+    setUnverified(false);
     try {
       await login(email, password);
       navigate("/dashboard");

@@ -3,11 +3,14 @@ package com.escrowrail.escrow.application.dto;
 import com.escrowrail.escrow.domain.model.EscrowStatus;
 import com.escrowrail.escrow.domain.model.TrackingType;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 
 /** API payloads as Java records. */
@@ -43,8 +46,19 @@ public final class ApiDtos {
         boolean isActive,
         boolean emailVerified,
         String status,
+        boolean onboardingCompleted,
         EntityView entity,
         Instant createdAt
+    ) {}
+
+    public record UpdateProfileRequest(
+        @Size(max = 255) String legalEntityName,
+        @Size(max = 64) String taxId,
+        // One-time onboarding credit per currency, e.g. {"USD": 25000.00}.
+        // Only currencies the platform actually clears are accepted.
+        Map<@NotBlank @Size(max = 3) String,
+            @DecimalMin("0.01") @Digits(integer = 18, fraction = 2) BigDecimal>
+            initialDeposits
     ) {}
 
     public record RegisterResponse(String accessToken, UserView user) {}
@@ -101,7 +115,11 @@ public final class ApiDtos {
         TrackingType trackingType,
         String trackingKey,
         Instant fundedAt,
-        Instant createdAt
+        Instant createdAt,
+        // Unbundled funding receipt — populated only on the fund response.
+        BigDecimal grossDebited,
+        BigDecimal wiseConversionFee,
+        BigDecimal netVaulted
     ) {}
 
     public record CounterpartyView(

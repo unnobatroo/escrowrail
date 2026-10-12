@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
@@ -26,6 +27,9 @@ class AuthVerificationTest extends AbstractPostgresIT {
 
     @Autowired
     ObjectMapper mapper;
+
+    @Autowired
+    JdbcTemplate jdbc;
 
     private String register(String email) throws Exception {
         String body = mapper.writeValueAsString(
@@ -148,6 +152,27 @@ class AuthVerificationTest extends AbstractPostgresIT {
         org.assertj.core.api.Assertions.assertThat(
             latestToken(email)
         ).isEqualTo(first);
+
+        // Past the cooldown a resend rotates: a new token is issued and the
+        // old one is consumed, so only the newest link activates the account.
+        jdbc.update(
+            "UPDATE email_verification_tokens SET created_at = "
+                + "created_at - interval '61 seconds' WHERE user_id = "
+                + "(SELECT id FROM app_users WHERE email = ?)",
+            email
+        );
+        mvc.perform(
+            post("/api/v1/auth/resend-verification")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"" + email + "\"}")
+        ).andExpect(status().isOk());
+        String second = latestToken(email);
+        org.assertj.core.api.Assertions.assertThat(second).isNotEqualTo(first);
+        mvc.perform(
+            post("/api/v1/auth/verify-email")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"token\":\"" + first + "\"}")
+        ).andExpect(status().isBadRequest());
 
         // Unknown addresses get the same generic response.
         mvc.perform(

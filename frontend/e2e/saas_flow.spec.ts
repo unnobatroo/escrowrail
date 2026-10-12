@@ -24,10 +24,11 @@ async function fireGithubWebhook(
 }
 const PASSWORD = "demo-password-1";
 
-/** Completes email verification for an address via the dev-token backdoor. */
+/** Completes email verification via the dev-token backdoor. Returns the JWT. */
 async function verifyViaApi(request: {
   get: (url: string) => Promise<{ ok: () => boolean; json: () => Promise<{ token: string }> }>;
-  post: (url: string, opts: object) => Promise<{ ok: () => boolean }>;
+  post: (url: string, opts: object) => Promise<{ ok: () => boolean; json: () => Promise<{ access_token: string }> }>;
+  put: (url: string, opts: object) => Promise<{ ok: () => boolean }>;
 }, email: string) {
   const tok = await request.get(`${API}/dev/verification-token?email=${email}`);
   if (!tok.ok()) throw new Error(`no verification token for ${email}`);
@@ -36,11 +37,13 @@ async function verifyViaApi(request: {
     data: { token },
   });
   if (!res.ok()) throw new Error(`verify ${email} failed`);
+  return (await res.json()).access_token;
 }
 
 async function registerViaApi(request: {
   get: (url: string) => Promise<{ ok: () => boolean; json: () => Promise<{ token: string }> }>;
-  post: (url: string, opts: object) => Promise<{ ok: () => boolean }>;
+  post: (url: string, opts: object) => Promise<{ ok: () => boolean; json: () => Promise<{ access_token: string }> }>;
+  put: (url: string, opts: object) => Promise<{ ok: () => boolean }>;
 }, email: string, name: string, ubo: string) {
   const res = await request.post(`${API}/api/v1/auth/register`, {
     data: {
@@ -53,6 +56,19 @@ async function registerViaApi(request: {
   });
   if (!res.ok()) throw new Error(`register ${email} failed`);
   await verifyViaApi(request, email);
+}
+
+/**
+ * Fresh users get an auto-opened onboarding modal. UI-registered users
+ * complete it (that is the product flow); API-onboarded users never see it.
+ */
+async function completeOnboarding(page: Page) {
+  const dialog = page.getByRole("dialog");
+  await dialog.waitFor({ state: "visible", timeout: 5000 });
+  await dialog.getByTestId("deposit-usd").fill("25000");
+  await dialog.getByTestId("deposit-eur").fill("10000");
+  await dialog.getByTestId("profile-save").click();
+  await expect(dialog).not.toBeVisible();
 }
 
 async function registerViaUi(
@@ -77,6 +93,7 @@ async function registerViaUi(
   await page.getByTestId("verify-token").fill(token);
   await page.getByTestId("verify-submit").click();
   await expect(page).toHaveURL(/\/dashboard/);
+  await completeOnboarding(page);
 }
 
 async function loginViaUi(page: Page, email: string) {
@@ -91,14 +108,14 @@ test("register and login flow", async ({ page }) => {
   const email = `reg-${Date.now()}@test.dev`;
   await registerViaUi(page, email, "Registration Co", `UB-R-${Date.now()}`);
   // Nav shell shows org + sandbox balances.
-  await expect(page.getByText("Registration Co")).toBeVisible();
-  await expect(page.getByTestId("balance-usd")).toHaveText(/50,000\.00 USD/);
+  await expect(page.getByText("Registration Co", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("balance-usd")).toHaveText(/25,000\.00 USD/);
 
   await page.getByTestId("logout").click();
   await expect(page).toHaveURL(/\/login/);
 
   await loginViaUi(page, email);
-  await expect(page.getByText("Registration Co")).toBeVisible();
+  await expect(page.getByText("Registration Co", { exact: true })).toBeVisible();
 });
 
 test("buyer invites seller, funds in USD, webhook settles, seller paid EUR", async ({
@@ -126,6 +143,7 @@ test("buyer invites seller, funds in USD, webhook settles, seller paid EUR", asy
   // Contract detail: buyer funds; vault locks exactly 1,000.00 EUR.
   await expect(page).toHaveURL(/\/contracts\//);
   await page.getByTestId("fund").click();
+  await page.getByTestId("confirm-fund").click();
   await expect(page.getByTestId("status-badge")).toHaveText("FUNDED");
   await expect(page.getByTestId("vault-balance")).toHaveText("1,000.00 EUR");
 
@@ -145,7 +163,7 @@ test("buyer invites seller, funds in USD, webhook settles, seller paid EUR", asy
   const ctx2 = await browser.newContext({ baseURL: "http://localhost:5173" });
   const page2 = await ctx2.newPage();
   await loginViaUi(page2, sellerEmail);
-  await expect(page2.getByTestId("balance-eur")).toHaveText(/10,992\.00 EUR/);
+  await expect(page2.getByTestId("balance-eur")).toHaveText(/992\.00 EUR/);
   await expect(page2.getByTestId("trades-body")).toContainText("SETTLED");
   await ctx2.close();
 });
@@ -160,7 +178,7 @@ test("ubo collision blocks submission with AML banner", async ({ page, request }
   await page.getByTestId("new-trade").click();
   await page.getByTestId("cp-email").fill(twinEmail);
   await expect(page.getByTestId("ubo-warning")).toContainText(
-    "Circular ownership detected",
+    "self-trading is blocked",
   );
   await expect(page.getByTestId("create-trade")).toBeDisabled();
 });
@@ -178,6 +196,7 @@ test("buyer cancels funded escrow and receives refund", async ({ page, request }
   await expect(page).toHaveURL(/\/contracts\//);
 
   await page.getByTestId("fund").click();
+  await page.getByTestId("confirm-fund").click();
   await expect(page.getByTestId("status-badge")).toHaveText("FUNDED");
   await page.getByTestId("cancel").click();
   await page.getByTestId("confirm-cancel").click();

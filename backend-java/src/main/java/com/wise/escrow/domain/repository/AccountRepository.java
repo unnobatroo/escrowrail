@@ -49,5 +49,8 @@ public interface AccountRepository {
 
     List<Account> findAllByEntityId(UUID entityId);
 
+    /** All platform system accounts of a type — the supported-currency list. */
+    List<Account> findSystemAccounts(AccountType type);
+
     Account save(Account account);
 }

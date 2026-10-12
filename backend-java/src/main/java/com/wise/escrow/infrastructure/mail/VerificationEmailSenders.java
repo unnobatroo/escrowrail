@@ -1,13 +1,16 @@
 package com.escrowrail.escrow.infrastructure.mail;
 
 import com.escrowrail.escrow.application.service.VerificationEmailSender;
+import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -17,7 +20,8 @@ import org.springframework.web.client.RestClient;
  * an external mail provider.
  */
 @Component
-@Profile("!prod")
+@Profile({"dev", "test"})
+@Primary
 class LoggingVerificationEmailSender implements VerificationEmailSender {
 
     private static final Logger log =
@@ -52,7 +56,7 @@ class LoggingVerificationEmailSender implements VerificationEmailSender {
  * but a misconfigured env must not silently drop activations.
  */
 @Component
-@Profile("prod")
+@Profile({"prod", "demo"})
 class ResendVerificationEmailSender implements VerificationEmailSender {
 
     private static final Logger log =
@@ -70,17 +74,22 @@ class ResendVerificationEmailSender implements VerificationEmailSender {
         this.apiKey = apiKey;
         this.from = from;
         this.appBaseUrl = appBaseUrl;
-        this.http = RestClient.create();
+        var httpFactory = new SimpleClientHttpRequestFactory();
+        httpFactory.setConnectTimeout(Duration.ofSeconds(5));
+        httpFactory.setReadTimeout(Duration.ofSeconds(10));
+        this.http =
+            RestClient.builder().requestFactory(httpFactory).build();
     }
 
     @Override
     public void sendVerificationEmail(String email, String rawToken) {
         String link = appBaseUrl + "/verify-email?token=" + rawToken;
         if (apiKey.isBlank()) {
-            log.warn(
-                    "escrowrail.mail.resend-api-key unset — verification link for {} logged instead of sent",
+            // Never log the link — it embeds the raw token and anyone with
+            // log access could activate the account. Fail loudly instead.
+            log.error(
+                    "escrowrail.mail.resend-api-key unset — verification email to {} dropped; configure the key",
                     email);
-            log.info("verification link to={} link={}", email, link);
             return;
         }
         http.post()

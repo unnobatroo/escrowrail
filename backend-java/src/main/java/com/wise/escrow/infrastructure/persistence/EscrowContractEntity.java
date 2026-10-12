@@ -22,8 +22,12 @@ public class EscrowContractEntity {
     @Column(nullable = false)
     private UUID buyerId;
 
-    @Column(nullable = false)
+    /** Null while the contract sits INVITED awaiting counterparty signup. */
     private UUID sellerId;
+
+    /** Counterparty address an INVITED contract attaches to on registration. */
+    @Column(length = 320)
+    private String invitedEmail;
 
     private UUID buyerAccountId;
     private UUID vaultAccountId;
@@ -92,6 +96,16 @@ public class EscrowContractEntity {
     /** Sets the buyer id. */
     public void setBuyerId(UUID buyerId) {
         this.buyerId = buyerId;
+    }
+
+    /** Returns the invited counterparty email. */
+    public String getInvitedEmail() {
+        return invitedEmail;
+    }
+
+    /** Sets the invited counterparty email. */
+    public void setInvitedEmail(String invitedEmail) {
+        this.invitedEmail = invitedEmail;
     }
 
     /** Returns the seller id. */

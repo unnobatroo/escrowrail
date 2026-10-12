@@ -54,6 +54,8 @@ interface JpaAccountRepository extends JpaRepository<AccountEntity, UUID> {
             @Param("type") AccountType type, @Param("currency") String currency);
 
     List<AccountEntity> findAllByEntityId(UUID entityId);
+
+    List<AccountEntity> findByEntityIdIsNullAndType(AccountType type);
 }
 
 interface JpaEscrowContractRepository extends JpaRepository<EscrowContractEntity, UUID> {
@@ -77,6 +79,9 @@ interface JpaEscrowContractRepository extends JpaRepository<EscrowContractEntity
     @Query("SELECT c FROM EscrowContractEntity c WHERE (c.buyerId = :entityId OR c.sellerId = :entityId) AND c.status = :status ORDER BY c.createdAt DESC")
     List<EscrowContractEntity> findAllForEntityAndStatus(
             @Param("entityId") UUID entityId, @Param("status") EscrowStatus status);
+
+    @Query("SELECT c FROM EscrowContractEntity c WHERE c.invitedEmail = :email AND c.status = 'INVITED'")
+    List<EscrowContractEntity> findPendingInvites(@Param("email") String email);
 }
 
 interface JpaOrganizationRepository extends JpaRepository<OrganizationEntity, UUID> {}
@@ -109,6 +114,9 @@ interface JpaIdempotencyRecordRepository extends JpaRepository<IdempotencyRecord
 interface JpaEmailVerificationTokenRepository
         extends JpaRepository<EmailVerificationTokenEntity, UUID> {
 
+    /** Row-locked lookup so concurrent verify calls serialize on the token row. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "5000"))
     Optional<EmailVerificationTokenEntity> findByTokenHash(String tokenHash);
 
     List<EmailVerificationTokenEntity> findByUserIdAndUsedAtIsNull(UUID userId);
