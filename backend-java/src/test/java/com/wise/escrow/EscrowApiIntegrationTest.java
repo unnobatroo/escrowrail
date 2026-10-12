@@ -379,6 +379,6 @@ class EscrowApiIntegrationTest extends AbstractPostgresIT {
                 )
         )
             .andExpect(status().isAccepted())
-            .andExpect(jsonPath("$.status").value("invited"));
+            .andExpect(jsonPath("$.status").value("INVITED"));
     }
 }

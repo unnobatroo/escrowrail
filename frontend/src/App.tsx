@@ -1,10 +1,10 @@
 import { Navigate, Route, Routes } from "react-router-dom";
-import { useAuth } from "./features/auth/auth";
-import ContractDetail from "./features/escrow/ContractDetail";
-import Dashboard from "./features/escrow/Dashboard";
-import Login from "./features/auth/Login";
-import Register from "./features/auth/Register";
-import VerifyEmailView from "./features/auth/VerifyEmailView";
+import { useAuth } from "./features/authentication/auth";
+import ContractDetail from "./features/escrow-trades/ContractDetail";
+import Dashboard from "./features/escrow-trades/Dashboard";
+import Login from "./features/authentication/Login";
+import Register from "./features/authentication/Register";
+import VerifyEmailView from "./features/authentication/VerifyEmailView";
 
 function Guard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();

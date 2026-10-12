@@ -1,8 +1,8 @@
 package com.wise.escrow.infrastructure.web;
 
-import com.wise.escrow.application.dto.ApiDtos.EntityView;
-import com.wise.escrow.application.dto.ApiDtos.UpdateProfileRequest;
-import com.wise.escrow.application.dto.ApiDtos.UserView;
+import com.wise.escrow.infrastructure.web.dto.profile.EntitySummaryResponse;
+import com.wise.escrow.infrastructure.web.dto.profile.UpdateProfileRequest;
+import com.wise.escrow.infrastructure.web.dto.profile.UserProfileResponse;
 import com.wise.escrow.application.service.ProfileService;
 import com.wise.escrow.domain.model.AppUser;
 import com.wise.escrow.domain.model.Organization;
@@ -27,7 +27,7 @@ public class ProfileController {
 
     @PutMapping
     /** Updates the caller's entity profile; closes the onboarding window. */
-    public UserView update(@Valid @RequestBody UpdateProfileRequest body) {
+    public UserProfileResponse update(@Valid @RequestBody UpdateProfileRequest body) {
         var result = service.update(
                 TenantPrincipal.userId(),
                 TenantPrincipal.entityId(),
@@ -37,15 +37,15 @@ public class ProfileController {
         return toView(result.user(), result.organization());
     }
 
-    private static UserView toView(AppUser user, Organization org) {
-        return new UserView(
+    private static UserProfileResponse toView(AppUser user, Organization org) {
+        return new UserProfileResponse(
                 user.id(),
                 user.email(),
                 user.active(),
                 user.emailVerified(),
                 user.status().name(),
                 user.onboardingCompleted(),
-                new EntityView(
+                new EntitySummaryResponse(
                         org.id(), org.legalName(), org.uboTaxId().value(), org.country()),
                 user.createdAt());
     }

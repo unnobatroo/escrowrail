@@ -1,7 +1,7 @@
 package com.wise.escrow.infrastructure.web;
 
-import com.wise.escrow.application.dto.ApiDtos.AccountView;
-import com.wise.escrow.application.dto.ApiDtos.LedgerEntryView;
+import com.wise.escrow.infrastructure.web.dto.ledger.AccountBalanceResponse;
+import com.wise.escrow.infrastructure.web.dto.ledger.LedgerTransactionResponse;
 import com.wise.escrow.domain.exception.NotFoundException;
 import com.wise.escrow.domain.repository.AccountRepository;
 import com.wise.escrow.domain.repository.LedgerRepository;
@@ -29,16 +29,16 @@ public class AccountController {
     }
 
     @GetMapping
-    /** L. */
-    public List<AccountView> list() {
+    /** Lists the caller entity's currency accounts and balances. */
+    public List<AccountBalanceResponse> list() {
         return accounts.findAllByEntityId(TenantPrincipal.entityId()).stream()
                 .map(views::toAccountView)
                 .toList();
     }
 
     @GetMapping("/{id}")
-    /** G. */
-    public AccountView get(@PathVariable UUID id) {
+    /** Returns one account owned by the caller entity. */
+    public AccountBalanceResponse get(@PathVariable UUID id) {
         return accounts
                 .findById(id)
                 .filter(a -> TenantPrincipal.entityId().equals(a.entityId()))
@@ -47,13 +47,13 @@ public class AccountController {
     }
 
     @GetMapping("/{id}/ledger")
-    /** L. */
-    public List<LedgerEntryView> ledger(@PathVariable UUID id) {
+    /** Lists the ledger entries touching one owned account. */
+    public List<LedgerTransactionResponse> ledger(@PathVariable UUID id) {
         accounts.findById(id)
                 .filter(a -> TenantPrincipal.entityId().equals(a.entityId()))
                 .orElseThrow(() -> new NotFoundException("Account not found"));
         return ledger.findByAccountId(id).stream()
-                .map(LedgerEntryView::of)
+                .map(LedgerTransactionResponse::of)
                 .toList();
     }
 }

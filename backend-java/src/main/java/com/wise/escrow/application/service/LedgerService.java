@@ -45,7 +45,7 @@ public class LedgerService {
         propagation = Propagation.REQUIRED,
         isolation = Isolation.READ_COMMITTED
     )
-    /** T. */
+    /** {@inheritDoc} */
     public LedgerEntry transfer(
         UUID debitAccountId,
         UUID creditAccountId,

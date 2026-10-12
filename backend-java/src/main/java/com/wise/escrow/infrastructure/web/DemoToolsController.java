@@ -1,7 +1,7 @@
 package com.wise.escrow.infrastructure.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.wise.escrow.application.dto.ApiDtos.AccountView;
+import com.wise.escrow.infrastructure.web.dto.ledger.AccountBalanceResponse;
 import com.wise.escrow.application.service.LedgerService;
 import com.wise.escrow.domain.exception.NotFoundException;
 import com.wise.escrow.domain.exception.ValidationException;
@@ -103,7 +103,7 @@ public class DemoToolsController {
 
     /** Test credit: clearing -> caller's account in the requested currency. */
     @PostMapping("/topup")
-    public AccountView topUp(@RequestBody TopUpRequest body) {
+    public AccountBalanceResponse topUp(@RequestBody TopUpRequest body) {
         String currency = body.currency() == null ? "" : body.currency().toUpperCase(java.util.Locale.ROOT);
         if (!currency.equals("USD") && !currency.equals("EUR")) {
             throw new ValidationException("Unsupported currency: " + currency);
