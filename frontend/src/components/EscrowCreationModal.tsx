@@ -3,14 +3,14 @@ import { ShieldAlert, X } from "lucide-react";
 import { apiError, currenciesApi, escrowApi } from "../api";
 import type { ContractView, Counterparty, Quote, TrackingType } from "../api";
 
-import { money } from "../format";
+import { money } from "../currencyFormatter";
 
 interface Props {
   onClose: () => void;
   onCreated: (c: ContractView) => void;
 }
 
-export default function NewTradeModal({ onClose, onCreated }: Props) {
+export default function EscrowCreationModal({ onClose, onCreated }: Props) {
   const [email, setEmail] = useState("");
   const [cp, setCp] = useState<Counterparty | null>(null);
   const [cpUnknown, setCpUnknown] = useState(false);

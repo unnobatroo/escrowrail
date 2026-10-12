@@ -18,6 +18,7 @@ async function verifyAndEnter(page: Page, email: string) {
 test("randomize identity → onboarding → shortfall → top-up → fund", async ({
   page,
 }) => {
+
   const email = `persona-${Date.now()}@company.com`;
 
   // ---------- 1. Register with one-click random identity ----------

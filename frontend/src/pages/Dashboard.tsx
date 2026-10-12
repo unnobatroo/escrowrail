@@ -2,14 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { accountsApi, apiError, demoApi, escrowApi, isDemoMode } from "../api";
 import type { Account, ContractView } from "../api";
-import NewTradeModal from "../components/NewTradeModal";
+import EscrowCreationModal from "../components/EscrowCreationModal";
 import LedgerActivityFeed from "../components/LedgerActivityFeed";
-import TradeDetailView from "../components/TradeDetailView";
+import ContractLifecycleDrawer from "../components/ContractLifecycleDrawer";
 import WebhookSimulatorCard from "../components/WebhookSimulatorCard";
 import ProfileSettingsModal from "../components/ProfileSettingsModal";
 import Shell from "../components/Shell";
 import { useAuth } from "../auth";
-import { money, yieldAccrued } from "../format";
+import { money, yieldAccrued } from "../currencyFormatter";
 
 type Filter = "all" | "active" | "completed";
 
@@ -252,7 +252,7 @@ export default function Dashboard() {
       </div>
 
       {selected && (
-        <TradeDetailView
+        <ContractLifecycleDrawer
           contractId={selected}
           sourceBalance={sourceBalance(
             contracts.find((c) => c.id === selected),
@@ -273,7 +273,7 @@ export default function Dashboard() {
       )}
 
       {showNew && (
-        <NewTradeModal
+        <EscrowCreationModal
           onClose={() => setShowNew(false)}
           onCreated={(c) => {
             setShowNew(false);

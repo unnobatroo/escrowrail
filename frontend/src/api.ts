@@ -240,10 +240,17 @@ export const ledgerApi = {
 export const demoApi = {
   config: () => api.get<DemoConfig>("/api/v1/demo/config"),
   topup: (currency: string, amount: string) =>
-    api.post<Account>("/api/v1/demo/topup", { currency, amount }),
+    api.post<Account>(
+      "/api/v1/demo/topup",
+      { currency, amount },
+      // A fresh key per call: two identical top-ups are distinct intents —
+      // without this the idempotency filter replays the first response.
+      { headers: { "X-Idempotency-Key": crypto.randomUUID() } },
+    ),
   simulateWebhook: (contractId: string) =>
     api.post<{ status: string; contract_id: string; signature: string }>(
       "/api/v1/demo/simulate-webhook",
       { contract_id: contractId },
+      { headers: { "X-Idempotency-Key": crypto.randomUUID() } },
     ),
 };
