@@ -70,11 +70,20 @@ public class EscrowController {
         UUID me = TenantPrincipal.entityId();
         var counterparty = service.resolveCounterparty(body.counterpartyEmail(), me);
         if (counterparty.isEmpty()) {
+            // The trade still exists: an INVITED contract binds the invited
+            // email and attaches to the counterparty's entity on signup.
+            service.createInvitedContract(
+                    me,
+                    MoneyAmounts.of(body.targetAmount(), currency(body.targetCurrency(), "EUR")),
+                    currency(body.sourceCurrency(), "USD"),
+                    body.trackingType(),
+                    body.trackingKey(),
+                    body.counterpartyEmail());
             service.inviteCounterparty(body.counterpartyEmail(), me);
             return ResponseEntity.status(HttpStatus.ACCEPTED)
                     .body(new InvitedResponse(
                             "invited",
-                            "Counterparty is not on Wise Smart Escrow yet — an invite was sent"));
+                            "Counterparty is not on Wise Smart Escrow yet — an invite was sent and the trade is waiting for them"));
         }
         EscrowContract contract = service.createContract(
                 me,
@@ -155,7 +164,9 @@ public class EscrowController {
             EscrowContract c, UUID me,
             BigDecimal grossDebited, BigDecimal wiseFee, BigDecimal netVaulted) {
         String buyerName = organizations.findById(c.buyerId()).map(Organization::legalName).orElse("?");
-        String sellerName = organizations.findById(c.sellerId()).map(Organization::legalName).orElse("?");
+        String sellerName = c.sellerId() == null
+                ? c.invitedEmail()
+                : organizations.findById(c.sellerId()).map(Organization::legalName).orElse("?");
         return new ContractView(
                 c.id(),
                 c.buyerId(),

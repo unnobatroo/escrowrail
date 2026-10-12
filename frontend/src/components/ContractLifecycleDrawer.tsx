@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { ShieldCheck, Timer, X } from "lucide-react";
-import { apiError, escrowApi } from "../api";
+import { accountsApi, apiError, escrowApi } from "../api";
 import type { ContractView, LedgerEntry, Quote } from "../api";
 import FundingConfirmSheet from "./FundingConfirmSheet";
-import { money, yieldAccrued } from "../format";
+import { money, yieldAccrued } from "../currencyFormatter";
 
 const STATUS_STYLE: Record<string, string> = {
   INITIATED: "bg-[#FFF3CD] text-[#7A5800]",
@@ -16,7 +16,7 @@ const STATUS_STYLE: Record<string, string> = {
  * Execution side drawer: full contract detail, FX snapshot, live float
  * counter, cryptographic audit trail, and role-gated lifecycle actions.
  */
-export default function TradeDetailView({
+export default function ContractLifecycleDrawer({
   contractId,
   sourceBalance,
   onClose,
@@ -34,6 +34,7 @@ export default function TradeDetailView({
   const [now, setNow] = useState(() => Date.now());
   const [showCancel, setShowCancel] = useState(false);
   const [showFundSheet, setShowFundSheet] = useState(false);
+  const [liveBalance, setLiveBalance] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -53,6 +54,19 @@ export default function TradeDetailView({
     const t = setInterval(() => setNow(Date.now()), 100);
     return () => clearInterval(t);
   }, []);
+  useEffect(() => {
+    if (!showFundSheet || !contract) return;
+    // Re-read the source balance when the sheet opens — a prop snapshot can
+    // be stale after the user tops up elsewhere in the app.
+    accountsApi
+      .list()
+      .then((r) =>
+        setLiveBalance(
+          r.data.find((a) => a.currency === contract.source_currency)?.balance,
+        ),
+      )
+      .catch(() => {});
+  }, [showFundSheet, contract]);
   useEffect(() => {
     if (contract?.status === "INITIATED") {
       escrowApi
@@ -317,7 +331,7 @@ export default function TradeDetailView({
         <FundingConfirmSheet
           contract={contract}
           quote={quote}
-          sourceBalance={sourceBalance}
+          sourceBalance={liveBalance ?? sourceBalance}
           busy={busy}
           error={error}
           onConfirm={fund}

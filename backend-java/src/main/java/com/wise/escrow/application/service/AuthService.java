@@ -50,6 +50,7 @@ public class AuthService {
     private final ApplicationEventPublisher events;
     private final VerificationTokenRepository tokens;
     private final VerificationEmailSender mailer;
+    private final EscrowService escrow;
 
     /** Creates a new AuthService. */
     public AuthService(
@@ -59,7 +60,8 @@ public class AuthService {
         PasswordEncoder passwords,
         ApplicationEventPublisher events,
         VerificationTokenRepository tokens,
-        VerificationEmailSender mailer
+        VerificationEmailSender mailer,
+        EscrowService escrow
     ) {
         this.users = users;
         this.organizations = organizations;
@@ -68,6 +70,7 @@ public class AuthService {
         this.events = events;
         this.tokens = tokens;
         this.mailer = mailer;
+        this.escrow = escrow;
     }
 
     public record Registration(AppUser user, Organization organization) {}
@@ -111,6 +114,9 @@ public class AuthService {
             accounts.save(
                 Account.open(org.id(), AccountType.USER, "EUR")
             );
+            // Any trades invited to this email before signup attach now —
+            // the new entity steps into the open seller slot.
+            escrow.attachPendingInvites(normalized, org.id());
             issueVerification(user);
             events.publishEvent(
                 new WelcomeEmailRequested(user.email(), org.legalName())

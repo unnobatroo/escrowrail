@@ -5,7 +5,7 @@ import { accountsApi, apiError, demoApi, escrowApi, isDemoMode } from "../api";
 import FundingConfirmSheet from "../components/FundingConfirmSheet";
 import type { ContractView, LedgerEntry, Quote } from "../api";
 import Shell from "../components/Shell";
-import { money, yieldAccrued } from "../format";
+import { money, yieldAccrued } from "../currencyFormatter";
 
 type Tab = "overview" | "audit";
 
