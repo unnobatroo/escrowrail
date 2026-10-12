@@ -231,7 +231,10 @@ public class AuthService {
     @Transactional
     public void requestPasswordReset(String email) {
         String normalized = email.strip().toLowerCase(java.util.Locale.ROOT);
-        var user = users.findByEmail(normalized);
+        // Lock the user row so concurrent forgot-password requests serialize:
+        // without it, racing requests all pass the cooldown check and each
+        // issues a token + email.
+        var user = users.findByEmailForUpdate(normalized);
         if (user.isEmpty() || !user.get().emailVerified()) {
             return;
         }

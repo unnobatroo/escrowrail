@@ -8,16 +8,19 @@ export default function ForgotPasswordView() {
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
+  const [error, setError] = useState("");
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
+    setError("");
     try {
       await authApi.forgotPassword(email);
-    } catch {
-      // Response shape is identical either way — never reveal membership.
-    } finally {
+      // Backend always answers 200 — success reveals nothing about membership.
       setSent(true);
+    } catch {
+      setError("Something went wrong — please try again.");
+    } finally {
       setBusy(false);
     }
   };
@@ -50,6 +53,14 @@ export default function ForgotPasswordView() {
               onChange={(e) => setEmail(e.target.value)}
               className="mb-4 w-full rounded-lg border border-slate-200 px-3 py-2"
             />
+            {error && (
+              <div
+                data-testid="forgot-error"
+                className="mb-4 rounded-lg bg-[#FFDAD6] px-3 py-2 text-sm text-[#BA1A1A]"
+              >
+                {error}
+              </div>
+            )}
             <button
               data-testid="forgot-submit"
               type="submit"

@@ -77,6 +77,12 @@ class AppUserRepositoryAdapter implements AppUserRepository {
 
     @Override
     /** {@inheritDoc} */
+    public Optional<AppUser> findByEmailForUpdate(String email) {
+        return jpa.findWithLockByEmail(email.strip().toLowerCase(java.util.Locale.ROOT)).map(AppUserRepositoryAdapter::toDomain);
+    }
+
+    @Override
+    /** {@inheritDoc} */
     public AppUser save(AppUser user) {
         return toDomain(jpa.save(new AppUserEntity(
                 user.id(), user.email(), user.passwordHash(), user.entityId(),

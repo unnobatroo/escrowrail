@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
@@ -26,6 +27,9 @@ class PasswordResetTest extends AbstractPostgresIT {
 
     @Autowired
     ObjectMapper mapper;
+
+    @Autowired
+    JdbcTemplate jdbc;
 
     /** Registers and verifies a user; returns the email. */
     private String registerVerified(String email) throws Exception {
@@ -106,8 +110,9 @@ class PasswordResetTest extends AbstractPostgresIT {
     @Test
     void unknownAndUnverifiedEmailsStaySilent() throws Exception {
         // Unknown address: 200 either way, no token issued.
-        requestReset("ghost-" + System.nanoTime() + "@test.dev");
-        mvc.perform(get("/dev/reset-token").param("email", "ghost@test.dev"))
+        String ghost = "ghost-" + System.nanoTime() + "@test.dev";
+        requestReset(ghost);
+        mvc.perform(get("/dev/reset-token").param("email", ghost))
             .andExpect(status().isNotFound());
 
         // Registered but unverified: also silent — no reset token.
@@ -135,15 +140,22 @@ class PasswordResetTest extends AbstractPostgresIT {
         requestReset(email);
         String first = latestResetToken(email);
 
-        // Cooldown blocks an immediate re-issue — wait it out via a second
-        // request after invalidating time (61s would be slow; the repo
-        // exposes no clock hook, so instead assert first still works).
-        // shortcut: cooldown makes a second immediate request a no-op, so
-        // the first token remains the valid one.
+        // Backdate the token past the 60s cooldown so the second request
+        // actually issues a replacement (JdbcTemplate, no sleeping).
+        jdbc.update(
+            "UPDATE password_reset_tokens SET created_at = created_at - interval '5 minutes' " +
+            "WHERE user_id = (SELECT id FROM app_users WHERE email = ?)", email);
         requestReset(email);
         String second = latestResetToken(email);
-        org.junit.jupiter.api.Assertions.assertEquals(first, second);
+        org.junit.jupiter.api.Assertions.assertNotEquals(first, second);
 
+        // The superseded link is dead; the replacement works.
+        mvc.perform(
+            post("/api/v1/auth/reset-password")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(
+                    java.util.Map.of("token", first, "new_password", "DeadLink1!"))))
+            .andExpect(status().isBadRequest());
         mvc.perform(
             post("/api/v1/auth/reset-password")
                 .contentType(MediaType.APPLICATION_JSON)

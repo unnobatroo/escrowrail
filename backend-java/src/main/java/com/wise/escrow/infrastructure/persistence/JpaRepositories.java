@@ -92,6 +92,11 @@ interface JpaOrganizationRepository extends JpaRepository<OrganizationEntity, UU
 interface JpaAppUserRepository extends JpaRepository<AppUserEntity, UUID> {
 
     Optional<AppUserEntity> findByEmail(String email);
+
+    /** Row-locked lookup serializing concurrent reset/cooldown checks. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "5000"))
+    Optional<AppUserEntity> findWithLockByEmail(String email);
 }
 
 interface JpaDirectoryRepository extends Repository<OrganizationEntity, UUID> {
