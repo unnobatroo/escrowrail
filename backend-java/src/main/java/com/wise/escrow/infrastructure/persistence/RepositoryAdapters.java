@@ -1,10 +1,12 @@
 package com.escrowrail.escrow.infrastructure.persistence;
 
 import com.escrowrail.escrow.domain.model.AppUser;
+import com.escrowrail.escrow.domain.model.DirectoryEntry;
 import com.escrowrail.escrow.domain.model.Organization;
 import com.escrowrail.escrow.domain.model.TaxId;
 import com.escrowrail.escrow.domain.model.VerificationToken;
 import com.escrowrail.escrow.domain.repository.AppUserRepository;
+import com.escrowrail.escrow.domain.repository.DirectoryRepository;
 import com.escrowrail.escrow.domain.repository.IdempotencyRecordRepository;
 import com.escrowrail.escrow.domain.repository.LedgerRepository;
 import com.escrowrail.escrow.domain.repository.OrganizationRepository;
@@ -13,6 +15,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -77,6 +80,22 @@ class AppUserRepositoryAdapter implements AppUserRepository {
                 user.id(), user.email(), user.passwordHash(), user.entityId(),
                 user.active(), user.emailVerified(), user.status(),
                 user.onboardingCompleted(), user.createdAt())));
+    }
+}
+
+@Component
+class DirectoryRepositoryAdapter implements DirectoryRepository {
+
+    private final JpaDirectoryRepository jpa;
+
+    DirectoryRepositoryAdapter(JpaDirectoryRepository jpa) {
+        this.jpa = jpa;
+    }
+
+    @Override
+    /** {@inheritDoc} */
+    public List<DirectoryEntry> searchMembers(String query, UUID requesterEntityId, int limit) {
+        return jpa.searchMembers(query, requesterEntityId, PageRequest.of(0, limit));
     }
 }
 

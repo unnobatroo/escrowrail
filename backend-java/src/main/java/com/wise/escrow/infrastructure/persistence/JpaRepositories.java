@@ -1,6 +1,7 @@
 package com.escrowrail.escrow.infrastructure.persistence;
 
 import com.escrowrail.escrow.domain.model.AccountType;
+import com.escrowrail.escrow.domain.model.DirectoryEntry;
 import com.escrowrail.escrow.domain.model.EscrowStatus;
 import com.escrowrail.escrow.domain.model.TrackingType;
 import jakarta.persistence.LockModeType;
@@ -8,7 +9,9 @@ import jakarta.persistence.QueryHint;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.repository.Repository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.jpa.repository.QueryHints;
@@ -89,6 +92,29 @@ interface JpaOrganizationRepository extends JpaRepository<OrganizationEntity, UU
 interface JpaAppUserRepository extends JpaRepository<AppUserEntity, UUID> {
 
     Optional<AppUserEntity> findByEmail(String email);
+}
+
+interface JpaDirectoryRepository extends Repository<OrganizationEntity, UUID> {
+
+    /**
+     * Verified members discoverable by email or legal name — one joined query,
+     * so the directory is always just the live user + organization tables.
+     */
+    @Query("""
+            SELECT new com.escrowrail.escrow.domain.model.DirectoryEntry(
+                u.email, o.id, o.legalName, o.country)
+            FROM AppUserEntity u, OrganizationEntity o
+            WHERE u.entityId = o.id
+              AND u.emailVerified = true
+              AND u.entityId <> :requesterEntityId
+              AND (LOWER(u.email) LIKE LOWER(CONCAT('%', :query, '%'))
+                OR LOWER(o.legalName) LIKE LOWER(CONCAT('%', :query, '%')))
+            ORDER BY o.legalName
+            """)
+    List<DirectoryEntry> searchMembers(
+            @Param("query") String query,
+            @Param("requesterEntityId") UUID requesterEntityId,
+            Pageable pageable);
 }
 
 interface JpaLedgerChainRepository extends JpaRepository<LedgerChainEntity, Short> {

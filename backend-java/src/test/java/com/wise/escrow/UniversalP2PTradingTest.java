@@ -236,6 +236,51 @@ class UniversalP2PTradingTest extends AbstractPostgresIT {
     }
 
     @Test
+    void directoryFindsVerifiedMembersAndHidesSelf() throws Exception {
+        String tag = "" + System.nanoTime();
+        String alpha = onboard(
+            "alpha-" + tag + "@t.dev", "Alpha Directory Co " + tag,
+            "UB-DA-" + tag, "100.00");
+        onboard(
+            "beta-" + tag + "@t.dev", "Beta Directory Co " + tag,
+            "UB-DB-" + tag, "100.00");
+
+        // Alpha finds Beta by legal name and by email fragment.
+        mvc.perform(
+            get("/api/v1/directory")
+                .param("query", "Beta Directory Co " + tag)
+                .header("Authorization", "Bearer " + alpha)
+        )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.members[0].email").value("beta-" + tag + "@t.dev"))
+            .andExpect(jsonPath("$.members[0].legal_name")
+                .value("Beta Directory Co " + tag));
+        mvc.perform(
+            get("/api/v1/directory")
+                .param("query", "beta-" + tag)
+                .header("Authorization", "Bearer " + alpha)
+        )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.members[0].email").value("beta-" + tag + "@t.dev"));
+
+        // Alpha never sees itself — no self-trading from the directory.
+        mvc.perform(
+            get("/api/v1/directory")
+                .param("query", tag)
+                .header("Authorization", "Bearer " + alpha)
+        )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.members.length()").value(1));
+        mvc.perform(
+            get("/api/v1/directory")
+                .param("query", "x")
+                .header("Authorization", "Bearer " + alpha)
+        )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.members.length()").value(0));
+    }
+
+    @Test
     void invitedContractAttachesWhenCounterpartyRegisters() throws Exception {
         String tag = "" + System.nanoTime();
         String buyerEmail = "inv-buyer-" + tag + "@t.dev";

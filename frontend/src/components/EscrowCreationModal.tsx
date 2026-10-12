@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
 import { ShieldAlert, X } from "lucide-react";
-import { apiError, currenciesApi, escrowApi } from "../api";
-import type { ContractView, Counterparty, Quote, TrackingType } from "../api";
+import { apiError, currenciesApi, directoryApi, escrowApi } from "../api";
+import type {
+  ContractView,
+  Counterparty,
+  DirectoryMember,
+  Quote,
+  TrackingType,
+} from "../api";
 
 import { money } from "../currencyFormatter";
 
@@ -14,6 +20,7 @@ export default function EscrowCreationModal({ onClose, onCreated }: Props) {
   const [email, setEmail] = useState("");
   const [cp, setCp] = useState<Counterparty | null>(null);
   const [cpUnknown, setCpUnknown] = useState(false);
+  const [members, setMembers] = useState<DirectoryMember[]>([]);
   const [amount, setAmount] = useState("10000.00");
   const [trackingType, setTrackingType] = useState<TrackingType>("GITHUB_PR");
   const [trackingKey, setTrackingKey] = useState("");
@@ -25,7 +32,6 @@ export default function EscrowCreationModal({ onClose, onCreated }: Props) {
   const [targetCurrency, setTargetCurrency] = useState("EUR");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [invited, setInvited] = useState(false);
 
   useEffect(() => {
     currenciesApi
@@ -41,21 +47,34 @@ export default function EscrowCreationModal({ onClose, onCreated }: Props) {
       .catch(() => setCurrencies(["EUR", "USD"]));
   }, []);
 
-  // Debounced counterparty resolution.
+  // Debounced counterparty resolution + member directory lookup.
   useEffect(() => {
     setCp(null);
     setCpUnknown(false);
-    if (!email.includes("@")) return;
     let stale = false;
     const t = setTimeout(() => {
-      escrowApi
-        .counterparty(email)
-        .then((r) => {
-          if (!stale) setCp(r.data);
-        })
-        .catch(() => {
-          if (!stale) setCpUnknown(true);
-        });
+      if (email.trim().length >= 2) {
+        directoryApi
+          .search(email)
+          .then((r) => {
+            if (!stale) setMembers(r.data.members);
+          })
+          .catch(() => {
+            if (!stale) setMembers([]);
+          });
+      } else {
+        setMembers([]);
+      }
+      if (email.includes("@")) {
+        escrowApi
+          .counterparty(email)
+          .then((r) => {
+            if (!stale) setCp(r.data);
+          })
+          .catch(() => {
+            if (!stale) setCpUnknown(true);
+          });
+      }
     }, 300);
     return () => {
       stale = true;
@@ -102,11 +121,7 @@ export default function EscrowCreationModal({ onClose, onCreated }: Props) {
         tracking_type: trackingType,
         tracking_key: trackingKey,
       });
-      if (res.status === 202) {
-        setInvited(true);
-      } else {
-        onCreated(res.data as ContractView);
-      }
+      onCreated(res.data as ContractView);
     } catch (err) {
       setError(apiError(err).message ?? "Could not create the trade");
     } finally {
@@ -131,25 +146,56 @@ export default function EscrowCreationModal({ onClose, onCreated }: Props) {
         </div>
 
         <label className="mb-1 block text-sm font-medium text-[#5C685B]">
-          Counterparty email
+          Counterparty
         </label>
-        <input
-          data-testid="cp-email"
-          type="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className={`${input} mb-1`}
-          placeholder="seller@company.com"
-        />
+        <div className="relative mb-1">
+          <input
+            data-testid="cp-email"
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className={input}
+            placeholder="Search members by name or email"
+            autoComplete="off"
+          />
+          {!cp && members.length > 0 && (
+            <ul
+              data-testid="cp-directory"
+              className="absolute z-20 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg"
+            >
+              {members.map((m) => (
+                <li key={m.entity_id}>
+                  <button
+                    type="button"
+                    data-testid={`cp-member-${m.email}`}
+                    onClick={() => {
+                      setEmail(m.email);
+                      setMembers([]);
+                    }}
+                    className="block w-full px-3 py-2 text-left hover:bg-[#F4F5F0]"
+                  >
+                    <span className="block text-sm font-medium text-[#1B1C1D]">
+                      {m.legal_name}
+                    </span>
+                    <span className="block text-xs text-[#5C685B]">
+                      {m.email} · {m.country}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
         {cp && (
           <p data-testid="cp-resolved" className="mb-2 text-xs text-[#0F5132]">
             {cp.legal_name} · {cp.country}
           </p>
         )}
         {cpUnknown && (
-          <p data-testid="cp-invite" className="mb-2 text-xs text-[#084298]">
-            Not on the platform — an invitation will be sent on submit.
+          <p data-testid="cp-unknown" className="mb-2 text-xs text-[#BA1A1A]">
+            No registered member found for that address — they need to join the
+            platform before you can trade.
           </p>
         )}
 
@@ -316,28 +362,14 @@ export default function EscrowCreationModal({ onClose, onCreated }: Props) {
           </div>
         )}
 
-        {invited ? (
-          <div
-            data-testid="invite-sent"
-            className="rounded-lg bg-[#D1E7DD] px-3 py-2 text-sm text-[#0F5132]"
-          >
-            Invitation sent to {email} — they can register and the trade can be
-            re-created once they join.
-          </div>
-        ) : (
-          <button
-            data-testid="create-trade"
-            type="submit"
-            disabled={busy || uboCollision || (!cp && !cpUnknown)}
-            className="w-full rounded-full bg-[#9FE870] py-2.5 font-semibold text-[#163300] hover:bg-[#8fd960] disabled:opacity-50"
-          >
-            {busy
-              ? "Creating…"
-              : cpUnknown
-                ? "Send Invitation"
-                : "Create Escrow Trade"}
-          </button>
-        )}
+        <button
+          data-testid="create-trade"
+          type="submit"
+          disabled={busy || uboCollision || !cp}
+          className="w-full rounded-full bg-[#9FE870] py-2.5 font-semibold text-[#163300] hover:bg-[#8fd960] disabled:opacity-50"
+        >
+          {busy ? "Creating…" : "Create Escrow Trade"}
+        </button>
       </form>
     </div>
   );
