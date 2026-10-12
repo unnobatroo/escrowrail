@@ -8,16 +8,20 @@ import ContractLifecycleDrawer from "./ContractLifecycleDrawer";
 import WebhookSimulatorCard from "./WebhookSimulatorCard";
 import ProfileSettingsModal from "../../shared/ProfileSettingsModal";
 import Shell from "../../shared/Shell";
+import Tooltip from "../../shared/Tooltip";
+import EmptyTradesCard from "./EmptyTradesCard";
 import { useAuth } from "../auth/auth";
 import { money, yieldAccrued } from "../../shared/currencyFormatter";
 
 type Filter = "all" | "active" | "completed";
 
 const STATUS_STYLE: Record<string, string> = {
-  INITIATED: "bg-[#FFF3CD] text-[#7A5800]",
-  FUNDED: "bg-[#CFF4FC] text-[#084298]",
-  SETTLED: "bg-[#D1E7DD] text-[#0F5132]",
-  CANCELLED: "bg-[#E2E3E5] text-[#41464B]",
+  INITIATED: "bg-amber-100 text-amber-900 border border-amber-300 font-semibold",
+  FUNDED:
+    "bg-emerald-100 text-emerald-900 border border-emerald-300 font-semibold",
+  SETTLED:
+    "bg-brand-neon/40 text-brand-forest border border-brand-neon font-bold",
+  CANCELLED: "bg-stone-200 text-stone-700 font-medium",
 };
 
 const ACTIVE = new Set(["INITIATED", "FUNDED"]);
@@ -29,6 +33,9 @@ export default function Dashboard() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [filter, setFilter] = useState<Filter>("all");
   const [showNew, setShowNew] = useState(false);
+  const [preset, setPreset] = useState<
+    { email?: string; amount?: string } | undefined
+  >(undefined);
   const [selected, setSelected] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [now, setNow] = useState(Date.now());
@@ -163,15 +170,27 @@ export default function Dashboard() {
 
       <div className="mb-4 grid grid-cols-2 gap-4">
         <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <p className="text-sm text-[#5C685B]">Safeguarded in Escrow</p>
-          <p data-testid="metric-vault" className="mt-1 text-2xl font-bold text-[#084298]">
+          <p className="flex items-center gap-1 text-sm text-[#5C685B]">
+            Safeguarded in Escrow
+            <Tooltip
+              label="About safeguarded funds"
+              text="Under Electronic Money Regulations, Escrowrail isolates 100% of escrowed balances from operational assets. Funds can never be lent or leveraged."
+            />
+          </p>
+          <p data-testid="metric-vault" className="num mt-1 text-2xl font-bold text-[#084298]">
             {money(safeguarded.toFixed(2), "EUR")}
           </p>
           <p className="text-xs text-[#5C685B]">Segregated EMI vault</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <p className="text-sm text-[#5C685B]">Accrued Float Yield</p>
-          <p data-testid="metric-yield" className="mt-1 text-2xl font-bold text-[#0F5132]">
+          <p className="flex items-center gap-1 text-sm text-[#5C685B]">
+            Accrued Float Yield
+            <Tooltip
+              label="About float yield"
+              text="Interest generated on safeguarded EUR balances at the 3.5% ECB annualized base rate, accruing per millisecond while the vault holds funds."
+            />
+          </p>
+          <p data-testid="metric-yield" className="num mt-1 text-2xl font-bold text-[#0F5132]">
             {money(accruedYield.toFixed(4), "EUR")}
           </p>
           <p className="text-xs text-[#5C685B]">3.5% ECB base rate</p>
@@ -215,7 +234,7 @@ export default function Dashboard() {
                   // Re-read accounts so the drawer sees post-topup balances.
                   refresh();
                 }}
-                className="cursor-pointer border-b border-slate-100 last:border-0 hover:bg-slate-50"
+                className="cursor-pointer border-b border-brand-border/60 last:border-0 transition-colors hover:bg-white/80"
               >
                 <td className="px-5 py-3 font-medium text-[#1B1C1D]">
                   {c.role === "buyer" ? c.seller_name : c.buyer_name}
@@ -233,15 +252,22 @@ export default function Dashboard() {
                 </td>
               </tr>
             ))}
-            {rows.length === 0 && (
-              <tr>
-                <td colSpan={4} className="px-5 py-8 text-center text-[#5C685B]">
-                  No trades yet — start one with “New Escrow Trade”.
-                </td>
-              </tr>
-            )}
           </tbody>
         </table>
+        {rows.length === 0 && (
+          <div className="border-t border-brand-border px-5 py-6">
+            <EmptyTradesCard
+              onNewTrade={() => {
+                setPreset(undefined);
+                setShowNew(true);
+              }}
+              onLoadDemo={() => {
+                setPreset({ email: "seller@demo.com", amount: "10000.00" });
+                setShowNew(true);
+              }}
+            />
+          </div>
+        )}
       </div>
 
       <div className="mt-4 space-y-4">
@@ -274,6 +300,7 @@ export default function Dashboard() {
 
       {showNew && (
         <EscrowCreationModal
+          preset={preset}
           onClose={() => setShowNew(false)}
           onCreated={(c) => {
             setShowNew(false);
