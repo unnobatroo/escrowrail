@@ -1,15 +1,15 @@
 import { useEffect, useState } from "react";
 import { ShieldAlert, X } from "lucide-react";
-import { apiError, currenciesApi, directoryApi, escrowApi } from "../api";
+import { apiError, currenciesApi, directoryApi, escrowApi } from "../../api";
 import type {
   ContractView,
   Counterparty,
   DirectoryMember,
   Quote,
   TrackingType,
-} from "../api";
+} from "../../api";
 
-import { money } from "../currencyFormatter";
+import { money } from "../../shared/currencyFormatter";
 
 interface Props {
   onClose: () => void;

@@ -8,8 +8,8 @@ import {
   profileApi,
 } from "../api";
 import type { UserProfile } from "../api";
-import { useAuth } from "../auth";
-import { money } from "../currencyFormatter";
+import { useAuth } from "../features/auth/auth";
+import { money } from "./currencyFormatter";
 import { randomPersona } from "../utils/personaGenerator";
 
 const input =

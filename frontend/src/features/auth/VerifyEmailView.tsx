@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MailCheck, ShieldCheck } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { apiError, authApi } from "../api";
-import { useAuth } from "../auth";
+import { apiError, authApi } from "../../api";
+import { useAuth } from "./auth";
 
 const RESEND_SECONDS = 60;
 

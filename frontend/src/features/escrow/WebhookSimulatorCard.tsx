@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { ChevronDown, ChevronRight, Radio } from "lucide-react";
-import { apiError, demoApi } from "../api";
-import type { ContractView, DemoConfig } from "../api";
-import { money } from "../currencyFormatter";
+import { apiError, demoApi } from "../../api";
+import type { ContractView, DemoConfig } from "../../api";
+import { money } from "../../shared/currencyFormatter";
 
 /**
  * Developer gateway panel: exposes the sandbox webhook endpoints + tenant

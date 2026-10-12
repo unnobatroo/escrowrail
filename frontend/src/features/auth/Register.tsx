@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Dices, ShieldCheck } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { apiError } from "../api";
-import { useAuth } from "../auth";
-import { randomPersona } from "../utils/personaGenerator";
+import { apiError } from "../../api";
+import { useAuth } from "./auth";
+import { randomPersona } from "../../utils/personaGenerator";
 
 export default function Register() {
   const { register } = useAuth();

@@ -1,5 +1,5 @@
-import type { ContractView, Quote } from "../api";
-import { money } from "../currencyFormatter";
+import type { ContractView, Quote } from "../../api";
+import { money } from "../../shared/currencyFormatter";
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: "$",

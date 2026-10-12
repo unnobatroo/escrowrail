@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Landmark, ShieldCheck, Timer } from "lucide-react";
-import { accountsApi, apiError, demoApi, escrowApi, isDemoMode } from "../api";
-import FundingConfirmSheet from "../components/FundingConfirmSheet";
-import type { ContractView, LedgerEntry, Quote } from "../api";
-import Shell from "../components/Shell";
-import { money, yieldAccrued } from "../currencyFormatter";
+import { accountsApi, apiError, demoApi, escrowApi, isDemoMode } from "../../api";
+import FundingConfirmSheet from "./FundingConfirmSheet";
+import type { ContractView, LedgerEntry, Quote } from "../../api";
+import Shell from "../../shared/Shell";
+import { money, yieldAccrued } from "../../shared/currencyFormatter";
 
 type Tab = "overview" | "audit";
 

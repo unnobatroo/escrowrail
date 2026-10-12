@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import { authApi, getToken, setToken } from "./api";
-import type { UserProfile } from "./api";
+import { authApi, getToken, setToken } from "../../api";
+import type { UserProfile } from "../../api";
 
 interface AuthState {
   user: UserProfile | null;

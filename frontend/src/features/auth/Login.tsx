@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { ShieldCheck } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { apiError } from "../api";
-import { useAuth } from "../auth";
+import { apiError } from "../../api";
+import { useAuth } from "./auth";
 
 export default function Login() {
   const { login } = useAuth();
