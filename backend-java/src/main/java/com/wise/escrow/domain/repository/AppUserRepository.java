@@ -9,5 +9,9 @@ public interface AppUserRepository {
 
     Optional<AppUser> findByEmail(String email);
 
+    /** {@link #findByEmail} under a pessimistic write lock — serializes
+     *  concurrent reset/cooldown checks on the user row. */
+    Optional<AppUser> findByEmailForUpdate(String email);
+
     AppUser save(AppUser user);
 }

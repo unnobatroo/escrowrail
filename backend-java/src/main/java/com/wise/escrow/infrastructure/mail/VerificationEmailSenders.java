@@ -29,6 +29,7 @@ class LoggingVerificationEmailSender implements VerificationEmailSender {
 
     private final String appBaseUrl;
     private final Map<String, String> lastTokens = new ConcurrentHashMap<>();
+    private final Map<String, String> lastResetTokens = new ConcurrentHashMap<>();
 
     LoggingVerificationEmailSender(
             @Value("${escrowrail.app-base-url:http://localhost:5173}") String appBaseUrl) {
@@ -44,8 +45,21 @@ class LoggingVerificationEmailSender implements VerificationEmailSender {
     }
 
     @Override
+    public void sendPasswordResetEmail(String email, String rawToken) {
+        lastResetTokens.put(email, rawToken);
+        log.info(
+                "password reset email (dev outbox) to={} link={}/reset-password?token={}",
+                email, appBaseUrl, rawToken);
+    }
+
+    @Override
     public Optional<String> latestTokenFor(String email) {
         return Optional.ofNullable(lastTokens.get(email));
+    }
+
+    @Override
+    public Optional<String> latestResetTokenFor(String email) {
+        return Optional.ofNullable(lastResetTokens.get(email));
     }
 }
 
@@ -101,6 +115,28 @@ class ResendVerificationEmailSender implements VerificationEmailSender {
                         "subject", "Verify your Escrowrail account",
                         "html", "<p>Activate your account:</p><p><a href=\"" + link
                                 + "\">Verify email address</a></p>"))
+                .retrieve()
+                .toBodilessEntity();
+    }
+
+    @Override
+    public void sendPasswordResetEmail(String email, String rawToken) {
+        String link = appBaseUrl + "/reset-password?token=" + rawToken;
+        if (apiKey.isBlank()) {
+            log.error(
+                    "escrowrail.mail.resend-api-key unset — password reset email to {} dropped; configure the key",
+                    email);
+            return;
+        }
+        http.post()
+                .uri("https://api.resend.com/emails")
+                .header("Authorization", "Bearer " + apiKey)
+                .body(Map.of(
+                        "from", from,
+                        "to", new String[]{email},
+                        "subject", "Reset your Escrowrail password",
+                        "html", "<p>Reset your password (link valid for 1 hour):</p><p><a href=\"" + link
+                                + "\">Reset password</a></p>"))
                 .retrieve()
                 .toBodilessEntity();
     }

@@ -36,4 +36,14 @@ public class DevTokenController {
                         "No verification token issued for this email"));
         return Map.of("token", token);
     }
+
+    @GetMapping("/reset-token")
+    /** Latest issued password reset token for an email, if retained. */
+    public Map<String, String> latestReset(@RequestParam String email) {
+        String token = mailer
+                .latestResetTokenFor(email.strip().toLowerCase(java.util.Locale.ROOT))
+                .orElseThrow(() -> new NotFoundException(
+                        "No reset token issued for this email"));
+        return Map.of("token", token);
+    }
 }

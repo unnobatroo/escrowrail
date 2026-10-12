@@ -1,7 +1,9 @@
 package com.escrowrail.escrow.infrastructure.web;
 
 import com.escrowrail.escrow.infrastructure.web.dto.profile.EntitySummaryResponse;
+import com.escrowrail.escrow.infrastructure.web.dto.auth.ForgotPasswordRequest;
 import com.escrowrail.escrow.infrastructure.web.dto.auth.LoginUserRequest;
+import com.escrowrail.escrow.infrastructure.web.dto.auth.ResetPasswordRequest;
 import com.escrowrail.escrow.infrastructure.web.dto.auth.PendingVerificationResponse;
 import com.escrowrail.escrow.infrastructure.web.dto.auth.RegisterUserRequest;
 import com.escrowrail.escrow.infrastructure.web.dto.auth.RegisterResponse;
@@ -66,6 +68,22 @@ public class AuthController {
                 .orElseThrow(() -> new NotFoundException("Organization not found"));
         return new RegisterResponse(
                 jwt.issue(user.id(), user.entityId()), toView(user, org));
+    }
+
+    @PostMapping("/forgot-password")
+    /** Issues a reset link; always 200 so addresses cannot be enumerated. */
+    public java.util.Map<String, String> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest body) {
+        auth.requestPasswordReset(body.email());
+        return java.util.Map.of("status", "ok");
+    }
+
+    @PostMapping("/reset-password")
+    /** Consumes a reset token and replaces the password hash. */
+    public java.util.Map<String, String> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest body) {
+        auth.resetPassword(body.token(), body.newPassword());
+        return java.util.Map.of("status", "ok");
     }
 
     @PostMapping("/resend-verification")

@@ -49,6 +49,14 @@ public record AppUser(
         );
     }
 
+    /** Returns a copy with a new password hash — used by password reset. */
+    public AppUser passwordChanged(String newPasswordHash) {
+        return new AppUser(
+            id, email, newPasswordHash, entityId, active, emailVerified, status,
+            onboardingCompleted, createdAt
+        );
+    }
+
     /** Returns a copy with the onboarding window closed. */
     public AppUser onboarded() {
         return new AppUser(

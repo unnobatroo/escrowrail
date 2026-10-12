@@ -5,6 +5,8 @@ import Dashboard from "./features/escrow-trades/Dashboard";
 import Login from "./features/authentication/Login";
 import Register from "./features/authentication/Register";
 import VerifyEmailView from "./features/authentication/VerifyEmailView";
+import ForgotPasswordView from "./features/authentication/ForgotPasswordView";
+import ResetPasswordView from "./features/authentication/ResetPasswordView";
 
 function Guard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -33,6 +35,8 @@ export default function App() {
         element={user ? <Navigate to="/dashboard" replace /> : <Register />}
       />
       <Route path="/verify-email" element={<VerifyEmailView />} />
+      <Route path="/forgot-password" element={<ForgotPasswordView />} />
+      <Route path="/reset-password" element={<ResetPasswordView />} />
       <Route
         path="/dashboard"
         element={
