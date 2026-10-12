@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import { ShieldCheck, Timer, X } from "lucide-react";
 import { accountsApi, apiError, escrowApi } from "../../api";
 import type { ContractView, LedgerEntry, Quote } from "../../api";
 import FundingConfirmSheet from "./FundingConfirmSheet";
+import EscrowMilestoneStepper from "./EscrowMilestoneStepper";
+import Tooltip from "../../shared/Tooltip";
 import { money, yieldAccrued } from "../../shared/currencyFormatter";
 
 const STATUS_STYLE: Record<string, string> = {
-  INITIATED: "bg-[#FFF3CD] text-[#7A5800]",
-  FUNDED: "bg-[#CFF4FC] text-[#084298]",
-  SETTLED: "bg-[#D1E7DD] text-[#0F5132]",
-  CANCELLED: "bg-[#E2E3E5] text-[#41464B]",
+  INITIATED: "bg-amber-100 text-amber-900 border border-amber-300",
+  FUNDED: "bg-emerald-100 text-emerald-900 border border-emerald-300",
+  SETTLED: "bg-brand-neon/40 text-brand-forest border border-brand-neon",
+  CANCELLED: "bg-stone-200 text-stone-700",
 };
 
 /**
@@ -128,8 +131,19 @@ export default function ContractLifecycleDrawer({
 
   return (
     <div className="fixed inset-0 z-20" data-testid="trade-drawer">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <aside className="absolute right-0 top-0 flex h-full w-full max-w-xl flex-col overflow-y-auto bg-white shadow-2xl">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="absolute inset-0 bg-brand-forest/30 backdrop-blur-md"
+        onClick={onClose}
+      />
+      <motion.aside
+        initial={{ x: "100%" }}
+        animate={{ x: 0 }}
+        exit={{ x: "100%" }}
+        transition={{ damping: 25, stiffness: 200 }}
+        className="absolute right-0 top-0 flex h-full w-full max-w-xl flex-col overflow-y-auto bg-brand-surface shadow-modal"
+      >
         <div className="flex items-start justify-between border-b border-slate-200 px-6 py-4">
           <div>
             <h2 className="text-lg font-bold text-[#1B1C1D]">
@@ -158,12 +172,19 @@ export default function ContractLifecycleDrawer({
             <button
               data-testid="drawer-close"
               onClick={onClose}
-              className="rounded-full p-1.5 text-[#5C685B] hover:bg-slate-100"
+              aria-label="Close trade details"
+              className="rounded-full p-1.5 text-brand-subtle transition-colors hover:bg-brand-sand"
             >
               <X size={18} />
             </button>
           </div>
         </div>
+
+        {contract && (
+          <div className="border-b border-brand-border px-6 py-4">
+            <EscrowMilestoneStepper status={contract.status} />
+          </div>
+        )}
 
         <div className="flex-1 space-y-4 px-6 py-4">
           {error && (
@@ -182,7 +203,13 @@ export default function ContractLifecycleDrawer({
 
               {/* FX snapshot */}
               <section className="rounded-xl border border-slate-200 p-4">
-                <h3 className="mb-3 text-sm font-semibold text-[#1B1C1D]">FX Snapshot</h3>
+                <h3 className="mb-3 flex items-center gap-1 text-sm font-semibold text-[#1B1C1D]">
+                  FX Snapshot
+                  <Tooltip
+                    label="About the mid-market rate"
+                    text="The true midpoint between buy and sell prices in global currency markets without added markup spreads."
+                  />
+                </h3>
                 <dl className="space-y-2 text-sm">
                   <Row
                     k="Locked spot rate"
@@ -223,10 +250,17 @@ export default function ContractLifecycleDrawer({
               {contract.status === "FUNDED" && (
                 <section className="rounded-xl border border-slate-200 p-4">
                   <p className="flex items-center gap-1 text-xs text-[#5C685B]">
+                    <span className="relative mr-1 flex h-2 w-2">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-neon" />
+                      <span className="relative inline-flex h-2 w-2 rounded-full bg-brand-neon" />
+                    </span>
                     <Timer size={14} /> Live Float Interest — 3.5% ECB annualized on EUR float
                   </p>
-                  <p data-testid="yield-ticker" className="mt-1 font-mono text-2xl font-bold text-[#0F5132]">
+                  <p data-testid="yield-ticker" className="num mt-1 text-2xl font-bold text-[#0F5132]">
                     {accrued.toFixed(6)} {contract.target_currency}
+                  </p>
+                  <p className="mt-0.5 text-xs text-brand-subtle">
+                    interest generated in the safeguarded EMI vault
                   </p>
                 </section>
               )}
@@ -234,7 +268,13 @@ export default function ContractLifecycleDrawer({
               {/* Cryptographic audit trail */}
               <section className="rounded-xl border border-slate-200">
                 <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5">
-                  <h3 className="text-sm font-semibold text-[#1B1C1D]">Cryptographic Audit Trail</h3>
+                  <h3 className="flex items-center gap-1 text-sm font-semibold text-[#1B1C1D]">
+                    Cryptographic Audit Trail
+                    <Tooltip
+                      label="About audit hash integrity"
+                      text="A cryptographic SHA-256 seal linking this transaction to all previous ledger entries. Any alteration invalidates the audit proof."
+                    />
+                  </h3>
                   {audit.length > 0 && (
                     <span className="rounded-full bg-[#D1E7DD] px-2 py-0.5 text-xs font-semibold text-[#0F5132]">
                       Audit Integrity Verified
@@ -295,7 +335,7 @@ export default function ContractLifecycleDrawer({
             </>
           )}
         </div>
-      </aside>
+      </motion.aside>
 
       {showCancel && (
         <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/40">
