@@ -10,10 +10,12 @@ import com.wise.escrow.domain.model.Account;
 import com.wise.escrow.domain.model.AccountType;
 import com.wise.escrow.domain.model.AppUser;
 import com.wise.escrow.domain.model.Organization;
+import com.wise.escrow.domain.model.PasswordResetToken;
 import com.wise.escrow.domain.model.VerificationToken;
 import com.wise.escrow.domain.repository.AccountRepository;
 import com.wise.escrow.domain.repository.AppUserRepository;
 import com.wise.escrow.domain.repository.OrganizationRepository;
+import com.wise.escrow.domain.repository.PasswordResetTokenRepository;
 import com.wise.escrow.domain.repository.VerificationTokenRepository;
 import java.security.SecureRandom;
 import java.time.Duration;
@@ -49,6 +51,7 @@ public class AuthService {
     private final PasswordEncoder passwords;
     private final ApplicationEventPublisher events;
     private final VerificationTokenRepository tokens;
+    private final PasswordResetTokenRepository resetTokens;
     private final VerificationEmailSender mailer;
     private final EscrowService escrow;
 
@@ -60,6 +63,7 @@ public class AuthService {
         PasswordEncoder passwords,
         ApplicationEventPublisher events,
         VerificationTokenRepository tokens,
+        PasswordResetTokenRepository resetTokens,
         VerificationEmailSender mailer,
         EscrowService escrow
     ) {
@@ -69,6 +73,7 @@ public class AuthService {
         this.passwords = passwords;
         this.events = events;
         this.tokens = tokens;
+        this.resetTokens = resetTokens;
         this.mailer = mailer;
         this.escrow = escrow;
     }
@@ -215,6 +220,83 @@ public class AuthService {
             .findUnusedByUserId(user.get().id())
             .forEach(t -> tokens.save(t.consumed()));
         issueVerification(user.get());
+    }
+
+    /**
+     * Issues a password reset link. Always succeeds from the caller's point
+     * of view (unknown or unverified addresses are silently dropped to
+     * prevent enumeration); the 60-second cooldown suppresses re-sends.
+     * Outstanding reset links are consumed so only the newest works.
+     */
+    @Transactional
+    public void requestPasswordReset(String email) {
+        String normalized = email.strip().toLowerCase(java.util.Locale.ROOT);
+        // Lock the user row so concurrent forgot-password requests serialize:
+        // without it, racing requests all pass the cooldown check and each
+        // issues a token + email.
+        var user = users.findByEmailForUpdate(normalized);
+        if (user.isEmpty() || !user.get().emailVerified()) {
+            return;
+        }
+        var latest = resetTokens.findLatestByUserId(user.get().id());
+        if (
+            latest.isPresent() &&
+            latest
+                .get()
+                .createdAt()
+                .isAfter(Instant.now().minus(RESEND_COOLDOWN))
+        ) {
+            return;
+        }
+        resetTokens
+            .findUnusedByUserId(user.get().id())
+            .forEach(t -> resetTokens.save(t.consumed()));
+        issuePasswordReset(user.get());
+    }
+
+    /**
+     * Consumes a reset token and swaps the password hash in one transaction,
+     * so a token can never reset twice.
+     *
+     * @throws ValidationException if the token is unknown, expired, or already used
+     */
+    @Transactional
+    public void resetPassword(String rawToken, String newPassword) {
+        PasswordResetToken token = resetTokens
+            .findByTokenHash(sha256(rawToken))
+            .filter(PasswordResetToken::usable)
+            .orElseThrow(() ->
+                new ValidationException(
+                    "Reset link is invalid or expired"
+                )
+            );
+        resetTokens.save(token.consumed());
+        AppUser user = users
+            .findById(token.userId())
+            .orElseThrow(() -> new NotFoundException("User not found"));
+        users.save(user.passwordChanged(passwords.encode(newPassword)));
+    }
+
+    /** Generates a 256-bit token, persists its hash, and emails the raw value. */
+    private void issuePasswordReset(AppUser user) {
+        byte[] bytes = new byte[32];
+        RANDOM.nextBytes(bytes);
+        String rawToken = HexFormat.of().formatHex(bytes);
+        resetTokens.save(PasswordResetToken.issue(user.id(), sha256(rawToken)));
+        TransactionSynchronizationManager.registerSynchronization(
+            new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    try {
+                        mailer.sendPasswordResetEmail(user.email(), rawToken);
+                    } catch (RuntimeException e) {
+                        log.warn(
+                            "password reset email send failed for {} — user can re-request",
+                            user.email(), e);
+                    }
+                }
+            }
+        );
     }
 
     /** Generates a 256-bit token, persists its hash, and emails the raw value. */

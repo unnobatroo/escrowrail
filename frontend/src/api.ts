@@ -185,6 +185,13 @@ export const authApi = {
     ),
   resendVerification: (email: string) =>
     api.post<{ status: string }>("/api/v1/auth/resend-verification", { email }),
+  forgotPassword: (email: string) =>
+    api.post<{ status: string }>("/api/v1/auth/forgot-password", { email }),
+  resetPassword: (token: string, newPassword: string) =>
+    api.post<{ status: string }>("/api/v1/auth/reset-password", {
+      token,
+      new_password: newPassword,
+    }),
   login: (email: string, password: string) =>
     api.post<{ access_token: string }>("/api/v1/auth/login", {
       email,

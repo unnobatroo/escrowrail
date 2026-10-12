@@ -52,7 +52,15 @@ export default function Login() {
           onChange={(e) => setEmail(e.target.value)}
           className="mb-4 w-full rounded-lg border border-slate-200 px-3 py-2"
         />
-        <label className="mb-1 block text-sm font-medium text-[#5C685B]">Password</label>
+        <div className="mb-1 flex items-baseline justify-between">
+          <label className="block text-sm font-medium text-[#5C685B]">Password</label>
+          <Link
+            to="/forgot-password"
+            className="text-xs font-medium text-[#00A2DD] underline"
+          >
+            Forgot password?
+          </Link>
+        </div>
         <input
           data-testid="password"
           type="password"
