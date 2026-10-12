@@ -130,6 +130,13 @@ public final class ApiDtos {
         boolean sameUbo
     ) {}
 
+    public record DirectoryMemberView(
+        String email,
+        UUID entityId,
+        String legalName,
+        String country
+    ) {}
+
     public record QuoteView(
         String sourceCurrency,
         String targetCurrency,

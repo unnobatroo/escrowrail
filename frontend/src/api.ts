@@ -119,6 +119,13 @@ export interface Counterparty {
   same_ubo: boolean;
 }
 
+export interface DirectoryMember {
+  email: string;
+  entity_id: string;
+  legal_name: string;
+  country: string;
+}
+
 export interface LedgerEntry {
   id: string;
   debit_account_id: string;
@@ -222,6 +229,14 @@ export const accountsApi = {
 /** Platform-supported currencies — whatever the clearing rails carry. */
 export const currenciesApi = {
   supported: () => api.get<{ currencies: string[] }>("/api/v1/currencies"),
+};
+
+/** Common member directory — find real registered counterparties. */
+export const directoryApi = {
+  search: (query: string) =>
+    api.get<{ members: DirectoryMember[] }>("/api/v1/directory", {
+      params: { query },
+    }),
 };
 
 /** Self-service profile + one-time onboarding deposits. */
