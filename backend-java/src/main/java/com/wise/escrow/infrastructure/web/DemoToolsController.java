@@ -49,7 +49,7 @@ public class DemoToolsController {
     private final String logisticsSecret;
     private final String buyerEmail;
     private final String sellerEmail;
-    private final String demoPassword;
+    private final com.wise.escrow.config.DemoCredentials credentials;
     private final boolean allowMockWebhooks;
     private final ViewMapper views;
 
@@ -65,7 +65,7 @@ public class DemoToolsController {
             @Value("${wise.webhooks.logistics-secret:}") String logisticsSecret,
             @Value("${wise.demo.buyer-email:buyer@demo.com}") String buyerEmail,
             @Value("${wise.demo.seller-email:seller@demo.com}") String sellerEmail,
-            @Value("${wise.seed.password:demo1234}") String demoPassword,
+            com.wise.escrow.config.DemoCredentials credentials,
             @Value("${wise.security.allow-mock-webhooks:false}") boolean allowMockWebhooks) {
         this.accounts = accounts;
         this.ledgerService = ledgerService;
@@ -77,14 +77,15 @@ public class DemoToolsController {
         this.logisticsSecret = logisticsSecret;
         this.buyerEmail = buyerEmail;
         this.sellerEmail = sellerEmail;
-        this.demoPassword = demoPassword;
+        this.credentials = credentials;
         this.allowMockWebhooks = allowMockWebhooks;
     }
 
     /**
-     * Gateway introspection for the simulator panel. Exposes the sandbox
-     * signing secrets — only safe because the whole controller exists solely
-     * in demo mode; with demo disabled these routes do not exist.
+     * Gateway introspection for the simulator panel. Webhook signing secrets
+     * never leave the server — simulation is HMAC-signed backend-side via
+     * {@code /simulate-webhook}; only the non-secret endpoints and the demo
+     * persona credentials the account switcher needs are exposed.
      */
     @GetMapping("/config")
     public Map<String, Object> config() {
@@ -92,11 +93,10 @@ public class DemoToolsController {
                 "enabled", true,
                 "buyer_email", buyerEmail,
                 "seller_email", sellerEmail,
-                "demo_password", demoPassword,
+                "buyer_password", credentials.buyerPassword(),
+                "seller_password", credentials.sellerPassword(),
                 "github_webhook_url", "/webhooks/github",
-                "logistics_webhook_url", "/webhooks/logistics",
-                "github_secret", githubSecret,
-                "logistics_secret", logisticsSecret);
+                "logistics_webhook_url", "/webhooks/logistics");
     }
 
     public record TopUpRequest(String currency, BigDecimal amount) {}

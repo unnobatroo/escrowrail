@@ -141,8 +141,9 @@ make test           # backend Testcontainers suite + Playwright e2e
 ```
 
 Seeded demo accounts (dev/demo profiles): `buyer@demo.com` /
-`seller@demo.com`, password `WiseDemo123!` — a one-click account switcher
-in the navbar toggles between them.
+`seller@demo.com`. Passwords come from `DEMO_BUYER_PASSWORD` /
+`DEMO_SELLER_PASSWORD` — unset, a random one is generated per boot and
+logged. A one-click account switcher in the navbar toggles between them.
 
 ## Documentation
 

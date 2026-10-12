@@ -29,6 +29,8 @@ export default defineConfig({
         `DATABASE_URL=jdbc:postgresql://localhost:${PG_PORT}/wise_escrow ` +
         "DATABASE_USER=wise DATABASE_PASSWORD=wise " +
         "JWT_SECRET=e2e-secret-e2e-secret-e2e-secret-32 " +
+        "DEMO_BUYER_PASSWORD=WiseDemo123! " +
+        "DEMO_SELLER_PASSWORD=WiseDemo123! " +
         "WISE_GITHUB_WEBHOOK_SECRET=e2e-gh-secret " +
         "WISE_LOGISTICS_WEBHOOK_SECRET=e2e-logi-secret " +
         "./gradlew bootRun --no-daemon",

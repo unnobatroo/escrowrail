@@ -50,7 +50,12 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     if (!demo || !otherDemoEmail) return;
     setSwitching(true);
     try {
-      await login(otherDemoEmail, demo.demo_password);
+      await login(
+        otherDemoEmail,
+        otherDemoEmail === demo.buyer_email
+          ? demo.buyer_password
+          : demo.seller_password,
+      );
       navigate("/dashboard");
       window.location.reload();
     } finally {
