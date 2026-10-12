@@ -79,6 +79,9 @@ interface JpaEscrowContractRepository extends JpaRepository<EscrowContractEntity
     @Query("SELECT c FROM EscrowContractEntity c WHERE (c.buyerId = :entityId OR c.sellerId = :entityId) AND c.status = :status ORDER BY c.createdAt DESC")
     List<EscrowContractEntity> findAllForEntityAndStatus(
             @Param("entityId") UUID entityId, @Param("status") EscrowStatus status);
+
+    @Query("SELECT c FROM EscrowContractEntity c WHERE c.invitedEmail = :email AND c.status = 'INVITED'")
+    List<EscrowContractEntity> findPendingInvites(@Param("email") String email);
 }
 
 interface JpaOrganizationRepository extends JpaRepository<OrganizationEntity, UUID> {}

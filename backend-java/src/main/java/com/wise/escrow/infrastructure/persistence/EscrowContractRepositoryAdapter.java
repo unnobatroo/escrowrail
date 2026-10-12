@@ -36,6 +36,9 @@ public class EscrowContractRepositoryAdapter
             e.getCreatedAt(),
             e.getVersion()
         );
+        if (e.getInvitedEmail() != null) {
+            c.markInvited(e.getInvitedEmail());
+        }
         if (
             e.getStatus() != EscrowStatus.INITIATED &&
             e.getDepositAmount() != null
@@ -62,6 +65,7 @@ public class EscrowContractRepositoryAdapter
     static void applyTo(EscrowContractEntity e, EscrowContract c) {
         e.setBuyerId(c.buyerId());
         e.setSellerId(c.sellerId());
+        e.setInvitedEmail(c.invitedEmail());
         e.setBuyerAccountId(c.buyerAccountId());
         e.setVaultAccountId(c.vaultAccountId());
         e.setTargetCurrency(c.targetCurrency());
@@ -147,6 +151,16 @@ public class EscrowContractRepositoryAdapter
     ) {
         return jpa
             .findAllForEntityAndStatus(entityId, status)
+            .stream()
+            .map(EscrowContractRepositoryAdapter::toDomain)
+            .toList();
+    }
+
+    @Override
+    /** {@inheritDoc} */
+    public List<EscrowContract> findPendingInvites(String invitedEmail) {
+        return jpa
+            .findPendingInvites(invitedEmail)
             .stream()
             .map(EscrowContractRepositoryAdapter::toDomain)
             .toList();
