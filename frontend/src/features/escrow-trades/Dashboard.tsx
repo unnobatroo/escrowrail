@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { motion } from "framer-motion";
 import { accountsApi, apiError, demoApi, escrowApi, isDemoMode } from "../../api";
 import type { Account, ContractView } from "../../api";
 import NewEscrowTradeModal from "./NewEscrowTradeModal";
@@ -10,21 +11,13 @@ import ProfileSettingsModal from "../../features/company-profile/ProfileSettings
 import Shell from "../../shared/components/Shell";
 import Tooltip from "../../shared/components/Tooltip";
 import EmptyTradesCard from "./EmptyTradesCard";
+import AnimatedMoney from "../../shared/components/AnimatedMoney";
+import { Badge, STATUS_VARIANT } from "../../components/ui/badge";
+import { Skeleton } from "../../components/ui/skeleton";
 import { useAuth } from "../authentication/auth";
 import { money, yieldAccrued } from "../../shared/utilities/currencyFormatter";
 
 type Filter = "all" | "active" | "completed";
-
-const STATUS_STYLE: Record<string, string> = {
-  INVITED:
-    "bg-indigo-50 text-indigo-700 border border-indigo-200 font-semibold",
-  INITIATED: "bg-amber-100 text-amber-900 border border-amber-300 font-semibold",
-  FUNDED:
-    "bg-emerald-100 text-emerald-900 border border-emerald-300 font-semibold",
-  SETTLED:
-    "bg-brand-neon/40 text-brand-forest border border-brand-neon font-bold",
-  CANCELLED: "bg-stone-200 text-stone-700 font-medium",
-};
 
 const ACTIVE = new Set(["INVITED", "INITIATED", "FUNDED"]);
 const TOPUP_AMOUNT = "5000";
@@ -44,6 +37,8 @@ export default function Dashboard() {
   const [demoEnabled, setDemoEnabled] = useState(false);
   const [topupBusy, setTopupBusy] = useState("");
   const [notice, setNotice] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   // First visit after activation: the onboarding setup window is open
   // until the profile is saved once.
   const [onboardingOpen, setOnboardingOpen] = useState(false);
@@ -55,8 +50,10 @@ export default function Dashboard() {
       .then(([c, a]) => {
         setContracts(c.data);
         setAccounts(a.data);
+        setLoadError("");
       })
-      .catch(() => {});
+      .catch(() => setLoadError("Couldn't load your dashboard"))
+      .finally(() => setLoading(false));
   };
 
   useEffect(reload, [refreshKey]);
@@ -143,8 +140,31 @@ export default function Dashboard() {
         Welcome back, {user?.entity.legal_name ?? "there"}. Here is where
         your money is working today.
       </p>
+      {loadError && (
+        <div className="mb-4 flex items-center justify-between rounded-lg bg-escrowrail-blocked-bg px-3 py-2 text-sm text-escrowrail-blocked-text">
+          {loadError}
+          <button onClick={refresh} className="font-semibold underline">
+            Retry
+          </button>
+        </div>
+      )}
+      {loading ? (
+        <>
+          <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {[0, 1].map((i) => (
+              <Skeleton key={i} className="h-24 rounded-xl" />
+            ))}
+          </div>
+          <Skeleton className="h-64 rounded-xl" />
+        </>
+      ) : (
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25, ease: "easeOut" }}
+      >
       {/* Account cards — per-currency balances with sandbox top-up */}
-      <div className="mb-4 grid grid-cols-2 gap-4">
+      <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
         {(["USD", "EUR"] as const).map((cur) => (
           <div key={cur} className="rounded-xl border border-slate-200 bg-white p-5">
             <div className="flex items-center justify-between">
@@ -160,12 +180,12 @@ export default function Dashboard() {
                 </button>
               )}
             </div>
-            <p
-              data-testid={`metric-cash-${cur.toLowerCase()}`}
-              className="mt-1 text-2xl font-bold text-[#1B1C1D]"
-            >
-              {money(cash(cur), cur)}
-            </p>
+            <AnimatedMoney
+              testId={`metric-cash-${cur.toLowerCase()}`}
+              value={cash(cur)}
+              currency={cur}
+              className="mt-1 block text-2xl font-bold text-[#1B1C1D]"
+            />
             <p className="text-xs text-[#5C685B]">
               {accounts.find((a) => a.currency === cur)?.account_type ?? "USER"} · available
             </p>
@@ -177,7 +197,7 @@ export default function Dashboard() {
         <div className="mb-4 rounded-lg bg-[#D1E7DD] px-3 py-2 text-sm text-[#0F5132]">{notice}</div>
       )}
 
-      <div className="mb-4 grid grid-cols-2 gap-4">
+      <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="rounded-xl border border-slate-200 bg-white p-5">
           <p className="flex items-center gap-1 text-sm text-[#5C685B]">
             Safeguarded in Escrow
@@ -224,6 +244,7 @@ export default function Dashboard() {
             </button>
           ))}
         </div>
+        <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-200 text-left text-[#5C685B]">
@@ -234,16 +255,19 @@ export default function Dashboard() {
             </tr>
           </thead>
           <tbody data-testid="trades-body">
-            {rows.map((c) => (
-              <tr
+            {rows.map((c, i) => (
+              <motion.tr
                 key={c.id}
                 data-testid={`trade-row-${c.id}`}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: Math.min(i * 0.04, 0.3), duration: 0.2 }}
                 onClick={() => {
                   setSelected(c.id);
                   // Re-read accounts so the drawer sees post-topup balances.
                   refresh();
                 }}
-                className="cursor-pointer border-b border-brand-border/60 last:border-0 transition-colors hover:bg-white/80"
+                className="cursor-pointer border-b border-brand-border/60 last:border-0 transition-colors hover:bg-brand-sand"
               >
                 <td className="px-5 py-3 font-medium text-[#1B1C1D]">
                   {c.role === "buyer" ? c.seller_name : c.buyer_name}
@@ -253,16 +277,15 @@ export default function Dashboard() {
                 </td>
                 <td className="px-5 py-3 capitalize text-[#5C685B]">{c.role}</td>
                 <td className="px-5 py-3">
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_STYLE[c.status]}`}
-                  >
+                  <Badge variant={STATUS_VARIANT[c.status] ?? "default"}>
                     {c.status}
-                  </span>
+                  </Badge>
                 </td>
-              </tr>
+              </motion.tr>
             ))}
           </tbody>
         </table>
+        </div>
         {rows.length === 0 && (
           <div className="border-t border-brand-border px-5 py-6">
             <EmptyTradesCard
@@ -285,6 +308,8 @@ export default function Dashboard() {
         )}
         <LedgerActivityFeed accounts={accounts} refreshKey={refreshKey} />
       </div>
+      </motion.div>
+      )}
 
       {selected && (
         <ContractExecutionDrawer
