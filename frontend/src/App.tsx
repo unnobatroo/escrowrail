@@ -14,11 +14,15 @@ function Guard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   if (loading)
     return (
-      <div className="flex min-h-screen items-center justify-center bg-brand-sand">
+      <div
+        role="status"
+        className="flex min-h-screen items-center justify-center bg-brand-sand"
+      >
         <div
           aria-label="Loading"
           className="h-8 w-8 animate-spin rounded-full border-2 border-brand-forest border-t-transparent"
         />
+        <span className="sr-only">Checking your session…</span>
       </div>
     );
   if (!user) return <Navigate to="/login" replace />;
