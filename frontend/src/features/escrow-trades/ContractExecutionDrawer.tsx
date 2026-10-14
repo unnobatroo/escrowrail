@@ -9,14 +9,8 @@ import Tooltip from "../../shared/components/Tooltip";
 import { useDialogA11y } from "../../shared/hooks/useDialogA11y";
 import CopyButton from "../../shared/components/CopyButton";
 import { Skeleton } from "../../components/ui/skeleton";
+import { Badge, STATUS_VARIANT } from "../../components/ui/badge";
 import { money, yieldAccrued } from "../../shared/utilities/currencyFormatter";
-
-const STATUS_STYLE: Record<string, string> = {
-  INITIATED: "bg-amber-100 text-amber-900 border border-amber-300",
-  FUNDED: "bg-emerald-100 text-emerald-900 border border-emerald-300",
-  SETTLED: "bg-brand-neon/40 text-brand-forest border border-brand-neon",
-  CANCELLED: "bg-stone-200 text-stone-700",
-};
 
 /**
  * Execution side drawer: full contract detail, FX snapshot, live float
@@ -172,12 +166,13 @@ export default function ContractExecutionDrawer({
           </div>
           <div className="flex items-center gap-2">
             {contract && (
-              <span
+              <Badge
                 data-testid="status-badge"
-                className={`rounded-full px-3 py-1 text-sm font-semibold ${STATUS_STYLE[contract.status]}`}
+                variant={STATUS_VARIANT[contract.status] ?? "default"}
+                className="px-3 py-1 text-sm"
               >
                 {contract.status}
-              </span>
+              </Badge>
             )}
             <button
               data-testid="drawer-close"
