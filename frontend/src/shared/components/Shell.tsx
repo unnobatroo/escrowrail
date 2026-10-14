@@ -69,13 +69,15 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-[#F4F5F0]">
       <nav className="bg-[#163300] text-white">
-        <div className="mx-auto flex max-w-6xl items-center gap-4 px-6 py-3">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-6 py-3">
           <Link to="/dashboard" className="flex items-center gap-2 font-semibold">
             <ShieldCheck size={20} className="text-[#9FE870]" />
             Wise Smart Escrow
           </Link>
-          <span className="text-sm text-white/80">{user?.entity.legal_name}</span>
-          <span className="rounded-full bg-white/10 px-2 py-0.5 font-mono text-xs text-[#9FE870]">
+          <span className="hidden text-sm text-white/80 md:inline">
+            {user?.entity.legal_name}
+          </span>
+          <span className="hidden rounded-full bg-white/10 px-2 py-0.5 font-mono text-xs text-[#9FE870] sm:inline">
             {user?.entity.ubo_tax_id}
           </span>
           <div className="ml-auto flex items-center gap-3">
