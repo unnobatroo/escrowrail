@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ShieldCheck } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { apiError, authApi } from "../../api";
+import PasswordInput from "../../shared/components/PasswordInput";
 
 /** Consume a reset token: new password + confirm, then back to sign in. */
 export default function ResetPasswordView() {
@@ -63,25 +64,26 @@ export default function ResetPasswordView() {
             <label className="mb-1 block text-sm font-medium text-[#5C685B]">
               New password (8+ chars)
             </label>
-            <input
+            <PasswordInput
               data-testid="new-password"
-              type="password"
               required
               minLength={8}
+              autoFocus
+              autoComplete="new-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mb-4 w-full rounded-lg border border-slate-200 px-3 py-2"
+              className="mb-4"
             />
             <label className="mb-1 block text-sm font-medium text-[#5C685B]">
               Confirm password
             </label>
-            <input
+            <PasswordInput
               data-testid="confirm-password"
-              type="password"
               required
+              autoComplete="new-password"
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
-              className="mb-4 w-full rounded-lg border border-slate-200 px-3 py-2"
+              className="mb-4"
             />
             {confirm && password !== confirm && (
               <p

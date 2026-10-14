@@ -317,6 +317,7 @@ export default function NewEscrowTradeModal({
               type="number"
               step="0.01"
               min="0.01"
+              inputMode="decimal"
               required
               value={amount}
               onChange={(e) => setAmount(e.target.value)}

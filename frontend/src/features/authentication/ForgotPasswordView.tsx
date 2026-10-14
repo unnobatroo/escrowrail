@@ -49,6 +49,8 @@ export default function ForgotPasswordView() {
               data-testid="forgot-email"
               type="email"
               required
+              autoFocus
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="mb-4 w-full rounded-lg border border-slate-200 px-3 py-2"

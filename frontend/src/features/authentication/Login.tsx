@@ -3,6 +3,7 @@ import { ShieldCheck } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { apiError } from "../../api";
 import { useAuth } from "./auth";
+import PasswordInput from "../../shared/components/PasswordInput";
 
 export default function Login() {
   const { login } = useAuth();
@@ -48,6 +49,8 @@ export default function Login() {
           data-testid="email"
           type="email"
           required
+          autoFocus
+          autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           className="mb-4 w-full rounded-lg border border-slate-200 px-3 py-2"
@@ -61,13 +64,13 @@ export default function Login() {
             Forgot password?
           </Link>
         </div>
-        <input
+        <PasswordInput
           data-testid="password"
-          type="password"
           required
+          autoComplete="current-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="mb-4 w-full rounded-lg border border-slate-200 px-3 py-2"
+          className="mb-4"
         />
         {unverified && (
           <div

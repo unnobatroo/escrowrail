@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Landmark } from "lucide-react";
 import { ledgerApi } from "../../api";
 import type { Account, LedgerEntry } from "../../api";
-import { money } from "../../shared/utilities/currencyFormatter";
+import { money, timeAgo } from "../../shared/utilities/currencyFormatter";
 
 const TYPE_STYLE: Record<string, string> = {
   TOP_UP: "bg-[#D1E7DD] text-[#0F5132]",
@@ -78,8 +78,8 @@ export default function LedgerActivityFeed({
               <span className="ml-auto font-medium text-[#1B1C1D]">{signed(e)}</span>
             </div>
             <div className="mt-0.5 flex justify-between text-xs text-[#5C685B]">
-              <span>
-                {new Date(e.created_at).toLocaleString()} · {e.description}
+              <span title={new Date(e.created_at).toLocaleString()}>
+                {timeAgo(e.created_at)} · {e.description}
               </span>
               <span className="font-mono" title={e.current_hash}>
                 hash_n = SHA-256({e.current_hash.slice(0, 12)}…)
