@@ -24,3 +24,19 @@ body {
     animation: none;
   }
 }
+
+/* Uniform tactile press on every button; skipped under reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  button {
+    @apply transition-transform duration-100;
+  }
+  button:not(:disabled):active {
+    @apply scale-[0.97];
+  }
+}
+button:disabled {
+  @apply cursor-not-allowed;
+}
+button:not(:disabled) {
+  @apply cursor-pointer;
+}

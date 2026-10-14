@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { apiError } from "../../api";
 import { useAuth } from "./auth";
 import { randomPersona } from "../../shared/utilities/personaGenerator";
+import PasswordInput from "../../shared/components/PasswordInput";
 
 export default function Register() {
   const { register } = useAuth();
@@ -43,15 +44,27 @@ export default function Register() {
   ) => (
     <div className="mb-3" key={key}>
       <label className="mb-1 block text-sm font-medium text-[#5C685B]">{label}</label>
-      <input
-        data-testid={key}
-        type={type}
-        required
-        value={form[key]}
-        onChange={set(key)}
-        placeholder={hint}
-        className="w-full rounded-lg border border-slate-200 px-3 py-2"
-      />
+      {type === "password" ? (
+        <PasswordInput
+          data-testid={key}
+          required
+          autoComplete="new-password"
+          value={form[key]}
+          onChange={set(key)}
+          placeholder={hint}
+        />
+      ) : (
+        <input
+          data-testid={key}
+          type={type}
+          required
+          autoComplete={key === "email" ? "email" : "off"}
+          value={form[key]}
+          onChange={set(key)}
+          placeholder={hint}
+          className="w-full rounded-lg border border-slate-200 px-3 py-2"
+        />
+      )}
     </div>
   );
 

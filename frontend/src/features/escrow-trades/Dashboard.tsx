@@ -82,6 +82,12 @@ export default function Dashboard() {
 
   const refresh = () => setRefreshKey((k) => k + 1);
 
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(""), 6000);
+    return () => clearTimeout(t);
+  }, [notice]);
+
   const topUp = async (currency: string) => {
     setTopupBusy(currency);
     setNotice("");

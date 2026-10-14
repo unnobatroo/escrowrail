@@ -177,6 +177,7 @@ export default function ProfileSettingsModal({
                     type="number"
                     step="0.01"
                     min="0"
+                    inputMode="decimal"
                     value={deposits[cur] ?? ""}
                     onChange={(e) =>
                       setDeposits({ ...deposits, [cur]: e.target.value })

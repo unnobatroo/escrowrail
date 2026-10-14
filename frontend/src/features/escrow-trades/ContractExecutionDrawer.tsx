@@ -7,6 +7,8 @@ import FundingConfirmSheet from "./FundingConfirmSheet";
 import EscrowMilestoneStepper from "./EscrowMilestoneStepper";
 import Tooltip from "../../shared/components/Tooltip";
 import { useDialogA11y } from "../../shared/hooks/useDialogA11y";
+import CopyButton from "../../shared/components/CopyButton";
+import { Skeleton } from "../../components/ui/skeleton";
 import { money, yieldAccrued } from "../../shared/utilities/currencyFormatter";
 
 const STATUS_STYLE: Record<string, string> = {
@@ -158,7 +160,10 @@ export default function ContractExecutionDrawer({
                   }`
                 : "Loading…"}
             </h2>
-            <p className="font-mono text-xs text-[#5C685B]">{contract?.id ?? contractId}</p>
+            <p className="flex items-center gap-1 font-mono text-xs text-[#5C685B]">
+              {contract?.id ?? contractId}
+              <CopyButton text={contract?.id ?? contractId} label="contract ID" />
+            </p>
             {contract && (
               <p className="mt-0.5 text-xs text-[#5C685B]">
                 Created {new Date(contract.created_at).toLocaleString()}
@@ -196,7 +201,11 @@ export default function ContractExecutionDrawer({
             <div className="rounded-lg bg-[#FFDAD6] px-3 py-2 text-sm text-[#BA1A1A]">{error}</div>
           )}
           {!contract ? (
-            <p className="text-sm text-[#5C685B]">Loading contract…</p>
+            <div className="space-y-3">
+              <Skeleton className="h-20" />
+              <Skeleton className="h-32" />
+              <Skeleton className="h-24" />
+            </div>
           ) : (
             <>
               {contract.status === "FUNDED" && (
@@ -300,7 +309,10 @@ export default function ContractExecutionDrawer({
                       </div>
                       <div className="mt-0.5 flex justify-between text-xs text-[#5C685B]">
                         <span>{new Date(e.created_at).toLocaleString()}</span>
-                        <span className="font-mono">SHA-256 {e.current_hash.slice(0, 16)}…</span>
+                        <span className="flex items-center gap-1 font-mono">
+                          SHA-256 {e.current_hash.slice(0, 16)}…
+                          <CopyButton text={e.current_hash} label="audit hash" />
+                        </span>
                       </div>
                     </div>
                   ))}
