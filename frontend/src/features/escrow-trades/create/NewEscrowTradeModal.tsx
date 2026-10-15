@@ -41,6 +41,10 @@ export default function NewEscrowTradeModal({
   const [cpUnknown, setCpUnknown] = useState(false);
   const [members, setMembers] = useState<DirectoryMember[]>([]);
   const [amount, setAmount] = useState(preset?.amount ?? "10000.00");
+  const [payInput, setPayInput] = useState("");
+  // Which tier the user last touched — pay-side edits derive the recipient
+  // amount, receive-side edits re-quote the deposit (the API contract).
+  const [editingPay, setEditingPay] = useState(false);
   const [trackingType, setTrackingType] = useState<TrackingType>("GITHUB_PR");
   const [trackingKey, setTrackingKey] = useState("");
   const [quote, setQuote] = useState<Quote | null>(null);
@@ -132,6 +136,47 @@ export default function NewEscrowTradeModal({
     };
   }, [amount, sourceCurrency, targetCurrency]);
 
+  // Keep the pay field mirroring the quoted deposit unless the user is
+  // typing there — overwriting their input mid-edit would fight them.
+  // When they ARE driving the pay side, a fresh quote (e.g. after a currency
+  // switch) re-derives the recipient amount at the new rate.
+  useEffect(() => {
+    if (editingPay) {
+      if (quote) {
+        const derived = deriveReceives(
+          payInput,
+          Number(quote.mid_market_rate),
+        );
+        if (derived && derived !== amount) setAmount(derived);
+      }
+    } else {
+      setPayInput(quote?.total_deposit ?? "");
+    }
+  }, [quote, editingPay, payInput, amount]);
+
+  const deriveReceives = (pay: string, rate: number) => {
+    const p = Number(pay);
+    if (!p || p <= 0) return "";
+    // Mirror QuoteCalculator: 0.5% fee with a 0.01 floor, floored to cents
+    // so the derived receive figure never over-promises.
+    const fee = Math.max(p * 0.005, 0.01);
+    return (Math.floor((p - fee) * rate * 100) / 100).toFixed(2);
+  };
+
+  const onPayEdit = (v: string) => {
+    setEditingPay(true);
+    setPayInput(v);
+    if (quote) {
+      const derived = deriveReceives(v, Number(quote.mid_market_rate));
+      if (derived) setAmount(derived);
+    }
+  };
+
+  const onAmountEdit = (v: string) => {
+    setEditingPay(false);
+    setAmount(v);
+  };
+
   const uboCollision = cp?.same_ubo === true;
 
   const submit = async (e: React.FormEvent) => {
@@ -208,12 +253,13 @@ export default function NewEscrowTradeModal({
         />
 
         {/* Two-tier conversion widget: "You pay" → fee rail → "They
-            receive". The editable field is the recipient amount (the API
-            contract is target_amount); the deposit tier recalculates live. */}
+            receive". Both tiers are editable — the last-touched one drives,
+            the other derives live. The API contract stays target_amount. */}
         <AmountTier
           label="You pay"
           aside={<span className="num text-xs text-brand-subtle">{available}</span>}
-          display={quote ? money(quote.total_deposit, quote.source_currency) : "—"}
+          amount={payInput}
+          onAmount={onPayEdit}
           amountTestId="quote-total"
           currency={sourceCurrency}
           onCurrency={setSourceCurrency}
@@ -236,7 +282,7 @@ export default function NewEscrowTradeModal({
             )
           }
           amount={amount}
-          onAmount={setAmount}
+          onAmount={onAmountEdit}
           amountTestId="amount"
           currency={targetCurrency}
           onCurrency={setTargetCurrency}

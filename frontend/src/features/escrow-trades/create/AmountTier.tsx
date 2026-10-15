@@ -52,7 +52,7 @@ export default function AmountTier({
             required
             value={amount}
             onChange={(e) => onAmount(e.target.value)}
-            aria-label="Amount the recipient receives"
+            aria-label={label}
             className="num w-full bg-transparent text-3xl font-bold text-brand-forest outline-none"
           />
         ) : (
