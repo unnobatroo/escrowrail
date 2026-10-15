@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ShieldCheck } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { apiError } from "../../api";
+import { api, apiError } from "../../api";
 import { useAuth } from "./AuthProvider";
 import PasswordInput from "../../shared/components/PasswordInput";
 
@@ -13,6 +13,22 @@ export default function Login() {
   const [error, setError] = useState("");
   const [unverified, setUnverified] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [waking, setWaking] = useState(false);
+
+  // Ping health on mount — if the backend is scaled to zero, the wake-up
+  // overlaps with the user typing their credentials.
+  useEffect(() => {
+    api.get("/actuator/health").catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!busy) {
+      setWaking(false);
+      return;
+    }
+    const t = setTimeout(() => setWaking(true), 3000);
+    return () => clearTimeout(t);
+  }, [busy]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,6 +116,15 @@ export default function Login() {
           >
             {error}
           </div>
+        )}
+        {waking && (
+          <p
+            data-testid="waking-hint"
+            className="mb-4 rounded-lg bg-[#FFF3CD] px-3 py-2 text-sm text-[#7A5800]"
+          >
+            The server went to sleep to save resources — first sign-in after
+            idle can take up to a minute.
+          </p>
         )}
         <button
           data-testid="submit"
