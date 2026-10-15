@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ShieldCheck } from "lucide-react";
 import { Link } from "react-router-dom";
-import { authApi } from "../../api";
+import { apiError, authApi } from "../../api";
 
 /** Request a password reset link — always shows success (anti-enumeration). */
 export default function ForgotPasswordView() {
@@ -18,8 +18,10 @@ export default function ForgotPasswordView() {
       await authApi.forgotPassword(email);
       // Backend always answers 200 — success reveals nothing about membership.
       setSent(true);
-    } catch {
-      setError("Something went wrong — please try again.");
+    } catch (err) {
+      setError(
+        apiError(err).message ?? "Something went wrong — please try again.",
+      );
     } finally {
       setBusy(false);
     }
