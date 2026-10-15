@@ -19,28 +19,28 @@ cd "$(dirname "$0")/.."
 
 [ -f .env.deploy ] && { set -a; . ./.env.deploy; set +a; }
 
-RG=${RG:-wise-escrow-rg}
-APP=${APP:-wise-escrow-api}
-ACR=${ACR:-wiseescrowacr}
+RG=${RG:-escrowrail-rg}
+APP=${APP:-escrowrail-api}
+ACR=${ACR:-escrowrailacr}
 REGION=${REGION:-swedencentral}
-ENV_NAME=${ENV_NAME:-wise-env}
-IMAGE_REPO="$ACR.azurecr.io/wise-escrow-backend"
+ENV_NAME=${ENV_NAME:-escrowrail-env}
+IMAGE_REPO="$ACR.azurecr.io/escrowrail-backend"
 TAG=latest
 
 : "${SPRING_DATASOURCE_URL:?set SPRING_DATASOURCE_URL (pooler endpoint)}"
 : "${SPRING_DATASOURCE_USERNAME:?set SPRING_DATASOURCE_USERNAME (postgres.<ref>)}"
 : "${SPRING_DATASOURCE_PASSWORD:?set SPRING_DATASOURCE_PASSWORD}"
 : "${JWT_SECRET:?set JWT_SECRET}"
-: "${WISE_FIELD_ENCRYPTION_KEY:?set WISE_FIELD_ENCRYPTION_KEY}"
-: "${WISE_GITHUB_WEBHOOK_SECRET:?set WISE_GITHUB_WEBHOOK_SECRET}"
-: "${WISE_LOGISTICS_WEBHOOK_SECRET:?set WISE_LOGISTICS_WEBHOOK_SECRET}"
-WISE_CORS_ORIGINS=${WISE_CORS_ORIGINS:-https://wise-escrow.vercel.app}
+: "${ESCROWRAIL_FIELD_ENCRYPTION_KEY:?set ESCROWRAIL_FIELD_ENCRYPTION_KEY}"
+: "${ESCROWRAIL_GITHUB_WEBHOOK_SECRET:?set ESCROWRAIL_GITHUB_WEBHOOK_SECRET}"
+: "${ESCROWRAIL_LOGISTICS_WEBHOOK_SECRET:?set ESCROWRAIL_LOGISTICS_WEBHOOK_SECRET}"
+ESCROWRAIL_CORS_ORIGINS=${ESCROWRAIL_CORS_ORIGINS:-https://escrowrail.vercel.app}
 
 echo ">> building linux/amd64 image (no attestations) and pushing to $IMAGE_REPO:$TAG"
 docker buildx build --platform linux/amd64 --provenance=false --sbom=false \
   -t "$IMAGE_REPO:$TAG" --push backend-java >/dev/null
 
-DIGEST=$(az acr repository show -n "$ACR" --image "wise-escrow-backend:$TAG" \
+DIGEST=$(az acr repository show -n "$ACR" --image "escrowrail-backend:$TAG" \
   --query digest -o tsv)
 echo ">> pushed digest $DIGEST"
 
@@ -62,18 +62,18 @@ else
     --min-replicas 0 --max-replicas 1 --cpu 0.5 --memory 1Gi \
     --secrets \
       "dbpw=$SPRING_DATASOURCE_PASSWORD" "jwt=$JWT_SECRET" \
-      "enckey=$WISE_FIELD_ENCRYPTION_KEY" "ghsec=$WISE_GITHUB_WEBHOOK_SECRET" \
-      "losec=$WISE_LOGISTICS_WEBHOOK_SECRET" \
+      "enckey=$ESCROWRAIL_FIELD_ENCRYPTION_KEY" "ghsec=$ESCROWRAIL_GITHUB_WEBHOOK_SECRET" \
+      "losec=$ESCROWRAIL_LOGISTICS_WEBHOOK_SECRET" \
     --env-vars \
       "SPRING_PROFILES_ACTIVE=prod" \
       "SPRING_DATASOURCE_URL=$SPRING_DATASOURCE_URL" \
       "SPRING_DATASOURCE_USERNAME=$SPRING_DATASOURCE_USERNAME" \
       "SPRING_DATASOURCE_PASSWORD=secretref:dbpw" \
       "JWT_SECRET=secretref:jwt" \
-      "WISE_FIELD_ENCRYPTION_KEY=secretref:enckey" \
-      "WISE_GITHUB_WEBHOOK_SECRET=secretref:ghsec" \
-      "WISE_LOGISTICS_WEBHOOK_SECRET=secretref:losec" \
-      "WISE_CORS_ORIGINS=$WISE_CORS_ORIGINS" \
+      "ESCROWRAIL_FIELD_ENCRYPTION_KEY=secretref:enckey" \
+      "ESCROWRAIL_GITHUB_WEBHOOK_SECRET=secretref:ghsec" \
+      "ESCROWRAIL_LOGISTICS_WEBHOOK_SECRET=secretref:losec" \
+      "ESCROWRAIL_CORS_ORIGINS=$ESCROWRAIL_CORS_ORIGINS" \
       "PORT=8080" \
     --output none
 fi

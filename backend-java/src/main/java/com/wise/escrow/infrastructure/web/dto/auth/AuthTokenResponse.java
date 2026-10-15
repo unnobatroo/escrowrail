@@ -1,4 +1,0 @@
-package com.wise.escrow.infrastructure.web.dto.auth;
-
-/** Issued bearer token response. */
-public record AuthTokenResponse(String accessToken, String tokenType) {}

@@ -1,4 +1,4 @@
-# Agent Directives: Wise Smart Escrow
+# Agent Directives: Escrowrail
 
 ## Invariants & Design Standards
 1. Balances must NEVER use float/double. Use `BigDecimal` / JSR 354 `MonetaryAmount` exclusively.

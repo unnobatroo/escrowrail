@@ -1,8 +1,4 @@
-/**
- * Reddit-style business identity randomizer — one click fills a complete
- * test persona (company name, country-format tax ID, suggested deposit
- * allocation) so evaluators never have to invent details.
- */
+/** One-click test persona generator (name, tax ID, deposit). */
 
 const ADJECTIVES = [
   "Swift", "Amber", "Velvet", "Iron", "Cobalt", "Golden", "Crimson",

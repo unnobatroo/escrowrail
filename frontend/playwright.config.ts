@@ -18,21 +18,21 @@ export default defineConfig({
       // Fresh Postgres container + Spring Boot backend per run. The app's
       // SeedRunner provisions demo entities/balances on the empty database.
       command:
-        "docker rm -f wise-e2e-pg >/dev/null 2>&1 || true; " +
-        "docker run --rm -d --name wise-e2e-pg " +
-        "-e POSTGRES_USER=wise -e POSTGRES_PASSWORD=wise " +
-        `-e POSTGRES_DB=wise_escrow -p ${PG_PORT}:5432 postgres:16-alpine >/dev/null && ` +
-        "until docker exec wise-e2e-pg pg_isready -U wise -d wise_escrow >/dev/null 2>&1; do sleep 1; done; " +
+        "docker rm -f escrowrail-e2e-pg >/dev/null 2>&1 || true; " +
+        "docker run --rm -d --name escrowrail-e2e-pg " +
+        "-e POSTGRES_USER=escrowrail -e POSTGRES_PASSWORD=escrowrail " +
+        `-e POSTGRES_DB=escrowrail -p ${PG_PORT}:5432 postgres:16-alpine >/dev/null && ` +
+        "until docker exec escrowrail-e2e-pg pg_isready -U escrowrail -d escrowrail >/dev/null 2>&1; do sleep 1; done; " +
         "cd ../backend-java && " +
         `PORT=${BACKEND_PORT} ` +
         "SPRING_PROFILES_ACTIVE=test,demo " +
-        `DATABASE_URL=jdbc:postgresql://localhost:${PG_PORT}/wise_escrow ` +
-        "DATABASE_USER=wise DATABASE_PASSWORD=wise " +
+        `DATABASE_URL=jdbc:postgresql://localhost:${PG_PORT}/escrowrail ` +
+        "DATABASE_USER=escrowrail DATABASE_PASSWORD=escrowrail " +
         "JWT_SECRET=e2e-secret-e2e-secret-e2e-secret-32 " +
-        "DEMO_BUYER_PASSWORD=WiseDemo123! " +
-        "DEMO_SELLER_PASSWORD=WiseDemo123! " +
-        "WISE_GITHUB_WEBHOOK_SECRET=e2e-gh-secret " +
-        "WISE_LOGISTICS_WEBHOOK_SECRET=e2e-logi-secret " +
+        "DEMO_BUYER_PASSWORD=EscrowDemo123! " +
+        "DEMO_SELLER_PASSWORD=EscrowDemo123! " +
+        "ESCROWRAIL_GITHUB_WEBHOOK_SECRET=e2e-gh-secret " +
+        "ESCROWRAIL_LOGISTICS_WEBHOOK_SECRET=e2e-logi-secret " +
         "./gradlew bootRun --no-daemon",
       url: `http://localhost:${BACKEND_PORT}/actuator/health`,
       reuseExistingServer: false,

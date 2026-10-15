@@ -1,6 +1,6 @@
 # Contributing
 
-Wise Smart Escrow is a financial system — every contribution is reviewed
+Escrowrail is a financial system — every contribution is reviewed
 against ledger invariants first, style second.
 
 ## Prerequisites

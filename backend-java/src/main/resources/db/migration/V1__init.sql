@@ -9,7 +9,7 @@ CREATE TABLE public.accounts (
     currency character varying(3) NOT NULL,
     entity_id uuid,
     type character varying(255) NOT NULL,
-    CONSTRAINT accounts_type_check CHECK (((type)::text = ANY ((ARRAY['USER'::character varying, 'ESCROW_VAULT'::character varying, 'WISE_FEE'::character varying, 'WISE_CLEARING'::character varying])::text[])))
+    CONSTRAINT accounts_type_check CHECK (((type)::text = ANY ((ARRAY['USER'::character varying, 'ESCROW_VAULT'::character varying, 'ESCROWRAIL_FEE'::character varying, 'ESCROWRAIL_CLEARING'::character varying])::text[])))
 );
 
 CREATE TABLE public.app_users (
@@ -108,7 +108,7 @@ ALTER TABLE ONLY public.app_users
 
 ALTER TABLE ONLY public.idempotency_records
     ADD CONSTRAINT ukol0gjg0uap11mq1y9ug506f1i UNIQUE (idempotency_key);
--- Wise system accounts (entity_id IS NULL): one row per (type, currency)
+-- platform system accounts (entity_id IS NULL): one row per (type, currency)
 -- for the singleton fee/clearing accounts. The (entity_id, type,
 -- currency) UNIQUE constraint cannot enforce this because Postgres
 -- treats NULLs as distinct. ESCROW_VAULT is deliberately excluded —
@@ -116,7 +116,7 @@ ALTER TABLE ONLY public.idempotency_records
 CREATE UNIQUE INDEX accounts_system_uq
     ON public.accounts (type, currency)
     WHERE entity_id IS NULL
-      AND type IN ('WISE_FEE', 'WISE_CLEARING');
+      AND type IN ('ESCROWRAIL_FEE', 'ESCROWRAIL_CLEARING');
 
 -- Referential integrity + lookup indexes for the hot read paths.
 ALTER TABLE ONLY public.ledger_transactions
@@ -131,10 +131,10 @@ CREATE INDEX ledger_debit_idx ON public.ledger_transactions (debit_account_id);
 CREATE INDEX ledger_credit_idx ON public.ledger_transactions (credit_account_id);
 CREATE INDEX escrow_tracking_idx ON public.escrow_contracts (tracking_type, tracking_key);
 
--- Singleton Wise system accounts for the supported pair. Seeding them
+-- Singleton platform system accounts for the supported pair. Seeding them
 -- here means services never race to create them at runtime.
 INSERT INTO public.accounts (id, entity_id, type, currency, balance) VALUES
-    ('00000000-0000-0000-0000-000000000001', NULL, 'WISE_CLEARING', 'USD', 0),
-    ('00000000-0000-0000-0000-000000000002', NULL, 'WISE_CLEARING', 'EUR', 0),
-    ('00000000-0000-0000-0000-000000000003', NULL, 'WISE_FEE',      'USD', 0),
-    ('00000000-0000-0000-0000-000000000004', NULL, 'WISE_FEE',      'EUR', 0);
+    ('00000000-0000-0000-0000-000000000001', NULL, 'ESCROWRAIL_CLEARING', 'USD', 0),
+    ('00000000-0000-0000-0000-000000000002', NULL, 'ESCROWRAIL_CLEARING', 'EUR', 0),
+    ('00000000-0000-0000-0000-000000000003', NULL, 'ESCROWRAIL_FEE',      'USD', 0),
+    ('00000000-0000-0000-0000-000000000004', NULL, 'ESCROWRAIL_FEE',      'EUR', 0);

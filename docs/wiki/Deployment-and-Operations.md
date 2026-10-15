@@ -6,7 +6,7 @@ The backend test suite runs against real PostgreSQL 16 via Testcontainers over t
 
 ## Production topology
 
-The backend runs containerized on Azure Container Apps (`wise-escrow-api`); it can scale to zero when idle, and the 60-second frontend timeout exists to survive that cold start. PostgreSQL is managed Supabase — the free tier is IPv6-only on the direct host, so production connects through the IPv4 Supavisor pooler. Flyway owns the schema (`ddl-auto: validate`); Hibernate only verifies entities match. The frontend deploys to Vercel as a static bundle. `main` pushes trigger `deploy-prod.yml`: backend container deploy, frontend deploy, then a health poll against `/actuator/health`.
+The backend runs containerized on Azure Container Apps (`escrowrail-api`); it can scale to zero when idle, and the 60-second frontend timeout exists to survive that cold start. PostgreSQL is managed Supabase — the free tier is IPv6-only on the direct host, so production connects through the IPv4 Supavisor pooler. Flyway owns the schema (`ddl-auto: validate`); Hibernate only verifies entities match. The frontend deploys to Vercel as a static bundle. `main` pushes trigger `deploy-prod.yml`: backend container deploy, frontend deploy, then a health poll against `/actuator/health`.
 
 ## Profile isolation
 

@@ -5,7 +5,7 @@ spring:
       # proves the entities and the migration never drift apart.
       ddl-auto: validate
 
-wise:
+escrowrail:
   jwt:
     secret: test-secret-test-secret-test-secret-32
     expire-minutes: 60

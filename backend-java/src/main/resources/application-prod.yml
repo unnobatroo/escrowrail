@@ -34,7 +34,7 @@ server:
     mime-types: application/json
     min-response-size: 1KB
 
-wise:
+escrowrail:
   security:
     # No mock/webhook simulation in production — settlement ingress only
     # accepts provider-authenticated signatures.
@@ -45,10 +45,10 @@ wise:
     secret: ${JWT_SECRET}
     expire-minutes: ${JWT_EXPIRE_MINUTES:120}
   webhooks:
-    github-secret: ${WISE_GITHUB_WEBHOOK_SECRET}
-    logistics-secret: ${WISE_LOGISTICS_WEBHOOK_SECRET}
+    github-secret: ${ESCROWRAIL_GITHUB_WEBHOOK_SECRET}
+    logistics-secret: ${ESCROWRAIL_LOGISTICS_WEBHOOK_SECRET}
   encryption:
     # AES-256 key for field-level encryption. Required — no default in prod.
-    key: ${WISE_FIELD_ENCRYPTION_KEY}
+    key: ${ESCROWRAIL_FIELD_ENCRYPTION_KEY}
   seed:
-    enabled: ${WISE_SEED_ENABLED:false}
+    enabled: ${ESCROWRAIL_SEED_ENABLED:false}

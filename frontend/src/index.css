@@ -17,6 +17,14 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Horizontally scrollable strips (nav actions) hide their scrollbar. */
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 /* CSS-side reduced motion (framer-motion is covered by MotionConfig). */
 @media (prefers-reduced-motion: reduce) {
   .animate-ping,

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { Landmark } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Landmark } from "lucide-react";
 import { ledgerApi } from "../../api";
 import type { Account, LedgerEntry } from "../../api";
+import { CurrencyFlag } from "../../shared/components/CurrencyFlag";
 import { money, timeAgo } from "../../shared/utilities/currencyFormatter";
 
 const TYPE_STYLE: Record<string, string> = {
@@ -16,10 +17,10 @@ const TYPE_STYLE: Record<string, string> = {
 };
 
 const SYSTEM_LABELS: Record<string, string> = {
-  "00000000-0000-0000-0000-000000000001": "Wise Clearing USD",
-  "00000000-0000-0000-0000-000000000002": "Wise Clearing EUR",
-  "00000000-0000-0000-0000-000000000003": "Wise Fees USD",
-  "00000000-0000-0000-0000-000000000004": "Wise Fees EUR",
+  "00000000-0000-0000-0000-000000000001": "Escrowrail Clearing USD",
+  "00000000-0000-0000-0000-000000000002": "Escrowrail Clearing EUR",
+  "00000000-0000-0000-0000-000000000003": "Escrowrail Fees USD",
+  "00000000-0000-0000-0000-000000000004": "Escrowrail Fees EUR",
 };
 
 /**
@@ -48,10 +49,8 @@ export default function LedgerActivityFeed({
     return SYSTEM_LABELS[accountId] ?? "Escrow Vault";
   };
 
-  const signed = (e: LedgerEntry) => {
-    const debit = accounts.some((a) => a.id === e.debit_account_id);
-    return `${debit ? "-" : "+"}${money(e.amount, e.currency)}`;
-  };
+  const isDebit = (e: LedgerEntry) =>
+    accounts.some((a) => a.id === e.debit_account_id);
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white">
@@ -72,16 +71,29 @@ export default function LedgerActivityFeed({
               >
                 {e.tx_type}
               </span>
-              <span className="text-xs text-[#5C685B]">
+              <span className="truncate text-xs text-[#5C685B]">
                 {label(e.debit_account_id)} → {label(e.credit_account_id)}
               </span>
-              <span className="ml-auto font-medium text-[#1B1C1D]">{signed(e)}</span>
+              <span
+                className={`num ml-auto inline-flex shrink-0 items-center gap-1 font-medium ${
+                  isDebit(e) ? "text-[#1B1C1D]" : "text-[#0F5132]"
+                }`}
+              >
+                {isDebit(e) ? (
+                  <ArrowUpRight size={13} className="text-[#B3261E]" />
+                ) : (
+                  <ArrowDownLeft size={13} className="text-[#0F5132]" />
+                )}
+                <CurrencyFlag code={e.currency} />
+                {isDebit(e) ? "-" : "+"}
+                {money(e.amount, e.currency)}
+              </span>
             </div>
-            <div className="mt-0.5 flex justify-between text-xs text-[#5C685B]">
-              <span title={new Date(e.created_at).toLocaleString()}>
+            <div className="mt-0.5 flex justify-between gap-2 text-xs text-[#5C685B]">
+              <span className="truncate" title={new Date(e.created_at).toLocaleString()}>
                 {timeAgo(e.created_at)} · {e.description}
               </span>
-              <span className="font-mono" title={e.current_hash}>
+              <span className="hidden shrink-0 font-mono min-[420px]:inline" title={e.current_hash}>
                 hash_n = SHA-256({e.current_hash.slice(0, 12)}…)
               </span>
             </div>

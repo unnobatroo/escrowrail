@@ -4,10 +4,11 @@ import type { RefObject } from "react";
 const FOCUSABLE =
   'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
-/**
- * Modal keyboard contract: focus moves into the dialog on mount, Tab cycles
- * inside it, Escape dismisses, and focus returns to the opener on unmount.
- */
+// Nested dialogs (e.g. a confirm over a drawer) stack — only the topmost
+// owns Tab and Escape, or the parent trap would swallow the child's keys.
+const stack: HTMLElement[] = [];
+
+/** Modal a11y: focus in on mount, Tab trapped, Escape closes, focus restored. */
 export function useDialogA11y(
   ref: RefObject<HTMLElement | null>,
   onClose: () => void,
@@ -19,8 +20,10 @@ export function useDialogA11y(
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
     const el = ref.current;
+    if (el) stack.push(el);
     el?.focus();
     const onKey = (e: KeyboardEvent) => {
+      if (stack[stack.length - 1] !== el) return;
       if (e.key === "Escape") {
         closeRef.current();
         return;
@@ -41,6 +44,10 @@ export function useDialogA11y(
     document.addEventListener("keydown", onKey);
     return () => {
       document.removeEventListener("keydown", onKey);
+      if (el) {
+        const i = stack.indexOf(el);
+        if (i !== -1) stack.splice(i, 1);
+      }
       prev?.focus();
     };
   }, [ref]);

@@ -14,7 +14,7 @@ Each ledger row stores `current_hash`, a SHA-256 computed over the previous row'
 
 ## Field-level encryption
 
-Sensitive columns — most notably UBO tax IDs — are encrypted at rest with AES-256-GCM through a JPA `AttributeConverter`. Each write uses a fresh random 12-byte IV, so identical plaintexts produce different ciphertexts and the column cannot be rainbow-tabled. The key arrives by environment (`WISE_FIELD_ENCRYPTION_KEY`) and has no production default.
+Sensitive columns — most notably UBO tax IDs — are encrypted at rest with AES-256-GCM through a JPA `AttributeConverter`. Each write uses a fresh random 12-byte IV, so identical plaintexts produce different ciphertexts and the column cannot be rainbow-tabled. The key arrives by environment (`ESCROWRAIL_FIELD_ENCRYPTION_KEY`) and has no production default.
 
 ## Ingress hardening
 

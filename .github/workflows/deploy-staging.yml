@@ -11,33 +11,33 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_USER: wise
-          POSTGRES_PASSWORD: wise
-          POSTGRES_DB: wise_escrow
+          POSTGRES_USER: escrowrail
+          POSTGRES_PASSWORD: escrowrail
+          POSTGRES_DB: escrowrail
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U wise -d wise_escrow"
+          --health-cmd "pg_isready -U escrowrail -d escrowrail"
           --health-interval 5s
           --health-timeout 3s
           --health-retries 12
     steps:
       - uses: actions/checkout@v4
       - name: Build backend image
-        run: docker build -t wise-escrow-backend backend-java
+        run: docker build -t escrowrail-backend backend-java
       - name: Boot container
         run: |
           docker run -d --name backend -p 8080:8080 \
             --add-host host.docker.internal:host-gateway \
             -e SPRING_PROFILES_ACTIVE=prod \
-            -e SPRING_DATASOURCE_URL='jdbc:postgresql://host.docker.internal:5432/wise_escrow' \
-            -e SPRING_DATASOURCE_USERNAME=wise \
-            -e SPRING_DATASOURCE_PASSWORD=wise \
+            -e SPRING_DATASOURCE_URL='jdbc:postgresql://host.docker.internal:5432/escrowrail' \
+            -e SPRING_DATASOURCE_USERNAME=escrowrail \
+            -e SPRING_DATASOURCE_PASSWORD=escrowrail \
             -e JWT_SECRET='ci-secret-ci-secret-ci-secret-ci-32' \
-            -e WISE_FIELD_ENCRYPTION_KEY='MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=' \
-            -e WISE_GITHUB_WEBHOOK_SECRET='ci-gh-secret' \
-            -e WISE_LOGISTICS_WEBHOOK_SECRET='ci-logi-secret' \
-            wise-escrow-backend
+            -e ESCROWRAIL_FIELD_ENCRYPTION_KEY='MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=' \
+            -e ESCROWRAIL_GITHUB_WEBHOOK_SECRET='ci-gh-secret' \
+            -e ESCROWRAIL_LOGISTICS_WEBHOOK_SECRET='ci-logi-secret' \
+            escrowrail-backend
       - name: Wait for health
         run: |
           for i in $(seq 1 90); do

@@ -1,6 +1,6 @@
-# Wise Smart Escrow
+# Escrowrail
 
-[![CI Pipeline](https://github.com/unnobatroo/wise-hack/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/unnobatroo/wise-hack/actions/workflows/ci.yml)
+[![CI Pipeline](https://github.com/unnobatroo/escrowrail/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/unnobatroo/escrowrail/actions/workflows/ci.yml)
 [![Java](https://img.shields.io/badge/Java-21-007396?logo=openjdk&logoColor=white)](https://openjdk.org/projects/jdk/21/)
 [![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.5-6DB33F?logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev/)
@@ -16,12 +16,12 @@ PostgreSQL double-entry ledger.
 
 ## Live environments
 
-| Surface | Provider | URL | Status |
-| --- | --- | --- | --- |
-| **Frontend Web App** | Vercel | <https://wise-escrow.vercel.app> | Production |
-| **Backend REST API** | Azure Container Apps | <https://wise-escrow-api.redmoss-f42ffb4e.swedencentral.azurecontainerapps.io> (`/actuator/health`) | Production |
-| **Database** | Supabase | Managed PostgreSQL 16 (SSL enabled) | Active |
-| **Documentation** | `docs/wiki/` in-repo | [Wiki pages](docs/wiki/Home.md) | GitHub Wiki remote pending first manual page |
+| Surface              | Provider             | URL                                                                                                 | Status                                       |
+| -------------------- | -------------------- | --------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| **Frontend Web App** | Vercel               | <https://escrowrail.vercel.app>                                                                    | Production                                   |
+| **Backend REST API** | Azure Container Apps | <https://escrowrail-api.redmoss-f42ffb4e.swedencentral.azurecontainerapps.io> (`/actuator/health`) | Production                                   |
+| **Database**         | Supabase             | Managed PostgreSQL 16 (SSL enabled)                                                                 | Active                                       |
+| **Documentation**    | GitHub Wiki          | [Wiki](https://github.com/unnobatroo/escrowrail/wiki) (`docs/wiki/` in-repo)                         | Live                                         |
 
 ## The commercial deadlock
 
@@ -33,7 +33,7 @@ escape hatches — letters of credit and traditional escrow agents — charge
 opaque 3–4% FX markups, levy wire fees on every leg, and take days to
 confirm what a signed webhook proves in seconds.
 
-## The Wise solution
+## The Escrowrail solution
 
 Applying Electronic Money Institution mechanics: when a buyer funds a
 contract, the deposit converts immediately at mid-market spot for a
@@ -62,14 +62,14 @@ sequenceDiagram
     API-->>UI: Contract INITIATED (Deposit required: 10,854.27 USD)
     Buyer->>UI: Confirm and fund
     UI->>API: POST /api/v1/escrow/{id}/fund (spot rate locked at execution)
-    API->>Ledger: Transfer USD (USER -> WISE_CLEARING -> WISE_FEE)
+    API->>Ledger: Transfer USD (USER -> ESCROWRAIL_CLEARING -> ESCROWRAIL_FEE)
     API->>Vault: Lock converted EUR (10,000.00 EUR)
     API-->>UI: Status -> FUNDED (3.5% ECB yield ticker — display-only)
     Note over Vault: Funds safeguarded under EMI regulations
     Ingress->>API: POST /api/v1/webhooks/milestone (HMAC verified)
     API->>Ledger: Settle payout (-0.8% milestone fee)
     Ledger->>Seller: Credit 9,920.00 EUR
-    Ledger->>API: Credit 80.00 EUR (Wise Fee Account)
+    Ledger->>API: Credit 80.00 EUR (Platform Fee Account)
     API-->>UI: Status -> SETTLED
 ```
 
@@ -120,7 +120,7 @@ erDiagram
   concurrency relies on `SELECT … FOR UPDATE` locks taken in ascending-UUID
   order.
 - **Frontend** (`frontend/`): React 19, TypeScript, Vite, Tailwind with
-  Wise Neptune tokens, Framer Motion (reduced-motion aware), feature-based
+  Escrowrail design tokens, Framer Motion (reduced-motion aware), feature-based
   layout (`features/escrow-trades`, `features/authentication`,
   `features/ledger-activity`, `features/company-profile`, `shared/`).
 - **Disclosures**: `StaticFxRateProvider` serves a deterministic mid-market

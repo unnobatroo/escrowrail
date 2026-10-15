@@ -5,7 +5,7 @@
 
 ALTER TABLE public.accounts
     ADD CONSTRAINT chk_account_balance_non_negative
-    CHECK (type = 'WISE_CLEARING' OR balance >= 0);
+    CHECK (type = 'ESCROWRAIL_CLEARING' OR balance >= 0);
 
 ALTER TABLE public.app_users
     ADD COLUMN onboarding_completed boolean NOT NULL DEFAULT false;

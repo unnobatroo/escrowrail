@@ -1,12 +1,12 @@
-# Wise Smart Escrow
+# Escrowrail
 
 ## The commercial problem
 
 Cross-border business transactions suffer from an inherent counterparty deadlock. A seller will not ship goods or deploy proprietary code without guaranteed payment, while a buyer refuses to wire funds upfront because recovering assets across jurisdictions is slow, expensive, and often impossible. The traditional escape hatches — letters of credit, documentary collections, and legacy escrow agents — were designed for a slower era. They charge opaque foreign-exchange markups of 3% to 4%, levy wire fees on every leg, and depend on manual paper processing that takes days to confirm what a webhook can prove in seconds.
 
-## The Wise solution
+## The Escrowrail solution
 
-Wise Smart Escrow resolves the deadlock by borrowing the mechanics of an Electronic Money Institution. When a buyer funds a contract, the deposit is converted immediately at the true mid-market rate — the midpoint between global buy and sell prices with no added spread — and charged a transparent 0.5% conversion fee. The converted amount lands in a segregated vault account per contract: ring-fenced from operational assets, never lent, never leveraged, never pooled.
+Escrowrail resolves the deadlock by borrowing the mechanics of an Electronic Money Institution. When a buyer funds a contract, the deposit is converted immediately at the true mid-market rate — the midpoint between global buy and sell prices with no added spread — and charged a transparent 0.5% conversion fee. The converted amount lands in a segregated vault account per contract: ring-fenced from operational assets, never lent, never leveraged, never pooled.
 
 Settlement is conditional and automatic, not manual. Each contract is bound to a verifiable real-world milestone — a merged GitHub pull request for software delivery, or a carrier delivery confirmation for physical goods. When the provider emits a cryptographically signed webhook, the platform settles without human approval: 99.2% of the vaulted amount disburses to the seller, and the platform retains a 0.8% milestone fee.
 
@@ -28,14 +28,14 @@ sequenceDiagram
     API-->>UI: Contract INITIATED (Deposit required: 10,854.27 USD)
     Buyer->>UI: Confirm and fund
     UI->>API: POST /api/v1/escrow/{id}/fund (spot rate locked at execution)
-    API->>Ledger: Transfer USD (USER -> WISE_CLEARING -> WISE_FEE)
+    API->>Ledger: Transfer USD (USER -> ESCROWRAIL_CLEARING -> ESCROWRAIL_FEE)
     API->>Vault: Lock converted EUR (10,000.00 EUR)
     API-->>UI: Status -> FUNDED (3.5% ECB yield ticker — display-only)
     Note over Vault: Funds safeguarded under EMI regulations
     Ingress->>API: POST /api/v1/webhooks/milestone (HMAC verified)
     API->>Ledger: Settle payout (-0.8% milestone fee)
     Ledger->>Seller: Credit 9,920.00 EUR
-    Ledger->>API: Credit 80.00 EUR (Wise Fee Account)
+    Ledger->>API: Credit 80.00 EUR (Platform Fee Account)
     API-->>UI: Status -> SETTLED
 ```
 

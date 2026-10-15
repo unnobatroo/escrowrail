@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Dices, ShieldCheck } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { apiError } from "../../api";
-import { useAuth } from "./auth";
+import { useAuth } from "./AuthProvider";
 import { randomPersona } from "../../shared/utilities/personaGenerator";
 import PasswordInput from "../../shared/components/PasswordInput";
 
@@ -19,8 +19,9 @@ export default function Register() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setForm({ ...form, [k]: e.target.value });
+  const set =
+    (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
+      setForm({ ...form, [k]: e.target.value });
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,7 +44,9 @@ export default function Register() {
     hint?: string,
   ) => (
     <div className="mb-3" key={key}>
-      <label className="mb-1 block text-sm font-medium text-[#5C685B]">{label}</label>
+      <label className="mb-1 block text-sm font-medium text-[#5C685B]">
+        {label}
+      </label>
       {type === "password" ? (
         <PasswordInput
           data-testid={key}
@@ -97,10 +100,20 @@ export default function Register() {
             <Dices size={14} /> Randomize
           </button>
         </div>
-        {field("legal_name", "Organization legal name", "text", "Acme Hardware US")}
+        {field(
+          "legal_name",
+          "Organization legal name",
+          "text",
+          "Acme Hardware US",
+        )}
         {field("email", "Work email", "email", "you@company.com")}
         {field("password", "Password (8+ chars)", "password")}
-        {field("ubo_tax_id", "Ultimate beneficial owner tax ID", "text", "TAX-US-1001")}
+        {field(
+          "ubo_tax_id",
+          "Ultimate beneficial owner tax ID",
+          "text",
+          "TAX-US-1001",
+        )}
         {field("country", "Country (ISO-2)", "text", "US")}
         {error && (
           <div

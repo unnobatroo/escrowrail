@@ -23,7 +23,7 @@ labels: bug
 ## Environment
 - Profile (`dev` / `demo` / `prod`):
 - Browser (if frontend):
-- Deployment (`local` / `wise-escrow.vercel.app`):
+- Deployment (`local` / `escrowrail.vercel.app`):
 
 ## Logs
 <!-- Relevant excerpts — redact tokens, emails, tax IDs -->

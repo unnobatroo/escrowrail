@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: wise-escrow-backend
+    name: escrowrail-backend
     runtime: docker
     dockerfilePath: backend-java/Dockerfile
     dockerContext: backend-java
@@ -19,13 +19,13 @@ services:
         sync: false
       - key: JWT_SECRET
         sync: false
-      - key: WISE_FIELD_ENCRYPTION_KEY
+      - key: ESCROWRAIL_FIELD_ENCRYPTION_KEY
         sync: false
-      - key: WISE_GITHUB_WEBHOOK_SECRET
+      - key: ESCROWRAIL_GITHUB_WEBHOOK_SECRET
         sync: false
-      - key: WISE_LOGISTICS_WEBHOOK_SECRET
+      - key: ESCROWRAIL_LOGISTICS_WEBHOOK_SECRET
         sync: false
-      - key: WISE_SEED_ENABLED
+      - key: ESCROWRAIL_SEED_ENABLED
         value: "true"
-      - key: WISE_CORS_ORIGINS
-        value: "https://wise-escrow.vercel.app"
+      - key: ESCROWRAIL_CORS_ORIGINS
+        value: "https://escrowrail.vercel.app"
