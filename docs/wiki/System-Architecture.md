@@ -1,14 +1,72 @@
 # System Architecture
 
-## Service topology
+## The shape of the system
 
-The platform is two deployable units. The backend is a Java 21 / Spring Boot 3.5 application exposing a versioned JSON API (`/api/v1/**`) plus an unauthenticated-but-signed webhook ingress (`/webhooks/**`). The frontend is a React 19 / TypeScript SPA built by Vite, served as static assets. They communicate over bearer-JWT HTTPS only; there is no shared runtime state, no server-side session, and no coupling beyond the wire contract.
+Escrowrail is deliberately a **modular monolith**: two deployable units, one
+database, no message bus, no microservices.
 
-## Domain-Driven Design
+- **Backend** — Java 21 / Spring Boot 3.5, serving a versioned JSON API
+  (`/api/v1/**`) and a webhook ingress (`/webhooks/**`) that is
+  unauthenticated-by-design but cryptographically verified.
+- **Frontend** — React 19 / TypeScript SPA built by Vite and deployed as
+  static assets. It talks to the API over bearer-JWT HTTPS; there is no
+  shared runtime state, no server-side session, no coupling beyond the wire
+  contract.
+- **Database** — PostgreSQL 16 owns *all* state. That's why the system can
+  scale horizontally: any backend instance can serve any request because
+  consistency is enforced by row locks and constraints in the database, not
+  by coordination between nodes.
 
-Business rules live inside rich aggregates, not procedural service scripts. `Account` enforces its own invariants — a non-clearing account physically cannot be debited below zero, and any amount with more than two decimals is rejected before it can drift under Postgres's rounding. `EscrowContract` owns its state machine: `INVITED → INITIATED → FUNDED → SETTLED`, with `CANCELLED` reachable only before settlement. Attempting to fund an already-funded contract or cancel a settled one throws `InvalidStateTransitionException` inside the aggregate, before persistence — so an invalid state is unrepresentable, not merely filtered. Services (`EscrowService`, `LedgerService`, `AuthService`) orchestrate transactions and call the aggregates; they contain no invariants themselves.
+## Hexagonal layout
 
-The complete `ContractStatus` machine, with the trigger for every edge:
+```
+com.escrowrail/
+├── config/                 Spring wiring: Jackson, encryption, seeding
+├── domain/                 Pure business rules — zero Spring imports
+│   ├── model/              Aggregates: Account, EscrowContract, AppUser…
+│   ├── repository/         Port interfaces — what the domain asks for
+│   └── exception/          Typed errors → mapped to HTTP at the edge
+├── application/
+│   ├── service/            Use-case orchestrators
+│   ├── port/               Outbound ports: FxRateProvider,
+│   │                       VerificationEmailSender
+│   ├── event/              Integration events (one record per file)
+│   └── dto/                Quote, FundingResult
+└── infrastructure/         Everything that touches the outside world
+    ├── persistence/entity/    JPA entities — the DB's shape
+    ├── persistence/jpa/       Spring Data repository interfaces
+    ├── persistence/adapter/   Implements domain ports via JPA
+    ├── web/                   REST controllers + wire DTOs
+    ├── mail/                  Resend sender + dev logging sender
+    ├── security/              JWT, idempotency filter, CORS
+    └── outbox/                Modulith listener → email dispatch
+```
+
+The dependency rule is strict: `domain` imports nothing from
+`infrastructure`. Services depend on **interfaces** declared in
+`domain/repository/`; the adapters in `infrastructure/persistence/adapter/`
+implement them. The business core can be tested without a database, and the
+persistence mechanism is replaceable without touching a business rule.
+
+## Rich aggregates, thin services
+
+Business invariants live inside the domain objects, not scattered through
+procedural service code:
+
+- **`Account`** physically cannot be debited below zero, and rejects any
+  amount with more than two decimal places before it can reach Postgres's
+  rounding behavior.
+- **`EscrowContract`** owns its state machine — funding an already-funded
+  contract or cancelling a settled one throws
+  `InvalidStateTransitionException` inside the aggregate, before any
+  persistence runs. An invalid state is unrepresentable, not merely
+  filtered.
+
+Services orchestrate transactions and call the aggregates; they contain no
+invariants themselves. `EscrowService` is a slim coordinator — the actual
+lifecycle mutations live in `EscrowFundingService`,
+`EscrowSettlementService`, and `EscrowCancellationService`, quote math in
+`QuoteCalculator`, and all ledger writes funnel through `LedgerService`.
 
 ```mermaid
 stateDiagram-v2
@@ -18,19 +76,53 @@ stateDiagram-v2
     INITIATED --> FUNDED: Buyer Deposits Collateral (Pessimistic Write Lock)
     INITIATED --> CANCELLED: Buyer Aborts Before Deposit
     FUNDED --> SETTLED: Valid Webhook Signature (Milestone Proof)
-    FUNDED --> CANCELLED: Asymmetric Cancellation (Liquidate at Current Spot)
+    FUNDED --> CANCELLED: Buyer-Only Cancellation (Liquidate at Spot)
     SETTLED --> [*]
     CANCELLED --> [*]
 ```
 
-## Transactional outbox
+## The dual-write problem, solved once
 
-Every state change that produces a notification faces the dual-write problem: the database commit and the event dispatch cannot be atomic through two different channels. Persist the row and the event could be lost; publish first and a rollback leaves a phantom notification. Spring Modulith's `spring-modulith-starter-jpa` solves this with a transactional outbox — `@TransactionalEventListener` writes the event publication into the `event_publication` table inside the *same* database transaction as the business change, then dispatches asynchronously after commit. There is no custom scheduler, polling loop, or bespoke outbox entity; the framework owns the guarantee.
+Any state change that should produce a notification faces a classic trap:
+the database commit and the event dispatch are two different channels and
+cannot be atomic. Commit then publish → a crash loses the event. Publish
+then rollback → a phantom notification for a trade that doesn't exist.
+
+Spring Modulith's event registry answers this with a **transactional
+outbox**: the event is written into the `event_publication` table *inside
+the same transaction* as the business change, then dispatched
+`AFTER_COMMIT`. Invite emails, welcome emails — they can never be half a
+pair. There is no custom scheduler or polling loop; the framework owns the
+guarantee.
 
 ## Concurrency control
 
-Ledger operations cannot rely on optimistic locking: under contention, two transfers against the same account would read the same balance, one would fail a version check, and retry storms would follow. Instead, every balance mutation takes `SELECT ... FOR UPDATE` pessimistic write locks on the account rows. To prevent lock-ordering deadlocks — transaction A holding account 1 while wanting account 2, B holding 2 while wanting 1 — all locks are acquired in ascending-UUID order, both inside `LedgerService.transfer` and when `EscrowService` locks the full set of accounts a lifecycle operation touches. The hash chain that makes ledger entries tamper-evident serializes on a singleton `ledger_chain` row, also taken `FOR UPDATE`.
+Optimistic locking is wrong for a ledger: under contention, two transfers
+against the same account read the same balance, one fails a version check,
+and the result is retry storms at exactly the moment the system is busiest.
 
-## Dynamic multi-tenancy
+Instead, every balance mutation takes `SELECT … FOR UPDATE` pessimistic
+locks on the account rows. To prevent lock-ordering deadlocks — transaction
+A holding account 1 wanting account 2, B holding 2 wanting 1 — **all locks
+are acquired in ascending-UUID order**, both inside `LedgerService` and in
+the lifecycle services that lock the full account set a transition touches.
 
-Contracts associate parties through business email addresses resolved at creation time, not through fixed roles. Any registered entity can be the buyer on one contract and the seller on the next — permissions are evaluated per contract by comparing the caller's entity id against `buyer_id` and `seller_id`. A contract can also be created for an email that is not registered yet: it persists in `INVITED` status with the seller slot open, and `attachPendingInvites` fills the slot automatically when that address completes registration, inside the same transaction that creates the new user's accounts.
+The hash chain adds one more serialization point: a singleton
+`ledger_chain` row holds `last_hash` and is locked `FOR UPDATE` on every
+insert, so the audit chain is linear by construction, not by hope.
+
+## Multi-tenancy
+
+There are no global "buyer" or "seller" roles. Contracts associate parties
+by business email resolved at creation time; permissions are evaluated per
+contract by comparing the caller's `entity_id` (a JWT claim) against
+`buyer_id` / `seller_id`. Any registered entity buys on one trade and sells
+on the next.
+
+Unregistered counterparties are a first-class path, not an error: the
+contract persists `INVITED`, and `attachPendingInvites` fills the seller
+slot inside the same transaction that activates the new verified user.
+
+Tenant reads are scoped in the repository layer — a stranger probing a
+foreign contract ID gets **404, not 403**, because even confirming the
+resource exists would leak information.

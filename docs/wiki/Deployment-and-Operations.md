@@ -1,17 +1,82 @@
 # Deployment & Operations
 
-## Testing against reality
-
-The backend test suite runs against real PostgreSQL 16 via Testcontainers over the local Docker socket — not H2, not an in-memory substitute. This is a deliberate choice: the platform's correctness claims rest on pessimistic row locking (`SELECT ... FOR UPDATE`), check constraints, and serializable hash-chain ordering, and an in-memory database lies about all three. The suite covers concurrency races (two funds, double settles), a jqwik property test proving the debit-equals-credit ledger invariant, profile isolation (prod profile serves 404 for demo routes and rejects unsigned webhooks), and the full P2P lifecycle in both directions. Playwright exercises the real SPA against the real backend for the registration → verification → trade → fund → webhook → settlement path, including a dual-browser-context test where one user funds and another settles.
-
 ## Production topology
 
-The backend runs containerized on Azure Container Apps (`escrowrail-api`); it can scale to zero when idle, and the 60-second frontend timeout exists to survive that cold start. PostgreSQL is managed Supabase — the free tier is IPv6-only on the direct host, so production connects through the IPv4 Supavisor pooler. Flyway owns the schema (`ddl-auto: validate`); Hibernate only verifies entities match. The frontend deploys to Vercel as a static bundle. `main` pushes trigger `deploy-prod.yml`: backend container deploy, frontend deploy, then a health poll against `/actuator/health`.
+| Piece | Provider | Detail |
+| --- | --- | --- |
+| Frontend | Vercel — `escrowrail.vercel.app` | Static bundle; `VITE_API_BASE_URL` points at Azure |
+| Backend | Azure Container Apps — `escrowrail-api` | linux/amd64 image; `minReplicas 0` = scale-to-zero when idle |
+| Database | Supabase managed PG16 | Connected via the IPv4 Supavisor pooler — the free-tier direct host is IPv6-only |
+| Email | Resend API | Verification, reset, invite, and welcome mail |
+| CI/CD | GitHub Actions | `ci.yml`, `pr-verify.yml`, `deploy-staging.yml`, `deploy-prod.yml` |
+
+`main` pushes trigger `deploy-prod.yml`: backend container deploy, frontend
+deploy, then a health poll against `/actuator/health`. The 60-second
+frontend HTTP timeout exists to survive a scale-to-zero cold start.
+
+## Configuration
+
+Every secret arrives by environment variable — nothing sensitive is
+committed:
+
+| Variable | Purpose |
+| --- | --- |
+| `SPRING_DATASOURCE_URL` / `_USERNAME` / `_PASSWORD` | Postgres connection (prod must include `sslmode=require`) |
+| `JWT_SECRET` | HS256 signing key, ≥ 32 bytes — **no default, no boot without it** |
+| `ESCROWRAIL_GITHUB_WEBHOOK_SECRET` | GitHub HMAC key — blank disables the endpoint |
+| `ESCROWRAIL_LOGISTICS_WEBHOOK_SECRET` | Carrier HMAC key — blank disables the endpoint |
+| `ESCROWRAIL_FIELD_ENCRYPTION_KEY` | AES-256-GCM field key (base64, 32 bytes) |
+| `ESCROWRAIL_CORS_ORIGINS` | Comma-separated SPA origins |
+| `ESCROWRAIL_MAIL_RESEND_API_KEY` | Resend API key — mail logs-and-drops without it |
+| `ESCROWRAIL_SEED_ENABLED` | Seed demo tenants (dev/demo only) |
 
 ## Profile isolation
 
-Three profiles with hard boundaries. `prod`: no seeded data, no demo controllers (the routes return 404), webhook secrets mandatory, mock signatures rejected, `allow-mock-webhooks: false`. `demo`: seeds the buyer/seller fixture accounts, enables the demo gateway (`/api/v1/demo/**`) that signs simulated webhooks through the *real* HMAC path, and compiles the frontend with `VITE_ENABLE_DEMO_TOOLS=true` so the account switcher, webhook simulator card, and top-up buttons exist. `dev`/`test`: full tooling plus the `/dev/verification-token` backdoor that e2e suites use to complete email verification without a mail server. `/api/v1/demo/config` is unauthenticated by design in the demo profile — it returns the demo password and webhook signing secrets so any evaluator can exercise the full lifecycle; that controller does not exist in production builds.
+Three profiles with hard boundaries:
+
+- **`prod`** — no seeded data, no demo controllers (routes return 404),
+  webhook secrets mandatory, mock signatures rejected.
+- **`demo`** — seeds the buyer/seller fixture accounts, enables
+  `/api/v1/demo/**` (sandbox top-ups + a webhook simulator that signs
+  through the *real* HMAC path), and the frontend builds with
+  `VITE_ENABLE_DEMO_TOOLS=true` so the persona switcher and simulator card
+  exist. `/api/v1/demo/config` is unauthenticated *by design* here — it
+  hands any evaluator everything needed to exercise the full lifecycle.
+- **`dev`/`test`** — everything in demo plus `/dev/verification-token`, the
+  backdoor e2e suites use to complete email verification with no mail
+  server.
+
+## Schema discipline
+
+Flyway owns the schema (`db/migration/V*.sql`); Hibernate runs
+`ddl-auto: validate` — it verifies entities match the schema but can never
+alter a funds table. `validate-on-migrate` is disabled because historical
+migrations were intentionally rewritten during the Escrowrail rebrand —
+checksums for already-applied versions diverge while V8 repairs the live
+enum values.
+
+## Testing against reality
+
+The backend suite runs against real PostgreSQL 16 via Testcontainers over
+the local Docker socket — not H2, not an in-memory substitute. That's
+deliberate: the correctness claims rest on pessimistic row locking, check
+constraints, and serializable hash-chain ordering, and an in-memory
+database lies about all three. The suite covers concurrency races (double
+funds, settle-vs-cancel), a jqwik property test for the
+debit-equals-credit invariant, profile isolation, and the full P2P
+lifecycle in both directions. Playwright exercises the real SPA against the
+real backend — registration, verification, trade, funding, webhook
+settlement, cancellation — including a dual-browser-context test where one
+user funds and another receives settlement.
 
 ## Operations
 
-An hourly `IdempotencySweeper` deletes replay records older than 24 hours over an indexed timestamp column — the table that guards duplicate requests cannot grow unboundedly. Response caching holds a 5-minute replay window: a repeated POST replays byte-for-byte with `X-Idempotent-Replay: true`, while an identical request still in flight gets an explicit 409 rather than a second execution.
+- `IdempotencySweeper` evicts expired replay records hourly over an indexed
+  timestamp column — the dedup table cannot grow unboundedly.
+- Completed idempotent responses replay for 24 hours with
+  `X-Idempotent-Replay: true`; a duplicate of an *in-flight* request gets a
+  409 rather than a second execution.
+- Gzip response compression is on for JSON over 1 KB — egress is billed.
+- Hikari runs small (`maximum-pool-size: 5`, `minimum-idle: 0`, fast idle
+  release) so the hosted Postgres and the container can both scale toward
+  zero.
