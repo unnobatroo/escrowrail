@@ -12,8 +12,7 @@ import { useAuth } from "../authentication/auth";
 import { money } from "../../shared/utilities/currencyFormatter";
 import { randomPersona } from "../../shared/utilities/personaGenerator";
 
-const input =
-  "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm";
+const input = "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm";
 
 /**
  * Self-service profile: legal entity name, tax identity, the one-time
@@ -147,8 +146,7 @@ export default function ProfileSettingsModal({
         />
 
         <label className="mb-1 block text-sm font-medium text-[#5C685B]">
-          Tax ID{" "}
-          <span className="font-normal">({user?.entity.country})</span>
+          Tax ID <span className="font-normal">({user?.entity.country})</span>
         </label>
         <input
           data-testid="profile-taxid"

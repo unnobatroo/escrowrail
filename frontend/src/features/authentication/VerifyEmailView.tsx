@@ -87,7 +87,10 @@ export default function VerifyEmailView() {
         </p>
 
         {busy && urlToken ? (
-          <p data-testid="verify-loading" className="py-4 text-center text-sm text-[#5C685B]">
+          <p
+            data-testid="verify-loading"
+            className="py-4 text-center text-sm text-[#5C685B]"
+          >
             Verifying your account…
           </p>
         ) : (
@@ -106,7 +109,8 @@ export default function VerifyEmailView() {
               disabled={busy || !token.trim()}
               className="w-full rounded-full bg-[#9FE870] py-2.5 font-semibold text-[#163300] hover:bg-[#8fd960] disabled:opacity-50"
             >
-              <MailCheck size={16} className="mr-1 inline" /> Verify & Enter Platform
+              <MailCheck size={16} className="mr-1 inline" /> Verify & Enter
+              Platform
             </button>
           </>
         )}

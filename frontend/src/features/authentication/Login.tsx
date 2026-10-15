@@ -46,7 +46,9 @@ export default function Login() {
           <ShieldCheck size={28} className="text-[#9FE870]" />
           <h1 className="text-xl font-bold">Wise Smart Escrow</h1>
         </div>
-        <label className="mb-1 block text-sm font-medium text-[#5C685B]">Email</label>
+        <label className="mb-1 block text-sm font-medium text-[#5C685B]">
+          Email
+        </label>
         <input
           data-testid="email"
           type="email"
@@ -58,7 +60,9 @@ export default function Login() {
           className="mb-4 w-full rounded-lg border border-slate-200 px-3 py-2"
         />
         <div className="mb-1 flex items-baseline justify-between">
-          <label className="block text-sm font-medium text-[#5C685B]">Password</label>
+          <label className="block text-sm font-medium text-[#5C685B]">
+            Password
+          </label>
           <Link
             to="/forgot-password"
             className="text-xs font-medium text-[#00A2DD] underline"

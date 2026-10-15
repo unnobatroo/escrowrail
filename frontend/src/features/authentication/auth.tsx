@@ -1,4 +1,10 @@
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 import type { ReactNode } from "react";
 import { authApi, getToken, setToken } from "../../api";
 import type { UserProfile } from "../../api";
@@ -54,14 +60,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const verifyEmail = useCallback(
-    async (token: string) => {
-      const res = await authApi.verifyEmail(token);
-      setToken(res.data.access_token);
-      setUser(res.data.user);
-    },
-    [],
-  );
+  const verifyEmail = useCallback(async (token: string) => {
+    const res = await authApi.verifyEmail(token);
+    setToken(res.data.access_token);
+    setUser(res.data.user);
+  }, []);
 
   const logout = useCallback(() => {
     setToken(null);
