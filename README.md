@@ -1,14 +1,5 @@
 # Escrowrail
 
-[![CI Pipeline](https://github.com/unnobatroo/escrowrail/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/unnobatroo/escrowrail/actions/workflows/ci.yml)
-[![Java](https://img.shields.io/badge/Java-21-007396?logo=openjdk&logoColor=white)](https://openjdk.org/projects/jdk/21/)
-[![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.5-6DB33F?logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
-[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev/)
-[![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC?logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-[![License](https://img.shields.io/badge/License-GPL_3.0-blue.svg)](LICENSE)
-
 Escrowrail is a B2B conditional-settlement platform — escrow-as-a-service
 for cross-border trade. A Java 21 / Spring Boot 3.5 API, a React 19 /
 TypeScript dashboard, and a PostgreSQL double-entry ledger. Everything in
