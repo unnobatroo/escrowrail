@@ -75,10 +75,11 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-3 pt-3">
             <Link
               to="/dashboard"
+              aria-label="Escrowrail dashboard"
               className="flex shrink-0 items-center gap-2 font-semibold"
             >
               <ShieldCheck size={20} className="text-[#9FE870]" />
-              <span className="hidden min-[420px]:inline">Wise Smart Escrow</span>
+              <span className="hidden sm:inline">Escrowrail</span>
             </Link>
             <span className="hidden truncate text-sm text-white/80 md:inline">
               {user?.entity.legal_name}
@@ -86,12 +87,12 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             <span className="hidden rounded-full bg-white/10 px-2 py-0.5 font-mono text-xs text-[#9FE870] lg:inline">
               {user?.entity.ubo_tax_id}
             </span>
-            <div className="ml-auto flex shrink-0 items-center gap-1.5">
+            <div className="ml-auto flex min-w-0 items-center gap-1.5">
               {(["USD", "EUR"] as const).map((cur) => (
                 <span
                   key={cur}
                   data-testid={`balance-${cur.toLowerCase()}`}
-                  className="num flex items-center gap-1.5 whitespace-nowrap rounded-full bg-white/10 py-1 pl-1.5 pr-3 text-sm font-medium"
+                  className="num flex items-center gap-1 whitespace-nowrap rounded-full bg-white/10 py-1 pl-1 pr-2 text-xs font-medium sm:gap-1.5 sm:pl-1.5 sm:pr-3 sm:text-sm"
                 >
                   <CurrencyFlag code={cur} />
                   {money(balance(cur), cur)}

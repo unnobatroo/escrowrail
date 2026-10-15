@@ -21,7 +21,7 @@ PostgreSQL double-entry ledger.
 | **Frontend Web App** | Vercel               | <https://wise-escrow.vercel.app>                                                                    | Production                                   |
 | **Backend REST API** | Azure Container Apps | <https://wise-escrow-api.redmoss-f42ffb4e.swedencentral.azurecontainerapps.io> (`/actuator/health`) | Production                                   |
 | **Database**         | Supabase             | Managed PostgreSQL 16 (SSL enabled)                                                                 | Active                                       |
-| **Documentation**    | GitHub Wiki          | [Wiki](https://github.com/unnobatroo/wise-hack/wiki) (`docs/wiki/` in-repo)                          | Live                                         |
+| **Documentation**    | GitHub Wiki          | [Wiki](https://github.com/unnobatroo/escrowrail/wiki) (`docs/wiki/` in-repo)                         | Live                                         |
 
 ## The commercial deadlock
 
