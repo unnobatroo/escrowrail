@@ -26,6 +26,7 @@ jobs:
       ESCROWRAIL_FIELD_ENCRYPTION_KEY: ${{ secrets.ESCROWRAIL_FIELD_ENCRYPTION_KEY }}
       ESCROWRAIL_GITHUB_WEBHOOK_SECRET: ${{ secrets.ESCROWRAIL_GITHUB_WEBHOOK_SECRET }}
       ESCROWRAIL_LOGISTICS_WEBHOOK_SECRET: ${{ secrets.ESCROWRAIL_LOGISTICS_WEBHOOK_SECRET }}
+      ESCROWRAIL_MAIL_RESEND_API_KEY: ${{ secrets.ESCROWRAIL_MAIL_RESEND_API_KEY }}
       ESCROWRAIL_CORS_ORIGINS: "https://escrowrail.vercel.app"
     steps:
       - uses: actions/checkout@v4
@@ -78,4 +79,6 @@ jobs:
         run: |
           npx vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
           npx vercel build --prod --token="$VERCEL_TOKEN"
-          npx vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+          URL=$(npx vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")
+          # Production alias doesn't auto-follow new deployments.
+          npx vercel alias set "$URL" escrowrail.vercel.app --token="$VERCEL_TOKEN"
