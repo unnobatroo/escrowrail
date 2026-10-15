@@ -5,6 +5,7 @@ import com.escrowrail.application.dto.Events.ContractFunded;
 import com.escrowrail.application.dto.Events.ContractSettled;
 import com.escrowrail.application.dto.Events.CounterpartyInvited;
 import com.escrowrail.application.dto.Events.WelcomeEmailRequested;
+import com.escrowrail.application.service.VerificationEmailSender;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -22,6 +23,12 @@ import org.springframework.transaction.event.TransactionalEventListener;
 public class NotificationEventListener {
 
     private static final Logger log = LoggerFactory.getLogger(NotificationEventListener.class);
+
+    private final VerificationEmailSender mailer;
+
+    NotificationEventListener(VerificationEmailSender mailer) {
+        this.mailer = mailer;
+    }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     void on(ContractFunded e) {
@@ -45,11 +52,13 @@ public class NotificationEventListener {
     void on(CounterpartyInvited e) {
         log.info("notification counterparty_invited email={} inviter={}",
                 mask(e.email()), e.inviterLegalName());
+        mailer.sendCounterpartyInvite(e.email(), e.inviterLegalName());
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     void on(WelcomeEmailRequested e) {
         log.info("notification welcome_email email={} entity={}", mask(e.email()), e.legalName());
+        mailer.sendWelcomeEmail(e.email(), e.legalName());
     }
 
     /** Emails are PII — keep only the domain in logs. */

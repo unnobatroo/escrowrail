@@ -10,7 +10,7 @@ export default function FxSnapshotSection({
   contract: ContractView;
   quote: Quote | null;
 }) {
-  const fxFee = quote?.platform_fee ?? contract.platform_conversion_fee ?? null;
+  const fxFee = contract.platform_conversion_fee ?? quote?.platform_fee ?? null;
   return (
     <section className="rounded-xl border border-slate-200 p-4">
       <h3 className="mb-3 flex items-center gap-1 text-sm font-semibold text-[#1B1C1D]">

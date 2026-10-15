@@ -11,6 +11,12 @@ public interface VerificationEmailSender {
     /** Sends the reset link embedding {@code rawToken} (never stored raw). */
     void sendPasswordResetEmail(String email, String rawToken);
 
+    /** Invite to claim a pending escrow trade, sent to an unregistered address. */
+    void sendCounterpartyInvite(String email, String inviterLegalName);
+
+    /** Post-registration welcome. */
+    void sendWelcomeEmail(String email, String legalName);
+
     /**
      * Dev/test backdoor: the last token issued to an address, when the active
      * sender keeps one (log sender). Production senders return empty — there

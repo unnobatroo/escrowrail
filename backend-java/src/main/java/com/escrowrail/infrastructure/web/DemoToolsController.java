@@ -108,19 +108,21 @@ public class DemoToolsController {
             throw new ValidationException("Amount must be 0 < x <= " + MAX_TOPUP);
         }
         UUID entityId = TenantPrincipal.entityId();
-        var account = accounts
-                .findByEntityIdAndTypeAndCurrency(entityId, AccountType.USER, currency)
+        // Scalar id lookups: a managed entity load would pin the pre-lock
+        // snapshot in the persistence context and lose concurrent updates.
+        UUID accountId = accounts
+                .findAccountId(entityId, AccountType.USER, currency)
                 .orElseThrow(() -> new NotFoundException("No " + currency + " account"));
         UUID clearing = accounts
                 .findSystemAccountId(AccountType.ESCROWRAIL_CLEARING, currency)
                 .orElseThrow(() -> new IllegalStateException("Clearing account missing"));
         ledgerService.transfer(
-                clearing, account.id(),
+                clearing, accountId,
                 MoneyAmounts.of(body.amount(), currency),
                 "Sandbox top-up",
                 null);
         return views.toAccountView(
-                accounts.findById(account.id()).orElseThrow());
+                accounts.findById(accountId).orElseThrow());
     }
 
     public record SimulateRequest(UUID contract_id) {}
@@ -136,13 +138,23 @@ public class DemoToolsController {
         if (!allowMockWebhooks) {
             throw new NotFoundException("Webhook simulation disabled");
         }
+        UUID me = TenantPrincipal.entityId();
         var contract = contracts
-                .findByIdForEntity(body.contract_id(), TenantPrincipal.entityId())
+                .findByIdForEntity(body.contract_id(), me)
                 .orElseThrow(() -> new NotFoundException("Contract not found"));
+        // Simulated delivery is the buyer's call — the seller must not be
+        // able to settle their own payout without a delivery event.
+        if (!contract.isBuyer(me)) {
+            throw new com.escrowrail.domain.exception.ForbiddenException(
+                    "Only the buyer can simulate delivery");
+        }
         if (contract.status() != EscrowStatus.FUNDED) {
             throw new ValidationException("Only FUNDED contracts can be settled");
         }
         if (contract.trackingType() == TrackingType.GITHUB_PR) {
+            if (githubSecret.isBlank()) {
+                throw new ValidationException("GitHub webhook secret not configured");
+            }
             byte[] payload = mapper.writeValueAsBytes(Map.of(
                     "action", "closed",
                     "pull_request", Map.of(
@@ -151,10 +163,13 @@ public class DemoToolsController {
             var result = webhooks.github(payload, "sha256=" + hmac(payload, githubSecret));
             return new SimulateResponse(result.status(), result.contractId(), "VALID");
         }
+        if (logisticsSecret.isBlank()) {
+            throw new ValidationException("Logistics webhook secret not configured");
+        }
+        byte[] payload = mapper.writeValueAsBytes(new WebhookController.LogisticsWebhook(
+                "DHL", "DELIVERED", contract.trackingKey()));
         var result = webhooks.logistics(
-                new WebhookController.LogisticsWebhook(
-                        "DHL", "DELIVERED", contract.trackingKey()),
-                logisticsSecret);
+                payload, "sha256=" + hmac(payload, logisticsSecret));
         return new SimulateResponse(result.status(), result.contractId(), "VALID");
     }
 

@@ -49,6 +49,16 @@ class LoggingVerificationEmailSender implements VerificationEmailSender {
     }
 
     @Override
+    public void sendCounterpartyInvite(String email, String inviterLegalName) {
+        log.info("counterparty invite (dev outbox) to={} from={}", email, inviterLegalName);
+    }
+
+    @Override
+    public void sendWelcomeEmail(String email, String legalName) {
+        log.info("welcome email (dev outbox) to={} entity={}", email, legalName);
+    }
+
+    @Override
     public Optional<String> latestTokenFor(String email) {
         return Optional.ofNullable(lastTokens.get(email));
     }

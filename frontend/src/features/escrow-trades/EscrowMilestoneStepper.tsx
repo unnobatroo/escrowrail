@@ -3,7 +3,11 @@ import { Check, CircleDot } from "lucide-react";
 const STEPS = [
   { key: "INITIATED", label: "Initiated & quoted", sub: "Spot rate locked" },
   { key: "FUNDED", label: "Safeguarded", sub: "Vaulted under EMI rules" },
-  { key: "VERIFYING", label: "Milestone verified", sub: "Webhook proof received" },
+  {
+    key: "VERIFYING",
+    label: "Milestone verified",
+    sub: "Webhook proof received",
+  },
   { key: "SETTLED", label: "Settled", sub: "Net paid to seller" },
 ] as const;
 
@@ -41,7 +45,13 @@ export default function EscrowMilestoneStepper({ status }: { status: string }) {
                           : "bg-brand-surface text-brand-subtle ring-1 ring-brand-border"
                   }`}
                 >
-                  {done ? <Check size={14} /> : active ? <CircleDot size={14} /> : i + 1}
+                  {done ? (
+                    <Check size={14} />
+                  ) : active ? (
+                    <CircleDot size={14} />
+                  ) : (
+                    i + 1
+                  )}
                 </div>
                 <div
                   className={`h-0.5 flex-1 ${i === STEPS.length - 1 ? "invisible" : done ? "bg-brand-forest" : "bg-brand-border"}`}

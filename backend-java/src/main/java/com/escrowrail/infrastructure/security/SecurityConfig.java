@@ -67,7 +67,11 @@ public class SecurityConfig {
         @Value("${escrowrail.cors.allowed-origins:http://localhost:5173}") String origins
     ) {
         var config = new org.springframework.web.cors.CorsConfiguration();
-        config.setAllowedOrigins(java.util.List.of(origins.split(",")));
+        config.setAllowedOrigins(
+                java.util.Arrays.stream(origins.split(","))
+                        .map(String::strip)
+                        .filter(o -> !o.isEmpty())
+                        .toList());
         config.setAllowedMethods(
             java.util.List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
         );

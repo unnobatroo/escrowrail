@@ -1,6 +1,7 @@
 package com.escrowrail.application.service;
 
 import com.escrowrail.application.dto.Events.CounterpartyInvited;
+import com.escrowrail.application.dto.FundingResult;
 import com.escrowrail.application.dto.Quote;
 import com.escrowrail.domain.exception.CircularOwnershipException;
 import com.escrowrail.domain.exception.NotFoundException;
@@ -122,22 +123,6 @@ public class EscrowService {
 
     public record Counterparty(Organization organization, boolean sameUbo) {}
 
-    /**
-     * Counterparty invite via the outbox. Must run inside a transaction —
-     * AFTER_COMMIT listeners miss events published without one.
-     *
-     * @throws NotFoundException if the inviter organization is absent
-     */
-    @Transactional
-    public void inviteCounterparty(String email, UUID inviterEntityId) {
-        Organization inviter = organizations
-            .findById(inviterEntityId)
-            .orElseThrow(() -> new NotFoundException("Organization not found"));
-        events.publishEvent(
-            new CounterpartyInvited(email, inviter.legalName())
-        );
-    }
-
     // ---------- lifecycle ----------
 
     /**
@@ -188,8 +173,12 @@ public class EscrowService {
     }
 
     /**
-     * INVITED contract for an unregistered counterparty; a later signup under
+     * INVITED contract for an unregistered counterparty plus the invite
+     * event in one transaction — a partial pair would leave a trade the
+     * counterparty never learns about; a later signup under
      * {@code invitedEmail} fills the seller slot via {@link #attachPendingInvites}.
+     *
+     * @throws NotFoundException if the buyer organization is absent
      */
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public EscrowContract createInvitedContract(
@@ -200,8 +189,13 @@ public class EscrowService {
         String trackingKey,
         String invitedEmail
     ) {
+        Organization inviter = organizations
+            .findById(buyerEntityId)
+            .orElseThrow(() ->
+                new NotFoundException("Buyer organization not found")
+            );
         fx.getRate(sourceCurrency, targetAmount.getCurrency().getCurrencyCode());
-        return contracts.save(
+        EscrowContract saved = contracts.save(
             EscrowContract.createInvited(
                 buyerEntityId,
                 targetAmount,
@@ -211,6 +205,10 @@ public class EscrowService {
                 invitedEmail
             )
         );
+        events.publishEvent(
+            new CounterpartyInvited(invitedEmail, inviter.legalName())
+        );
+        return saved;
     }
 
     /**
@@ -241,7 +239,7 @@ public class EscrowService {
 
     // ---------- delegated legs ----------
 
-    public EscrowContract fundContract(
+    public FundingResult fundContract(
         UUID contractId,
         UUID actorEntityId,
         MonetaryAmount deposit

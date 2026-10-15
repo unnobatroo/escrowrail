@@ -34,7 +34,7 @@ public class EscrowContractRepositoryAdapter
             e.getCreatedAt(),
             e.getVersion()
         );
-        if (e.getInvitedEmail() != null) {
+        if (e.getStatus() == EscrowStatus.INVITED && e.getInvitedEmail() != null) {
             c.markInvited(e.getInvitedEmail());
         }
         if (

@@ -79,7 +79,12 @@ export default function ContractExecutionDrawer({
         .then((r) => setQuote(r.data))
         .catch(() => {});
     }
-  }, [contract?.status, contract?.target_amount, contract?.target_currency, contract?.source_currency]);
+  }, [
+    contract?.status,
+    contract?.target_amount,
+    contract?.target_currency,
+    contract?.source_currency,
+  ]);
 
   const fund = async () => {
     if (!quote) return;
@@ -141,13 +146,18 @@ export default function ContractExecutionDrawer({
             <h2 className="text-lg font-bold text-[#1B1C1D]">
               {contract
                 ? `${money(contract.target_amount, contract.target_currency)} · ${
-                    contract.role === "buyer" ? contract.seller_name : contract.buyer_name
+                    contract.role === "buyer"
+                      ? contract.seller_name
+                      : contract.buyer_name
                   }`
                 : "Loading…"}
             </h2>
             <p className="flex items-center gap-1 font-mono text-xs text-[#5C685B]">
               {contract?.id ?? contractId}
-              <CopyButton text={contract?.id ?? contractId} label="contract ID" />
+              <CopyButton
+                text={contract?.id ?? contractId}
+                label="contract ID"
+              />
             </p>
             {contract && (
               <p className="mt-0.5 text-xs text-[#5C685B]">
@@ -184,7 +194,9 @@ export default function ContractExecutionDrawer({
 
         <div className="flex-1 space-y-4 px-6 py-4">
           {error && (
-            <div className="rounded-lg bg-[#FFDAD6] px-3 py-2 text-sm text-[#BA1A1A]">{error}</div>
+            <div className="rounded-lg bg-[#FFDAD6] px-3 py-2 text-sm text-[#BA1A1A]">
+              {error}
+            </div>
           )}
           {!contract ? (
             <div className="space-y-3">
@@ -211,9 +223,13 @@ export default function ContractExecutionDrawer({
                       <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-neon" />
                       <span className="relative inline-flex h-2 w-2 rounded-full bg-brand-neon" />
                     </span>
-                    <Timer size={14} /> Live Float Interest — 3.5% ECB annualized on EUR float
+                    <Timer size={14} /> Live Float Interest — 3.5% ECB
+                    annualized on EUR float
                   </p>
-                  <p data-testid="yield-ticker" className="num mt-1 text-2xl font-bold text-[#0F5132]">
+                  <p
+                    data-testid="yield-ticker"
+                    className="num mt-1 text-2xl font-bold text-[#0F5132]"
+                  >
                     {accrued.toFixed(6)} {contract.target_currency}
                   </p>
                   <p className="mt-0.5 text-xs text-brand-subtle">
@@ -244,11 +260,12 @@ export default function ContractExecutionDrawer({
                   Cancel Contract (Liquidate at Spot)
                 </button>
               )}
-              {contract.role === "seller" && contract.status === "INITIATED" && (
-                <p className="rounded-lg bg-[#FFF3CD] px-3 py-2 text-center text-sm font-semibold text-[#7A5800]">
-                  Awaiting Deposit
-                </p>
-              )}
+              {contract.role === "seller" &&
+                contract.status === "INITIATED" && (
+                  <p className="rounded-lg bg-[#FFF3CD] px-3 py-2 text-center text-sm font-semibold text-[#7A5800]">
+                    Awaiting Deposit
+                  </p>
+                )}
               {contract.role === "seller" && contract.status === "FUNDED" && (
                 <p className="rounded-lg bg-[#CFF4FC] px-3 py-2 text-center text-sm font-semibold text-[#084298]">
                   Funds Safeguarded in Vault

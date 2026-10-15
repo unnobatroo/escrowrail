@@ -48,7 +48,7 @@ class ResendVerificationEmailSender implements VerificationEmailSender {
             // Never log the link — it embeds the raw token. Fail loudly.
             log.error(
                     "escrowrail.mail.resend-api-key unset — verification email to {} dropped; configure the key",
-                    email);
+                    maskEmail(email));
             return;
         }
         send(email, "Verify your Escrowrail account",
@@ -66,7 +66,7 @@ class ResendVerificationEmailSender implements VerificationEmailSender {
         if (apiKey.isBlank()) {
             log.error(
                     "escrowrail.mail.resend-api-key unset — password reset email to {} dropped; configure the key",
-                    email);
+                    maskEmail(email));
             return;
         }
         send(email, "Reset your Escrowrail password",
@@ -77,6 +77,45 @@ class ResendVerificationEmailSender implements VerificationEmailSender {
                 "This link expires in 1 hour. If you didn't request a reset,"
                         + " you can ignore this email — your password stays"
                         + " unchanged.");
+    }
+
+    /** Emails are PII — keep only the domain in logs. */
+    private static String maskEmail(String email) {
+        int at = email.indexOf('@');
+        return at < 0 ? "***" : "***@" + email.substring(at + 1);
+    }
+
+    @Override
+    public void sendCounterpartyInvite(String email, String inviterLegalName) {
+        if (apiKey.isBlank()) {
+            log.error(
+                    "escrowrail.mail.resend-api-key unset — invite email to {} dropped; configure the key",
+                    maskEmail(email));
+            return;
+        }
+        send(email, inviterLegalName + " invited you to Escrowrail",
+                inviterLegalName + " needs you",
+                inviterLegalName + " opened a conditional escrow trade with you"
+                        + " on Escrowrail. Register to see and claim it — the"
+                        + " funds only move when your delivery milestone is met.",
+                "Create your account", appBaseUrl + "/register",
+                "If you weren't expecting this, you can ignore this email.");
+    }
+
+    @Override
+    public void sendWelcomeEmail(String email, String legalName) {
+        if (apiKey.isBlank()) {
+            log.error(
+                    "escrowrail.mail.resend-api-key unset — welcome email to {} dropped; configure the key",
+                    maskEmail(email));
+            return;
+        }
+        send(email, "Welcome to Escrowrail",
+                "Welcome aboard, " + legalName,
+                "Your organization is registered. Open your dashboard to create"
+                        + " your first conditional trade.",
+                "Open dashboard", appBaseUrl,
+                "");
     }
 
     private void send(

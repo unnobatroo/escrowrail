@@ -38,7 +38,11 @@ import org.springframework.web.util.ContentCachingResponseWrapper;
 @Order(1)
 public class IdempotencyFilter extends OncePerRequestFilter {
 
-    public static final Duration REPLAY_WINDOW = Duration.ofSeconds(300);
+    /** Completed responses replay for as long as the sweeper retains them. */
+    public static final Duration REPLAY_WINDOW = Duration.ofHours(24);
+
+    /** Abandoned in-flight claims become reclaimable after this. */
+    public static final Duration CLAIM_TTL = Duration.ofSeconds(300);
     private static final int IN_FLIGHT = 0;
     private static final String KEY_HEADER = "X-Idempotency-Key";
     private static final String REPLAY_HEADER = "X-Idempotent-Replay";
@@ -54,8 +58,12 @@ public class IdempotencyFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         // Auth responses carry bearer tokens — never cache them.
+        boolean mutating = switch (request.getMethod().toUpperCase(java.util.Locale.ROOT)) {
+            case "POST", "PUT", "PATCH", "DELETE" -> true;
+            default -> false;
+        };
         return (
-            !"POST".equalsIgnoreCase(request.getMethod()) ||
+            !mutating ||
             request.getRequestURI().startsWith("/webhooks/") ||
             request.getRequestURI().startsWith("/api/v1/auth/")
         );
@@ -203,9 +211,10 @@ public class IdempotencyFilter extends OncePerRequestFilter {
         return records.findByKey(key).filter(this::fresh);
     }
 
-    /** Whether the record is still inside the replay window. */
+    /** Whether the record is live: claims age out fast, responses do not. */
     private boolean fresh(Record r) {
-        return r.createdAt().isAfter(Instant.now().minus(REPLAY_WINDOW));
+        Duration ttl = r.responseStatus() == IN_FLIGHT ? CLAIM_TTL : REPLAY_WINDOW;
+        return r.createdAt().isAfter(Instant.now().minus(ttl));
     }
 
     private void writeReplay(HttpServletResponse response, Record r)

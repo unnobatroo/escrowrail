@@ -65,7 +65,7 @@ public class WebhookController {
         if (githubSecret.isBlank()) {
             throw new WebhookValidationException("GitHub webhook endpoint not configured");
         }
-        verifyGithubSignature(body, signature);
+        verifySignature(body, signature, githubSecret, "GitHub");
         JsonNode payload = mapper.readTree(body);
         JsonNode pr = payload.get("pull_request");
         String trackingKey = null;
@@ -84,33 +84,34 @@ public class WebhookController {
     public record LogisticsWebhook(String carrier, String status, String tracking_key) {}
 
     /**
-     * Shared-secret-verified carrier webhooks; DELIVERED events settle all
+     * HMAC-verified carrier webhooks; DELIVERED events settle all
      * matching funded contracts, anything else is ignored.
      *
      * @return ignored if no delivery or match, otherwise settled with the last successful id
-     * @throws WebhookValidationException if unconfigured, the secret or carrier is
+     * @throws WebhookValidationException if unconfigured, the signature or carrier is
      *     invalid, a delivered event lacks a tracking key, or all matched settlements fail
+     * @throws java.io.IOException if JSON parsing fails
      */
     @PostMapping("/logistics")
     public WebhookResult logistics(
-            @RequestBody LogisticsWebhook body,
-            @RequestHeader(value = "X-Escrowrail-Webhook-Secret", required = false) String secret) {
+            @RequestBody byte[] body,
+            @RequestHeader(value = "X-Escrowrail-Signature", required = false) String signature)
+            throws java.io.IOException {
         if (logisticsSecret.isBlank()) {
             throw new WebhookValidationException("Logistics webhook endpoint not configured");
         }
-        if (secret == null || !constantTimeEquals(secret, logisticsSecret)) {
-            throw new WebhookValidationException("Invalid logistics webhook secret");
+        verifySignature(body, signature, logisticsSecret, "logistics");
+        LogisticsWebhook payload = mapper.readValue(body, LogisticsWebhook.class);
+        if (!"DHL".equals(payload.carrier())) {
+            throw new WebhookValidationException("Unsupported carrier: " + payload.carrier());
         }
-        if (!"DHL".equals(body.carrier())) {
-            throw new WebhookValidationException("Unsupported carrier: " + body.carrier());
-        }
-        if (!"DELIVERED".equals(body.status())) {
+        if (!"DELIVERED".equals(payload.status())) {
             return new WebhookResult("ignored", null);
         }
-        if (body.tracking_key() == null || body.tracking_key().isBlank()) {
+        if (payload.tracking_key() == null || payload.tracking_key().isBlank()) {
             throw new WebhookValidationException("tracking_key is required");
         }
-        return settle(TrackingType.SHIPPING_CARRIER, body.tracking_key());
+        return settle(TrackingType.SHIPPING_CARRIER, payload.tracking_key());
     }
 
     /**
@@ -145,16 +146,17 @@ public class WebhookController {
         return new WebhookResult("settled", last.id());
     }
 
-    private void verifyGithubSignature(byte[] body, String signature) {
+    /** HMAC-SHA256 over the raw body — the signature covers the payload. */
+    private void verifySignature(byte[] body, String signature, String secret, String label) {
         if (signature == null || !signature.startsWith("sha256=")) {
-            throw new WebhookValidationException("Missing or malformed GitHub signature");
+            throw new WebhookValidationException("Missing or malformed " + label + " signature");
         }
         try {
             Mac mac = Mac.getInstance("HmacSHA256");
-            mac.init(new SecretKeySpec(githubSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
             String expected = "sha256=" + HexFormat.of().formatHex(mac.doFinal(body));
             if (!constantTimeEquals(expected, signature)) {
-                throw new WebhookValidationException("Invalid GitHub webhook signature");
+                throw new WebhookValidationException("Invalid " + label + " webhook signature");
             }
         } catch (java.security.InvalidKeyException | NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);

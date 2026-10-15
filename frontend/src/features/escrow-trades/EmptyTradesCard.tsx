@@ -18,13 +18,59 @@ export default function EmptyTradesCard({ onNewTrade, onLoadDemo }: Props) {
     >
       {/* Cross-border escrow illustration */}
       <svg viewBox="0 0 120 72" className="mb-5 h-20 w-32" aria-hidden="true">
-        <rect x="8" y="34" width="42" height="30" rx="6" fill="#F4F5F0" stroke="#E2E6DC" />
-        <text x="29" y="53" textAnchor="middle" fontSize="12" fontWeight="700" fill="#163300">USD</text>
-        <rect x="70" y="34" width="42" height="30" rx="6" fill="#F4F5F0" stroke="#E2E6DC" />
-        <text x="91" y="53" textAnchor="middle" fontSize="12" fontWeight="700" fill="#163300">EUR</text>
+        <rect
+          x="8"
+          y="34"
+          width="42"
+          height="30"
+          rx="6"
+          fill="#F4F5F0"
+          stroke="#E2E6DC"
+        />
+        <text
+          x="29"
+          y="53"
+          textAnchor="middle"
+          fontSize="12"
+          fontWeight="700"
+          fill="#163300"
+        >
+          USD
+        </text>
+        <rect
+          x="70"
+          y="34"
+          width="42"
+          height="30"
+          rx="6"
+          fill="#F4F5F0"
+          stroke="#E2E6DC"
+        />
+        <text
+          x="91"
+          y="53"
+          textAnchor="middle"
+          fontSize="12"
+          fontWeight="700"
+          fill="#163300"
+        >
+          EUR
+        </text>
         <rect x="42" y="10" width="36" height="24" rx="6" fill="#163300" />
-        <path d="M55 16l5 5 7-8" stroke="#9FE870" strokeWidth="2.4" fill="none" strokeLinecap="round" />
-        <path d="M36 34c4-9 9-12 14-12M84 34c-4-9-9-12-14-12" stroke="#9FE870" strokeWidth="2" fill="none" strokeDasharray="3 3" />
+        <path
+          d="M55 16l5 5 7-8"
+          stroke="#9FE870"
+          strokeWidth="2.4"
+          fill="none"
+          strokeLinecap="round"
+        />
+        <path
+          d="M36 34c4-9 9-12 14-12M84 34c-4-9-9-12-14-12"
+          stroke="#9FE870"
+          strokeWidth="2"
+          fill="none"
+          strokeDasharray="3 3"
+        />
       </svg>
       <h3 className="text-lg font-bold text-brand-charcoal">
         No active trades yet

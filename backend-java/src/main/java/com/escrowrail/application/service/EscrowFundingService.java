@@ -1,6 +1,7 @@
 package com.escrowrail.application.service;
 
 import com.escrowrail.application.dto.Events.ContractFunded;
+import com.escrowrail.application.dto.FundingResult;
 import com.escrowrail.application.dto.Quote;
 import com.escrowrail.domain.exception.CurrencyMismatchException;
 import com.escrowrail.domain.exception.ForbiddenException;
@@ -63,7 +64,7 @@ public class EscrowFundingService {
      * spot and vaulted in target currency. Fee minimum 0.01; HALF_EVEN cents.
      * Publishes the funded event atomically.
      *
-     * @return the saved funded contract
+     * @return the funded contract plus the fee actually charged
      * @throws NotFoundException if the contract/account is absent or actor is not a party
      * @throws ForbiddenException if the actor is the seller
      * @throws InvalidStateTransitionException if the contract is not INITIATED
@@ -74,7 +75,7 @@ public class EscrowFundingService {
      * @throws UnsupportedCurrencyPairException if no FX rate is available
      */
     @Transactional(isolation = Isolation.READ_COMMITTED)
-    public EscrowContract fundContract(
+    public FundingResult fundContract(
         UUID contractId,
         UUID actorEntityId,
         MonetaryAmount deposit
@@ -251,6 +252,6 @@ public class EscrowFundingService {
         events.publishEvent(
             new ContractFunded(cid, contract.buyerId(), contract.sellerId())
         );
-        return saved;
+        return new FundingResult(saved, fee);
     }
 }

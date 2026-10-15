@@ -42,29 +42,39 @@ class LedgerRepositoryAdapter implements LedgerRepository {
             String description,
             UUID contractId) {
         UUID id = UUID.randomUUID();
-        Instant createdAt = Instant.now();
+        // Micros: Postgres timestamp precision — anything finer would not
+        // survive the round trip and recompute-verification would diverge.
+        Instant createdAt = Instant.now()
+                .truncatedTo(java.time.temporal.ChronoUnit.MICROS);
+        java.math.BigDecimal canonicalAmount =
+                amount.setScale(2, java.math.RoundingMode.UNNECESSARY);
         // Cryptographic audit chain: each entry links to the previous
         // head, so tampering with any row invalidates everything after
         // it. The chain row is locked last, after account locks, in every
         // workflow — a consistent global order, so no deadlock cycle.
+        // Every persisted field is hashed with a separator — a field left
+        // out (or unseparated) could be mutated without breaking the chain.
         LedgerChainEntity head = chain
                 .findByIdForUpdate((short) 1)
                 .orElseThrow(() -> new IllegalStateException(
                         "ledger_chain head row missing"));
-        String hash = sha256(
-                head.getCurrentHash()
-                        + id
-                        + debitAccountId
-                        + creditAccountId
-                        + amount.toPlainString()
-                        + createdAt);
+        String hash = sha256(String.join("|",
+                head.getCurrentHash(),
+                id.toString(),
+                debitAccountId.toString(),
+                creditAccountId.toString(),
+                canonicalAmount.toPlainString(),
+                currency,
+                String.valueOf(contractId),
+                String.valueOf(description),
+                createdAt.toString()));
         head.setCurrentHash(hash);
         chain.save(head);
         return toDomain(jpa.save(new LedgerTransactionEntity(
                 id,
                 debitAccountId,
                 creditAccountId,
-                amount,
+                canonicalAmount,
                 currency,
                 description,
                 contractId,

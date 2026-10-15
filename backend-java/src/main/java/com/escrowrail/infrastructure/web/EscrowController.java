@@ -81,7 +81,6 @@ public class EscrowController {
                     body.trackingType(),
                     body.trackingKey(),
                     body.counterpartyEmail());
-            service.inviteCounterparty(body.counterpartyEmail(), me);
             return ResponseEntity.status(HttpStatus.ACCEPTED)
                     .body(new TradeInvitedResponse(
                             "INVITED",
@@ -102,15 +101,15 @@ public class EscrowController {
     public EscrowTradeResponse fund(@PathVariable UUID id, @Valid @RequestBody FundEscrowTradeRequest body) {
         UUID me = TenantPrincipal.entityId();
         EscrowContract c = service.getForEntity(id, me);
-        EscrowContract funded = service.fundContract(
+        var funded = service.fundContract(
                 id, me, MoneyAmounts.of(body.depositAmount(), c.sourceCurrency()));
-        // Explicit, unbundled cost summary: what left the buyer, what Escrowrail
-        // kept, and what landed in the segregated vault.
-        var q = service.quote(
-                c.sourceCurrency(), c.targetCurrency(),
-                c.targetAmount().getNumber().numberValue(BigDecimal.class));
-        return view(funded, me, body.depositAmount(), q.platformFee(),
-                funded.escrowedAmount().getNumber().numberValue(BigDecimal.class));
+        // Unbundled cost summary from the funded contract itself — never a
+        // recomputed quote, which could drift with a later FX tick.
+        var contract = funded.contract();
+        return view(contract, me,
+                contract.depositAmount().getNumber().numberValue(BigDecimal.class),
+                funded.platformFee(),
+                contract.escrowedAmount().getNumber().numberValue(BigDecimal.class));
     }
 
     @PostMapping("/{id}/cancel")

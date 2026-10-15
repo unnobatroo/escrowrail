@@ -93,7 +93,7 @@ class EscrowConcurrencyTest extends AbstractPostgresIT {
             c.id(),
             p.buyer(),
             MoneyAmounts.of(q.totalDeposit(), "USD")
-        );
+        ).contract();
     }
 
     @Test

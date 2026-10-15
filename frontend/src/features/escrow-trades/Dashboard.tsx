@@ -14,7 +14,7 @@ import InsightTiles from "./InsightTiles";
 import TradesTable, { type TradeFilter } from "./TradesTable";
 import { Skeleton } from "../../components/ui/skeleton";
 import { useAuth } from "../authentication/auth";
-import { money, yieldAccrued } from "../../shared/utilities/currencyFormatter";
+import { money, sumMoney, yieldAccrued } from "../../shared/utilities/currencyFormatter";
 
 const ACTIVE = new Set(["INVITED", "INITIATED", "FUNDED"]);
 const TOPUP_AMOUNT = "5000";
@@ -103,17 +103,23 @@ export default function Dashboard() {
     if (user && !user.onboarding_completed) setOnboardingOpen(true);
   }, [user]);
 
+  // EUR-only: the tiles quote a single currency, and ECB yield is EUR float.
   const safeguarded = useMemo(
     () =>
-      contracts
-        .filter((c) => c.status === "FUNDED")
-        .reduce((s, c) => s + Number(c.escrowed_amount ?? 0), 0),
+      sumMoney(
+        contracts
+          .filter((c) => c.status === "FUNDED" && c.target_currency === "EUR")
+          .map((c) => c.escrowed_amount),
+      ),
     [contracts],
   );
   const accruedYield = useMemo(
     () =>
       contracts
-        .filter((c) => c.status === "FUNDED" && c.funded_at)
+        .filter(
+          (c) =>
+            c.status === "FUNDED" && c.funded_at && c.target_currency === "EUR",
+        )
         .reduce((s, c) => s + yieldAccrued(c.escrowed_amount!, c.funded_at!, now), 0),
     [contracts, now],
   );
@@ -175,7 +181,7 @@ export default function Dashboard() {
       )}
 
       <InsightTiles
-        safeguarded={safeguarded.toFixed(2)}
+        safeguarded={safeguarded}
         accruedYield={accruedYield.toFixed(4)}
       />
 
