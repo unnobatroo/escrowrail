@@ -20,7 +20,9 @@ export default function Login() {
     setError("");
     setUnverified(false);
     try {
-      await login(email, password);
+      // Trim: copy-pasted credentials often carry a trailing space that
+      // fails auth invisibly (Argon2 compares raw bytes).
+      await login(email.trim(), password.trim());
       navigate("/dashboard");
     } catch (err) {
       const apiErr = apiError(err);
