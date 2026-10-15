@@ -117,13 +117,7 @@ export default function ContractExecutionDrawer({
       ? yieldAccrued(contract.escrowed_amount ?? "0", contract.funded_at, now)
       : 0;
 
-  const fxFee =
-    quote?.platform_fee ??
-    (contract?.deposit_amount && contract.locked_spot_rate
-      ? (Number(contract.deposit_amount) -
-          Number(contract.target_amount) / Number(contract.locked_spot_rate))
-          .toFixed(2)
-      : null);
+  const fxFee = quote?.platform_fee ?? contract?.platform_conversion_fee ?? null;
 
   return (
     <div className="fixed inset-0 z-50" data-testid="trade-drawer">
