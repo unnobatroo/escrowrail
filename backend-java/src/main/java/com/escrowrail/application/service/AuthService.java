@@ -116,8 +116,6 @@ public class AuthService {
             accounts.save(
                 Account.open(org.id(), AccountType.USER, "EUR")
             );
-            // Trades invited to this email before signup attach now.
-            escrow.attachPendingInvites(normalized, org.id());
             issueVerification(user);
             events.publishEvent(
                 new WelcomeEmailRequested(user.email(), org.legalName())
@@ -182,7 +180,12 @@ public class AuthService {
         AppUser user = users
             .findById(token.userId())
             .orElseThrow(() -> new NotFoundException("User not found"));
-        return users.save(user.verified());
+        AppUser verified = users.save(user.verified());
+        // Invited trades attach only after address ownership is proven —
+        // attaching at registration would let an unverified squatter claim
+        // another party's trades (and its settlement payouts).
+        escrow.attachPendingInvites(verified.email(), verified.entityId());
+        return verified;
     }
 
     /**
@@ -192,7 +195,8 @@ public class AuthService {
     @Transactional
     public void resendVerification(String email) {
         String normalized = email.strip().toLowerCase(java.util.Locale.ROOT);
-        var user = users.findByEmail(normalized);
+        // Row lock serializes concurrent resends past the cooldown check.
+        var user = users.findByEmailForUpdate(normalized);
         if (user.isEmpty() || user.get().emailVerified()) {
             return;
         }
@@ -278,8 +282,8 @@ public class AuthService {
                         mailer.sendPasswordResetEmail(user.email(), rawToken);
                     } catch (RuntimeException e) {
                         log.warn(
-                            "password reset email send failed for {} — user can re-request",
-                            user.email(), e);
+                            "password reset email send failed for user {} — user can re-request",
+                            user.id(), e);
                     }
                 }
             }
@@ -304,8 +308,8 @@ public class AuthService {
                         mailer.sendVerificationEmail(user.email(), rawToken);
                     } catch (RuntimeException e) {
                         log.warn(
-                            "verification email send failed for {} — user can resend",
-                            user.email(), e);
+                            "verification email send failed for user {} — user can resend",
+                            user.id(), e);
                     }
                 }
             }

@@ -215,11 +215,25 @@ public class EscrowService {
 
     /**
      * Attaches INVITED contracts for {@code email} to the new entity — called
-     * inside the registration transaction so pending trades arrive with the account.
+     * from {@code verifyEmail} once address ownership is proven. The UBO check
+     * repeats here because the buyer is only known now.
      */
     @Transactional
     public void attachPendingInvites(String email, UUID sellerEntityId) {
+        Organization seller = organizations
+            .findById(sellerEntityId)
+            .orElseThrow(() ->
+                new NotFoundException("Seller organization not found")
+            );
         for (EscrowContract c : contracts.findPendingInvites(email)) {
+            Organization buyer = organizations
+                .findById(c.buyerId())
+                .orElseThrow(() ->
+                    new NotFoundException("Buyer organization not found")
+                );
+            if (buyer.uboTaxId().equals(seller.uboTaxId())) {
+                continue; // never pair circular owners — invite stays unattached
+            }
             c.attachSeller(sellerEntityId);
             contracts.save(c);
         }

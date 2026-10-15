@@ -70,8 +70,10 @@ public class ProfileService {
         String taxId,
         java.util.Map<String, BigDecimal> deposits
     ) {
+        // Row lock serializes the onboarding-deposit eligibility check —
+        // an unlocked read lets concurrent calls double-credit the faucet.
         AppUser user = users
-            .findById(userId)
+            .findByIdForUpdate(userId)
             .orElseThrow(() -> new NotFoundException("User not found"));
         Organization org = organizations
             .findById(entityId)

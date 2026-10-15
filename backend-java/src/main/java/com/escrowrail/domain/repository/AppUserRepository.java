@@ -7,6 +7,10 @@ import java.util.UUID;
 public interface AppUserRepository {
     Optional<AppUser> findById(UUID id);
 
+    /** {@link #findById} under a pessimistic write lock — serializes
+     *  concurrent onboarding-deposit checks on the user row. */
+    Optional<AppUser> findByIdForUpdate(UUID id);
+
     Optional<AppUser> findByEmail(String email);
 
     /** {@link #findByEmail} under a pessimistic write lock — serializes
