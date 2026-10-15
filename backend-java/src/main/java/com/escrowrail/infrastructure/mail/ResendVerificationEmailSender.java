@@ -57,7 +57,7 @@ class ResendVerificationEmailSender implements VerificationEmailSender {
                         + " Escrowrail account.",
                 "Verify email address", link,
                 "This link expires in 24 hours. If you didn't create an"
-                        + " account, you can ignore this email.");
+                        + " account, you can ignore this email.", rawToken);
     }
 
     @Override
@@ -76,7 +76,7 @@ class ResendVerificationEmailSender implements VerificationEmailSender {
                 "Reset password", link,
                 "This link expires in 1 hour. If you didn't request a reset,"
                         + " you can ignore this email — your password stays"
-                        + " unchanged.");
+                        + " unchanged.", "");
     }
 
     /** Emails are PII — keep only the domain in logs. */
@@ -99,7 +99,7 @@ class ResendVerificationEmailSender implements VerificationEmailSender {
                         + " on Escrowrail. Register to see and claim it — the"
                         + " funds only move when your delivery milestone is met.",
                 "Create your account", appBaseUrl + "/register",
-                "If you weren't expecting this, you can ignore this email.");
+                "If you weren't expecting this, you can ignore this email.", "");
     }
 
     @Override
@@ -115,12 +115,21 @@ class ResendVerificationEmailSender implements VerificationEmailSender {
                 "Your organization is registered. Open your dashboard to create"
                         + " your first conditional trade.",
                 "Open dashboard", appBaseUrl,
-                "");
+                "", "");
     }
 
     private void send(
             String email, String subject, String icon, String heading,
-            String intro, String cta, String link, String footnote) {
+            String intro, String cta, String link, String footnote,
+            String code) {
+        // Verification emails also show the raw token — some clients mangle
+        // links, and the page offers manual entry as the fallback path.
+        String codeBlock = code.isEmpty() ? "" : """
+                <tr><td style="padding:16px 0 0;">
+                  <div style="font-size:13px;color:#5C685B;">Or paste this code on the verification page:</div>
+                  <div style="margin-top:8px;padding:10px 14px;background-color:#F4F5F0;border-radius:8px;font-family:ui-monospace,Menlo,monospace;font-size:14px;color:#163300;word-break:break-all;">%s</div>
+                </td></tr>
+                """.formatted(code);
         http.post()
                 .uri("https://api.resend.com/emails")
                 .header("Authorization", "Bearer " + apiKey)
@@ -136,6 +145,7 @@ class ResendVerificationEmailSender implements VerificationEmailSender {
                                 "CTA", cta,
                                 "LINK", link,
                                 "FOOTNOTE", footnote,
+                                "CODE_BLOCK", codeBlock,
                                 "BASE", appBaseUrl))))
                 .retrieve()
                 .toBodilessEntity();

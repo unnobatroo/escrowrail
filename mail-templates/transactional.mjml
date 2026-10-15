@@ -37,6 +37,7 @@
           {{CTA}}
         </mj-button>
         <mj-text font-size="13px" color="#5C685B" padding="24px 0 0">{{FOOTNOTE}}</mj-text>
+        <mj-raw>{{CODE_BLOCK}}</mj-raw>
         <mj-divider border-color="#EEF0E8" padding="24px 0 0" />
         <mj-text font-size="12px" color="#88908A" padding="16px 0 0">
           Button not working? Paste this into your browser:<br />
