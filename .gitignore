@@ -34,3 +34,4 @@ supabase/
 .agents/
 .devin/
 skills-lock.json
+infra/*.json
