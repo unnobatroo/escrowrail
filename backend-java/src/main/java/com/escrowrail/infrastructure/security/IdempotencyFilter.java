@@ -194,19 +194,26 @@ public class IdempotencyFilter extends OncePerRequestFilter {
         }
     }
 
-    /** Polls a claim for up to 3s; returns the record, or empty if absent/expired. */
+    /**
+     * Polls a claim for up to ~3s, backing off 50→500ms so a slow handler
+     * doesn't multiply duplicate-request queries against the DB.
+     * Returns the record, or empty if absent/expired.
+     */
     private Optional<Record> awaitCompleted(String key) {
-        for (int i = 0; i < 30; i++) {
+        long backoffMs = 50;
+        long deadline = System.nanoTime() + Duration.ofSeconds(3).toNanos();
+        while (System.nanoTime() < deadline) {
             Optional<Record> rec = records.findByKey(key).filter(this::fresh);
             if (rec.isEmpty() || rec.get().responseStatus() != IN_FLIGHT) {
                 return rec;
             }
             try {
-                Thread.sleep(100);
+                Thread.sleep(backoffMs);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 return Optional.empty();
             }
+            backoffMs = Math.min(backoffMs * 2, 500);
         }
         return records.findByKey(key).filter(this::fresh);
     }

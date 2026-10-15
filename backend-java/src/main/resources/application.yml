@@ -13,12 +13,25 @@ spring:
       maximum-pool-size: 20
       minimum-idle: 5
       connection-test-query: SELECT 1
+      data-source-properties:
+        # Rewrite multi-row inserts into one INSERT ... VALUES (...),(...)
+        # and reuse prepared statements — fewer round-trips per write.
+        reWriteBatchedInserts: true
+        cachePrepStmts: true
+        prepStmtCacheSize: 250
+        prepStmtCacheSqlLimit: 2048
   jpa:
     hibernate:
       # Schema is Flyway-owned (db/migration) — Hibernate only verifies
       # the entities match. Never `update` on a funds ledger.
       ddl-auto: validate
     open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
   modulith:
     events:
       jdbc-schema-initialization:

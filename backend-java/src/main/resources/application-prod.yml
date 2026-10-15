@@ -16,6 +16,13 @@ spring:
       connection-timeout: 20000
       idle-timeout: 60000
       max-lifetime: 240000
+      data-source-properties:
+        # Batched insert rewriting + prepared-statement cache — fewer
+        # round-trips on every write path.
+        reWriteBatchedInserts: true
+        cachePrepStmts: true
+        prepStmtCacheSize: 250
+        prepStmtCacheSqlLimit: 2048
   jpa:
     # Return the DB connection when the request's transaction ends, not at
     # view render — shortens every pooled-conn checkout.
@@ -26,6 +33,10 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
 
 server:
   compression:
