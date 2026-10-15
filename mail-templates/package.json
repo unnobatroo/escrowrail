@@ -1,0 +1,12 @@
+{
+  "name": "mail-templates",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "mjml transactional.mjml -o ../backend-java/src/main/resources/mail/branded.html"
+  },
+  "type": "commonjs",
+  "devDependencies": {
+    "mjml": "^4.15.3"
+  },
+  "private": true
+}

@@ -15,26 +15,14 @@ export const isDemoMode = (): boolean =>
   import.meta.env.VITE_ENABLE_DEMO_TOOLS === "true";
 
 const TOKEN_KEY = "escrowrail_token";
-const LEGACY_TOKEN_KEY = "escrowrail_token";
 
 export function getToken(): string | null {
-  const token = localStorage.getItem(TOKEN_KEY);
-  if (token) return token;
-  // shortcut: migrate pre-rebrand sessions once; safe to drop after users re-login
-  const legacy = localStorage.getItem(LEGACY_TOKEN_KEY);
-  if (legacy) {
-    localStorage.setItem(TOKEN_KEY, legacy);
-    localStorage.removeItem(LEGACY_TOKEN_KEY);
-  }
-  return legacy;
+  return localStorage.getItem(TOKEN_KEY);
 }
 
 export function setToken(token: string | null): void {
   if (token) localStorage.setItem(TOKEN_KEY, token);
-  else {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(LEGACY_TOKEN_KEY);
-  }
+  else localStorage.removeItem(TOKEN_KEY);
 }
 
 api.interceptors.request.use((config) => {
