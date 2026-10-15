@@ -58,7 +58,13 @@ import type {
 } from "./types";
 
 export function apiError(err: unknown): ApiError {
-  if (axios.isAxiosError(err)) return (err.response?.data as ApiError) ?? {};
+  if (axios.isAxiosError(err)) {
+    if (err.response) return (err.response.data as ApiError) ?? {};
+    // No response at all — server unreachable (down, cold start, or CORS).
+    if (err.code === "ECONNABORTED")
+      return { message: "The server took too long — it may be waking up, try again in a few seconds." };
+    return { message: "Can't reach the server right now — it may be restarting. Try again in a moment." };
+  }
   return {};
 }
 
