@@ -52,7 +52,7 @@ class ResendVerificationEmailSender implements VerificationEmailSender {
             return;
         }
         send(email, "Verify your Escrowrail account",
-                "Verify your email",
+                "✉️", "Verify your email",
                 "You're almost in. Confirm this email address to activate your"
                         + " Escrowrail account.",
                 "Verify email address", link,
@@ -70,7 +70,7 @@ class ResendVerificationEmailSender implements VerificationEmailSender {
             return;
         }
         send(email, "Reset your Escrowrail password",
-                "Reset your password",
+                "🔐", "Reset your password",
                 "We received a request to reset the password for your Escrowrail"
                         + " account.",
                 "Reset password", link,
@@ -94,7 +94,7 @@ class ResendVerificationEmailSender implements VerificationEmailSender {
             return;
         }
         send(email, inviterLegalName + " invited you to Escrowrail",
-                inviterLegalName + " needs you",
+                "🤝", inviterLegalName + " needs you",
                 inviterLegalName + " opened a conditional escrow trade with you"
                         + " on Escrowrail. Register to see and claim it — the"
                         + " funds only move when your delivery milestone is met.",
@@ -111,7 +111,7 @@ class ResendVerificationEmailSender implements VerificationEmailSender {
             return;
         }
         send(email, "Welcome to Escrowrail",
-                "Welcome aboard, " + legalName,
+                "🎉", "Welcome aboard, " + legalName,
                 "Your organization is registered. Open your dashboard to create"
                         + " your first conditional trade.",
                 "Open dashboard", appBaseUrl,
@@ -119,8 +119,8 @@ class ResendVerificationEmailSender implements VerificationEmailSender {
     }
 
     private void send(
-            String email, String subject, String heading, String intro,
-            String cta, String link, String footnote) {
+            String email, String subject, String icon, String heading,
+            String intro, String cta, String link, String footnote) {
         http.post()
                 .uri("https://api.resend.com/emails")
                 .header("Authorization", "Bearer " + apiKey)
@@ -128,7 +128,9 @@ class ResendVerificationEmailSender implements VerificationEmailSender {
                         "from", from,
                         "to", new String[]{email},
                         "subject", subject,
-                        "html", BrandedEmailTemplate.render(heading, intro, cta, link, footnote)))
+                        "html", BrandedEmailTemplate.render(
+                                icon, heading, intro, cta, link, footnote,
+                                appBaseUrl + "/email-logo.png")))
                 .retrieve()
                 .toBodilessEntity();
     }
