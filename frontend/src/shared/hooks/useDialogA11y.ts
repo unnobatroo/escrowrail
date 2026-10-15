@@ -4,10 +4,7 @@ import type { RefObject } from "react";
 const FOCUSABLE =
   'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
-/**
- * Modal keyboard contract: focus moves into the dialog on mount, Tab cycles
- * inside it, Escape dismisses, and focus returns to the opener on unmount.
- */
+/** Modal a11y: focus in on mount, Tab trapped, Escape closes, focus restored. */
 export function useDialogA11y(
   ref: RefObject<HTMLElement | null>,
   onClose: () => void,

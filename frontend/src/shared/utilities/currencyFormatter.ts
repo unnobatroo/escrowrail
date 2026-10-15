@@ -13,7 +13,7 @@ export function yieldAccrued(escrowed: string, fundedAt: string, nowMs: number):
 
 const RTF = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
 
-/** "3h ago" / "yesterday" for ledger timestamps; falls back to locale date past a week. */
+/** "3h ago"/"yesterday" relative timestamps; locale date past a week. */
 export function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.round(diff / 60_000);

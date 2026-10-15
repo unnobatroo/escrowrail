@@ -36,7 +36,7 @@ export default function Tooltip({ text, label }: Props) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 4 }}
             transition={{ duration: 0.15 }}
-            className="absolute bottom-6 left-1/2 z-30 w-64 -translate-x-1/2 rounded-xl bg-brand-charcoal px-3 py-2 text-xs font-normal leading-snug text-white shadow-elevated"
+            className="absolute bottom-6 left-1/2 z-50 w-64 -translate-x-1/2 rounded-xl bg-brand-charcoal px-3 py-2 text-xs font-normal leading-snug text-white shadow-elevated"
           >
             {text}
           </motion.span>

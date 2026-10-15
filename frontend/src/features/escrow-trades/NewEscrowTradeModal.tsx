@@ -162,7 +162,7 @@ export default function NewEscrowTradeModal({
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="fixed inset-0 z-10 flex items-center justify-center bg-brand-forest/30 p-4 backdrop-blur-md"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-brand-forest/30 p-4 backdrop-blur-md"
     >
       <motion.form
         onSubmit={submit}
@@ -251,7 +251,7 @@ export default function NewEscrowTradeModal({
           </p>
         )}
 
-        {/* Wise two-tier conversion widget: "You pay" → fee rail → "They
+        {/* Two-tier conversion widget: "You pay" → fee rail → "They
             receive". The editable field is the recipient amount (the API
             contract is target_amount); the deposit tier recalculates live. */}
         <div className="mt-3 rounded-2xl border border-brand-border bg-brand-surface p-4 transition-colors focus-within:border-brand-forest">

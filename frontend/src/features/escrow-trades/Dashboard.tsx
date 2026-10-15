@@ -149,7 +149,7 @@ export default function Dashboard() {
         your money is working today.
       </p>
       {loadError && (
-        <div className="mb-4 flex items-center justify-between rounded-lg bg-wise-blocked-bg px-3 py-2 text-sm text-wise-blocked-text">
+        <div className="mb-4 flex items-center justify-between rounded-lg bg-escrow-blocked-bg px-3 py-2 text-sm text-escrow-blocked-text">
           {loadError}
           <button onClick={refresh} className="font-semibold underline">
             Retry
@@ -223,7 +223,7 @@ export default function Dashboard() {
             Safeguarded
             <Tooltip
               label="About safeguarded funds"
-              text="Under Electronic Money Regulations, Wise isolates 100% of escrowed balances from operational assets. Funds can never be lent or leveraged."
+              text="Under Electronic Money Regulations, Escrowrail isolates 100% of escrowed balances from operational assets. Funds can never be lent or leveraged."
             />
           </p>
           <p data-testid="metric-vault" className="num mt-1 text-xl font-bold text-[#084298] sm:text-2xl">

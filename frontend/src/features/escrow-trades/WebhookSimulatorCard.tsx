@@ -4,11 +4,7 @@ import { apiError, demoApi } from "../../api";
 import type { ContractView, DemoConfig } from "../../api";
 import { money } from "../../shared/utilities/currencyFormatter";
 
-/**
- * Developer gateway panel: exposes the sandbox webhook endpoints + tenant
- * signing secrets, and dispatches signed milestone events for the selected
- * FUNDED contract through the real verification path.
- */
+/** Dispatches server-signed milestone webhooks for a FUNDED contract. */
 export default function WebhookSimulatorCard({
   contracts,
   onSettled,
@@ -64,7 +60,7 @@ export default function WebhookSimulatorCard({
         className="flex w-full items-center gap-1.5 px-5 py-3 text-left font-semibold text-[#1B1C1D]"
       >
         {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-        <Radio size={16} /> Wise Platform Webhook Gateway
+        <Radio size={16} /> Escrowrail Webhook Gateway
         <span className="ml-auto text-xs font-normal text-[#5C685B]">developer sandbox</span>
       </button>
       {open && (

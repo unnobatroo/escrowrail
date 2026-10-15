@@ -12,10 +12,7 @@ import { Skeleton } from "../../components/ui/skeleton";
 import { Badge, STATUS_VARIANT } from "../../components/ui/badge";
 import { money, yieldAccrued } from "../../shared/utilities/currencyFormatter";
 
-/**
- * Execution side drawer: full contract detail, FX snapshot, live float
- * counter, cryptographic audit trail, and role-gated lifecycle actions.
- */
+/** Contract detail drawer: FX snapshot, live yield, audit trail, actions. */
 export default function ContractExecutionDrawer({
   contractId,
   sourceBalance,
@@ -121,7 +118,7 @@ export default function ContractExecutionDrawer({
       : 0;
 
   const fxFee =
-    quote?.wise_fee ??
+    quote?.platform_fee ??
     (contract?.deposit_amount && contract.locked_spot_rate
       ? (Number(contract.deposit_amount) -
           Number(contract.target_amount) / Number(contract.locked_spot_rate))
@@ -129,7 +126,7 @@ export default function ContractExecutionDrawer({
       : null);
 
   return (
-    <div className="fixed inset-0 z-20" data-testid="trade-drawer">
+    <div className="fixed inset-0 z-50" data-testid="trade-drawer">
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -350,12 +347,12 @@ export default function ContractExecutionDrawer({
       </motion.aside>
 
       {showCancel && (
-        <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/40">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40">
           <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
             <h3 className="mb-2 font-bold text-[#1B1C1D]">Cancel contract?</h3>
             <p className="mb-4 text-sm text-[#5C685B]">
               Vaulted funds liquidate back to your originating USD account at the
-              current spot rate — you absorb any FX movement. Wise retains the
+              current spot rate — you absorb any FX movement. Escrowrail retains the
               original 0.5% conversion fee.
             </p>
             <div className="flex gap-2">

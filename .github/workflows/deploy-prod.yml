@@ -23,10 +23,10 @@ jobs:
       SPRING_DATASOURCE_USERNAME: ${{ secrets.SPRING_DATASOURCE_USERNAME }}
       SPRING_DATASOURCE_PASSWORD: ${{ secrets.SPRING_DATASOURCE_PASSWORD }}
       JWT_SECRET: ${{ secrets.JWT_SECRET }}
-      WISE_FIELD_ENCRYPTION_KEY: ${{ secrets.WISE_FIELD_ENCRYPTION_KEY }}
-      WISE_GITHUB_WEBHOOK_SECRET: ${{ secrets.WISE_GITHUB_WEBHOOK_SECRET }}
-      WISE_LOGISTICS_WEBHOOK_SECRET: ${{ secrets.WISE_LOGISTICS_WEBHOOK_SECRET }}
-      WISE_CORS_ORIGINS: "https://wise-escrow.vercel.app"
+      ESCROWRAIL_FIELD_ENCRYPTION_KEY: ${{ secrets.ESCROWRAIL_FIELD_ENCRYPTION_KEY }}
+      ESCROWRAIL_GITHUB_WEBHOOK_SECRET: ${{ secrets.ESCROWRAIL_GITHUB_WEBHOOK_SECRET }}
+      ESCROWRAIL_LOGISTICS_WEBHOOK_SECRET: ${{ secrets.ESCROWRAIL_LOGISTICS_WEBHOOK_SECRET }}
+      ESCROWRAIL_CORS_ORIGINS: "https://escrowrail.vercel.app"
     steps:
       - uses: actions/checkout@v4
 
@@ -41,16 +41,16 @@ jobs:
 
       - name: ACR login (admin creds via ARM, like the script's create path)
         run: |
-          echo "$(az acr credential show -n wiseescrowacr \
+          echo "$(az acr credential show -n escrowrailacr \
             --query 'passwords[0].value' -o tsv)" \
-            | docker login wiseescrowacr.azurecr.io -u wiseescrowacr --password-stdin
+            | docker login escrowrailacr.azurecr.io -u escrowrailacr --password-stdin
 
       - name: Deploy backend to Azure Container Apps
         run: ./scripts/deploy-azure.sh
 
       - name: Health check
         run: |
-          FQDN=$(az containerapp show -g wise-escrow-rg -n wise-escrow-api \
+          FQDN=$(az containerapp show -g escrowrail-rg -n escrowrail-api \
             --query properties.configuration.ingress.fqdn -o tsv)
           for i in $(seq 1 60); do
             if curl -sf "https://$FQDN/actuator/health" | grep -q UP; then

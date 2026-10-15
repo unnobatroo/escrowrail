@@ -14,11 +14,7 @@ import { randomPersona } from "../../shared/utilities/personaGenerator";
 
 const input = "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm";
 
-/**
- * Self-service profile: legal entity name, tax identity, the one-time
- * onboarding deposit (per supported currency), and — in demo builds —
- * instant sandbox top-ups so evaluations never stall on empty balances.
- */
+/** Profile editor + one-time onboarding deposit + demo top-ups. */
 export default function ProfileSettingsModal({
   onClose,
   onSaved,
@@ -100,7 +96,7 @@ export default function ProfileSettingsModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="profile-modal-title"
-      className="fixed inset-0 z-20 flex items-center justify-center bg-black/40"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
     >
       <form
         onSubmit={save}

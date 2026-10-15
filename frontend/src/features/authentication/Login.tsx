@@ -44,7 +44,7 @@ export default function Login() {
       >
         <div className="mb-6 flex items-center gap-2 text-[#163300]">
           <ShieldCheck size={28} className="text-[#9FE870]" />
-          <h1 className="text-xl font-bold">Wise Smart Escrow</h1>
+          <h1 className="text-xl font-bold">Escrowrail</h1>
         </div>
         <label className="mb-1 block text-sm font-medium text-[#5C685B]">
           Email

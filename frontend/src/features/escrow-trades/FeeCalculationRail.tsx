@@ -3,7 +3,7 @@ import Tooltip from "../../shared/components/Tooltip";
 import { money } from "../../shared/utilities/currencyFormatter";
 import type { Quote } from "../../api";
 
-/** Connects the "you pay" and "recipient receives" tiers like Wise's quote. */
+/** Connects the "you pay" and "recipient receives" tiers like a consumer fintech quote. */
 export default function FeeCalculationRail({ quote }: { quote: Quote }) {
   const [pulse, setPulse] = useState(false);
 
@@ -23,12 +23,12 @@ export default function FeeCalculationRail({ quote }: { quote: Quote }) {
           −
         </span>
         <span className="num text-brand-charcoal">
-          {money(quote.wise_fee, quote.source_currency)}
+          {money(quote.platform_fee, quote.source_currency)}
         </span>
-        <span className="text-brand-subtle">0.5% Wise fee</span>
+        <span className="text-brand-subtle">0.5% platform fee</span>
         <Tooltip
-          label="Wise fee breakdown"
-          text={`$0 transmission fee + ${money(quote.wise_fee, quote.source_currency)} FX conversion fee. One transparent charge — no hidden spread.`}
+          label="Platform fee breakdown"
+          text={`$0 transmission fee + ${money(quote.platform_fee, quote.source_currency)} FX conversion fee. One transparent charge — no hidden spread.`}
         />
       </div>
       <div className="relative flex items-center gap-2 text-sm">

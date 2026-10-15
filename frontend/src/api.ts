@@ -14,7 +14,7 @@ export const api = axios.create({ baseURL, timeout: 60000 });
 export const isDemoMode = (): boolean =>
   import.meta.env.VITE_ENABLE_DEMO_TOOLS === "true";
 
-const TOKEN_KEY = "wise_token";
+const TOKEN_KEY = "escrowrail_token";
 
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
@@ -98,7 +98,7 @@ export interface ContractView {
   created_at: string;
   // Unbundled funding receipt — only present on the fund response.
   gross_debited?: string | null;
-  wise_conversion_fee?: string | null;
+  platform_conversion_fee?: string | null;
   net_vaulted?: string | null;
 }
 
@@ -108,7 +108,7 @@ export interface Quote {
   target_amount: string;
   mid_market_rate: string;
   principal: string;
-  wise_fee: string;
+  platform_fee: string;
   total_deposit: string;
   bank_spread_cost: string;
   bank_swift_fee: string;

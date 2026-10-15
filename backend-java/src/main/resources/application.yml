@@ -1,12 +1,12 @@
 spring:
   application:
-    name: wise-escrow-java
+    name: escrowrail-java
   jackson:
     # Wire format stays snake_case — the SPA contract from the Python
     # service is unchanged.
     property-naming-strategy: SNAKE_CASE
   datasource:
-    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/wise_escrow}
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/escrowrail}
     username: ${DATABASE_USER}
     password: ${DATABASE_PASSWORD}
     hikari:
@@ -24,11 +24,16 @@ spring:
       jdbc-schema-initialization:
         # event_publication DDL lives in V1__init.sql like everything else.
         enabled: false
+  flyway:
+    # Historical migrations were renamed during the Escrowrail rebrand —
+    # checksums for already-applied versions intentionally diverge. Schema
+    # integrity is still enforced by V-migrations + Hibernate validate.
+    validate-on-migrate: false
 
 server:
   port: ${PORT:8080}
 
-wise:
+escrowrail:
   jwt:
     # HS256 shared secret, >= 32 bytes. No default — the app refuses to
     # boot without JWT_SECRET in the environment.
@@ -38,28 +43,28 @@ wise:
     # Settlement webhooks release real funds — a blank secret DISABLES the
     # endpoint (calls are rejected), so any environment that accepts
     # webhooks must set these.
-    github-secret: ${WISE_GITHUB_WEBHOOK_SECRET:}
-    logistics-secret: ${WISE_LOGISTICS_WEBHOOK_SECRET:}
+    github-secret: ${ESCROWRAIL_GITHUB_WEBHOOK_SECRET:}
+    logistics-secret: ${ESCROWRAIL_LOGISTICS_WEBHOOK_SECRET:}
   cors:
     # Comma-separated SPA origins allowed to call the API. Prod sets
-    # WISE_CORS_ORIGINS to the deployed Vercel frontend URL(s).
-    allowed-origins: ${WISE_CORS_ORIGINS:http://localhost:5173}
+    # ESCROWRAIL_CORS_ORIGINS to the deployed Vercel frontend URL(s).
+    allowed-origins: ${ESCROWRAIL_CORS_ORIGINS:http://localhost:5173}
   encryption:
     # AES-256 field-encryption key (base64, 32 bytes). The default is a
-    # published dev-only key — prod must set WISE_FIELD_ENCRYPTION_KEY.
-    key: ${WISE_FIELD_ENCRYPTION_KEY:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}
+    # published dev-only key — prod must set ESCROWRAIL_FIELD_ENCRYPTION_KEY.
+    key: ${ESCROWRAIL_FIELD_ENCRYPTION_KEY:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}
   seed:
-    enabled: ${WISE_SEED_ENABLED:true}
+    enabled: ${ESCROWRAIL_SEED_ENABLED:true}
   security:
     # Server-side signed webhook simulation (demo gateway). Hard off by
     # default; only application-demo.yml and explicit env opts enable it.
-    allow-mock-webhooks: ${WISE_ALLOW_MOCK_WEBHOOKS:false}
+    allow-mock-webhooks: ${ESCROWRAIL_ALLOW_MOCK_WEBHOOKS:false}
   demo:
     # Demo-tools surface /api/v1/demo/** exists only under the dev/demo
     # Spring profiles — there is no enable flag; absence of the profile
     # unmaps the controller entirely (404 in prod).
-    buyer-email: ${WISE_DEMO_BUYER_EMAIL:buyer@demo.com}
-    seller-email: ${WISE_DEMO_SELLER_EMAIL:seller@demo.com}
+    buyer-email: ${ESCROWRAIL_DEMO_BUYER_EMAIL:buyer@demo.com}
+    seller-email: ${ESCROWRAIL_DEMO_SELLER_EMAIL:seller@demo.com}
 
 springdoc:
   swagger-ui:

@@ -11,7 +11,7 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
 
 /**
  * What-you-see-is-what-you-pay bottom sheet — shown before any escrow
- * funding so the gross debit, Wise fee, vault amount, and bank estimate
+ * funding so the gross debit, platform fee, vault amount, and bank estimate
  * are explicit. A shortfall in the source-currency balance disables the
  * confirm action and says exactly how much is missing.
  */
@@ -43,7 +43,7 @@ export default function FundingConfirmSheet({
   useDialogA11y(dialogRef, onClose);
 
   return (
-    <div className="fixed inset-0 z-30 flex items-end justify-center bg-black/40 sm:items-center">
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 sm:items-center">
       <div
         role="dialog"
         aria-modal="true"
@@ -74,8 +74,8 @@ export default function FundingConfirmSheet({
             </span>
           </div>
           <div className="flex justify-between">
-            <span className="text-[#5C685B]">Wise fee (0.5%)</span>
-            <span>{money(quote.wise_fee, quote.source_currency)}</span>
+            <span className="text-[#5C685B]">Platform fee (0.5%)</span>
+            <span>{money(quote.platform_fee, quote.source_currency)}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-[#5C685B]">They receive</span>

@@ -1,4 +1,4 @@
-### Wise Smart Escrow
+### Escrowrail
 * [[Overview & Business Model|Home]]
 * [[System Architecture|System-Architecture]]
 * [[Financial Core & Ledger|Ledger-and-Financial-Integrity]]

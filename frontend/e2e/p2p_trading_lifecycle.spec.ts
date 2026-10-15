@@ -6,8 +6,8 @@ const API = "http://localhost:8619";
 const GH_SECRET = "e2e-gh-secret";
 const BUYER = "buyer@demo.com";
 const SELLER = "seller@demo.com";
-const PASSWORD = "WiseDemo123!";
-const TRACKING_URL = "https://github.com/wise/repo/pull/42";
+const PASSWORD = "EscrowDemo123!";
+const TRACKING_URL = "https://github.com/acme/repo/pull/42";
 
 async function loginViaUi(page: Page, email: string) {
   await page.goto("/login");

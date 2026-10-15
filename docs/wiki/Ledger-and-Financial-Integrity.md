@@ -2,7 +2,7 @@
 
 ## Double-entry accounting
 
-A single mutable balance column is unacceptable in a financial system: it records that money moved but never where it came from, where it went, or whether the movement was ever balanced. Every funds movement on this platform is one atomic debit→credit pair recorded in `ledger_transactions` — the debited account, the credited account, the exact amount, and a hash chained to every prior entry. Account types make the flow legible: `USER_ACCOUNT` holds customer funds, `ESCROW_VAULT` holds one contract's segregated balance, `WISE_FEE` collects the platform's take, and `WISE_CLEARING` is the house bridge that every cross-currency conversion passes through. Within any transaction the legs always net to zero; a jqwik property test proves the double-entry sum invariant holds under randomized inputs.
+A single mutable balance column is unacceptable in a financial system: it records that money moved but never where it came from, where it went, or whether the movement was ever balanced. Every funds movement on this platform is one atomic debit→credit pair recorded in `ledger_transactions` — the debited account, the credited account, the exact amount, and a hash chained to every prior entry. Account types make the flow legible: `USER_ACCOUNT` holds customer funds, `ESCROW_VAULT` holds one contract's segregated balance, `ESCROWRAIL_FEE` collects the platform's take, and `ESCROWRAIL_CLEARING` is the house bridge that every cross-currency conversion passes through. Within any transaction the legs always net to zero; a jqwik property test proves the double-entry sum invariant holds under randomized inputs.
 
 The schema that backs it:
 

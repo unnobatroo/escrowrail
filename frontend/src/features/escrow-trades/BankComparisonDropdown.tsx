@@ -37,7 +37,7 @@ export default function BankComparisonDropdown({ quote }: { quote: Quote }) {
           >
             <div className="space-y-1.5 px-4 pb-4 text-sm">
               <div className="flex justify-between border-t border-brand-border pt-3 font-semibold">
-                <span className="text-brand-charcoal">Wise</span>
+                <span className="text-brand-charcoal">Escrowrail</span>
                 <span className="num text-brand-forest">
                   {money(quote.total_deposit, ccy)}
                 </span>
@@ -66,7 +66,7 @@ export default function BankComparisonDropdown({ quote }: { quote: Quote }) {
                   className="inline-flex items-center gap-1.5 rounded-pill bg-brand-neon px-3 py-1 text-xs font-bold text-brand-forest"
                 >
                   You save {money(quote.customer_savings, ccy)} on this
-                  transaction with Wise
+                  transaction with Escrowrail
                 </span>
               </div>
             </div>
