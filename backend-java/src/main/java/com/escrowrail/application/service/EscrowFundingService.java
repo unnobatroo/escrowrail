@@ -1,6 +1,6 @@
 package com.escrowrail.application.service;
 
-import com.escrowrail.application.dto.Events.ContractFunded;
+import com.escrowrail.application.event.ContractFunded;
 import com.escrowrail.application.dto.FundingResult;
 import com.escrowrail.application.dto.Quote;
 import com.escrowrail.domain.exception.CurrencyMismatchException;
@@ -28,6 +28,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
+import com.escrowrail.application.port.FxRateProvider;
 
 /** Funding leg: buyer debit, FX conversion, vault creation. */
 @Service

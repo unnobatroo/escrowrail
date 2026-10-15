@@ -1,4 +1,4 @@
-import { cn } from "../../lib/utils";
+import { cn } from "../../shared/utilities/cn";
 
 const VARIANTS = {
   invited: "bg-indigo-50 text-indigo-700 border-indigo-200",

@@ -1,6 +1,6 @@
 package com.escrowrail.application.service;
 
-import com.escrowrail.application.dto.Events.CounterpartyInvited;
+import com.escrowrail.application.event.CounterpartyInvited;
 import com.escrowrail.application.dto.FundingResult;
 import com.escrowrail.application.dto.Quote;
 import com.escrowrail.domain.exception.CircularOwnershipException;
@@ -22,6 +22,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
+import com.escrowrail.application.port.FxRateProvider;
 
 /**
  * Escrow contract coordinator: tenant-scoped reads, creation, and invites.

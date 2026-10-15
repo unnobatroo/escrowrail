@@ -5,6 +5,7 @@ import com.escrowrail.domain.exception.ValidationException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import org.springframework.stereotype.Component;
+import com.escrowrail.application.port.FxRateProvider;
 
 /** Deposit pricing: fee rate, cent rounding, and the coverage loop. */
 @Component

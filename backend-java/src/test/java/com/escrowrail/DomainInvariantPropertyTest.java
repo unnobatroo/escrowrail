@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.escrowrail.application.dto.Quote;
 import com.escrowrail.application.service.QuoteCalculator;
-import com.escrowrail.application.service.FxRateProvider;
+import com.escrowrail.application.port.FxRateProvider;
 import com.escrowrail.application.service.LedgerService;
 import com.escrowrail.domain.exception.CurrencyMismatchException;
 import com.escrowrail.domain.exception.InsufficientFundsException;

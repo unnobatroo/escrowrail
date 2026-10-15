@@ -1,6 +1,6 @@
 package com.escrowrail.application.service;
 
-import com.escrowrail.application.dto.Events.ContractSettled;
+import com.escrowrail.application.event.ContractSettled;
 import com.escrowrail.domain.exception.InsufficientFundsException;
 import com.escrowrail.domain.exception.InvalidStateTransitionException;
 import com.escrowrail.domain.exception.NotFoundException;

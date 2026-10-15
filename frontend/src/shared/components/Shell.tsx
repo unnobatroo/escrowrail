@@ -4,7 +4,7 @@ import { CurrencyFlag } from "./CurrencyFlag";
 import { Link, useNavigate } from "react-router-dom";
 import { accountsApi, demoApi, isDemoMode } from "../../api";
 import type { Account, DemoConfig } from "../../api";
-import { useAuth } from "../../features/authentication/auth";
+import { useAuth } from "../../features/authentication/AuthProvider";
 import { money } from "../utilities/currencyFormatter";
 import ProfileSettingsModal from "../../features/company-profile/ProfileSettingsModal";
 import HowItWorksGuideModal from "./HowItWorksGuideModal";

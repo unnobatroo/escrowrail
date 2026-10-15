@@ -1,11 +1,11 @@
 package com.escrowrail.infrastructure.outbox;
 
-import com.escrowrail.application.dto.Events.ContractCancelled;
-import com.escrowrail.application.dto.Events.ContractFunded;
-import com.escrowrail.application.dto.Events.ContractSettled;
-import com.escrowrail.application.dto.Events.CounterpartyInvited;
-import com.escrowrail.application.dto.Events.WelcomeEmailRequested;
-import com.escrowrail.application.service.VerificationEmailSender;
+import com.escrowrail.application.event.ContractCancelled;
+import com.escrowrail.application.event.ContractFunded;
+import com.escrowrail.application.event.ContractSettled;
+import com.escrowrail.application.event.CounterpartyInvited;
+import com.escrowrail.application.event.WelcomeEmailRequested;
+import com.escrowrail.application.port.VerificationEmailSender;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;

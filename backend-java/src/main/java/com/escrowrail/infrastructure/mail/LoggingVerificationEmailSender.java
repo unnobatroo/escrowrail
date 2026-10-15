@@ -1,6 +1,6 @@
 package com.escrowrail.infrastructure.mail;
 
-import com.escrowrail.application.service.VerificationEmailSender;
+import com.escrowrail.application.port.VerificationEmailSender;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;

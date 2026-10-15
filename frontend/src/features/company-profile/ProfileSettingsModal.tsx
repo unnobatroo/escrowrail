@@ -8,7 +8,7 @@ import {
   profileApi,
 } from "../../api";
 import type { UserProfile } from "../../api";
-import { useAuth } from "../authentication/auth";
+import { useAuth } from "../authentication/AuthProvider";
 import { money } from "../../shared/utilities/currencyFormatter";
 import { randomPersona } from "../../shared/utilities/personaGenerator";
 

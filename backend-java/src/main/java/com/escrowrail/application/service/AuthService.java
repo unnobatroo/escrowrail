@@ -1,6 +1,6 @@
 package com.escrowrail.application.service;
 
-import com.escrowrail.application.dto.Events.WelcomeEmailRequested;
+import com.escrowrail.application.event.WelcomeEmailRequested;
 import com.escrowrail.domain.exception.DuplicateEmailException;
 import com.escrowrail.domain.exception.EmailNotVerifiedException;
 import com.escrowrail.domain.exception.NotFoundException;
@@ -31,6 +31,7 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import com.escrowrail.application.port.VerificationEmailSender;
 
 /**
  * Tenant onboarding. Registration is atomic: organization + user + empty

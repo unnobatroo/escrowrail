@@ -1,6 +1,6 @@
 package com.escrowrail.application.service;
 
-import com.escrowrail.application.dto.Events.ContractCancelled;
+import com.escrowrail.application.event.ContractCancelled;
 import com.escrowrail.domain.exception.ForbiddenException;
 import com.escrowrail.domain.exception.InsufficientFundsException;
 import com.escrowrail.domain.exception.InvalidStateTransitionException;
@@ -20,6 +20,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
+import com.escrowrail.application.port.FxRateProvider;
 
 /** Cancellation leg: free pre-funding, spot liquidation after funding. */
 @Service

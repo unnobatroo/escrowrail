@@ -1,6 +1,6 @@
 package com.escrowrail.infrastructure.web;
 
-import com.escrowrail.application.service.VerificationEmailSender;
+import com.escrowrail.application.port.VerificationEmailSender;
 import com.escrowrail.domain.exception.NotFoundException;
 import java.util.Map;
 import org.springframework.context.annotation.Profile;

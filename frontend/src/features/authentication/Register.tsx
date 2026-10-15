@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Dices, ShieldCheck } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { apiError } from "../../api";
-import { useAuth } from "./auth";
+import { useAuth } from "./AuthProvider";
 import { randomPersona } from "../../shared/utilities/personaGenerator";
 import PasswordInput from "../../shared/components/PasswordInput";
 

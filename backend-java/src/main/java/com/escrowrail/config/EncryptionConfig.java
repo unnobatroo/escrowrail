@@ -1,6 +1,6 @@
 package com.escrowrail.config;
 
-import com.escrowrail.infrastructure.persistence.FieldEncryptionConverter;
+import com.escrowrail.infrastructure.persistence.entity.FieldEncryptionConverter;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
