@@ -1,0 +1,57 @@
+<mjml>
+  <mj-head>
+    <mj-title>{{SUBJECT}}</mj-title>
+    <mj-preview>{{HEADING}}</mj-preview>
+    <mj-attributes>
+      <mj-all font-family="Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" />
+      <mj-text color="#3E453C" font-size="15px" line-height="1.6" />
+    </mj-attributes>
+  </mj-head>
+  <mj-body background-color="#F4F5F0">
+    <mj-section padding="28px 16px 12px">
+      <mj-column>
+        <mj-text padding="0 8px">
+          <img src="{{BASE}}/email-logo.png" width="36" height="36" alt=""
+               style="display:inline-block;vertical-align:middle;border-radius:9px;" />
+          <span style="display:inline-block;vertical-align:middle;margin-left:10px;
+                       font-size:18px;font-weight:700;color:#163300;letter-spacing:-0.02em;">
+            Escrowrail
+          </span>
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-section background-color="#FFFFFF" border-radius="16px" padding="36px 32px"
+                css-class="card">
+      <mj-column>
+        <mj-image src="{{BASE}}/email/icon-{{ICON}}.png" width="56px" height="56px"
+                  align="left" padding="0 0 20px" alt="" />
+        <mj-text font-size="24px" font-weight="700" color="#163300"
+                 line-height="1.25" padding="0 0 8px">
+          {{HEADING}}
+        </mj-text>
+        <mj-text padding="0 0 28px">{{INTRO}}</mj-text>
+        <mj-button href="{{LINK}}" background-color="#9FE870" color="#163300"
+                   font-size="15px" font-weight="700" border-radius="999px"
+                   inner-padding="14px 32px" align="left" padding="0">
+          {{CTA}}
+        </mj-button>
+        <mj-text font-size="13px" color="#5C685B" padding="24px 0 0">{{FOOTNOTE}}</mj-text>
+        <mj-divider border-color="#EEF0E8" padding="24px 0 0" />
+        <mj-text font-size="12px" color="#88908A" padding="16px 0 0">
+          Button not working? Paste this into your browser:<br />
+          <a href="{{LINK}}" style="color:#163300;word-break:break-all;">{{LINK}}</a>
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="20px 16px">
+      <mj-column>
+        <mj-text align="center" font-size="11px" color="#88908A" line-height="1.6" padding="0">
+          Conditional B2B settlement at the mid-market rate — funds held in segregated EMI vaults.<br />
+          © Escrowrail
+        </mj-text>
+      </mj-column>
+    </mj-section>
+  </mj-body>
+</mjml>

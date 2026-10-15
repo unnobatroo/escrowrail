@@ -52,7 +52,7 @@ class ResendVerificationEmailSender implements VerificationEmailSender {
             return;
         }
         send(email, "Verify your Escrowrail account",
-                "✉️", "Verify your email",
+                "verify", "Verify your email",
                 "You're almost in. Confirm this email address to activate your"
                         + " Escrowrail account.",
                 "Verify email address", link,
@@ -70,7 +70,7 @@ class ResendVerificationEmailSender implements VerificationEmailSender {
             return;
         }
         send(email, "Reset your Escrowrail password",
-                "🔐", "Reset your password",
+                "reset", "Reset your password",
                 "We received a request to reset the password for your Escrowrail"
                         + " account.",
                 "Reset password", link,
@@ -94,7 +94,7 @@ class ResendVerificationEmailSender implements VerificationEmailSender {
             return;
         }
         send(email, inviterLegalName + " invited you to Escrowrail",
-                "🤝", inviterLegalName + " needs you",
+                "invite", inviterLegalName + " needs you",
                 inviterLegalName + " opened a conditional escrow trade with you"
                         + " on Escrowrail. Register to see and claim it — the"
                         + " funds only move when your delivery milestone is met.",
@@ -111,7 +111,7 @@ class ResendVerificationEmailSender implements VerificationEmailSender {
             return;
         }
         send(email, "Welcome to Escrowrail",
-                "🎉", "Welcome aboard, " + legalName,
+                "welcome", "Welcome aboard, " + legalName,
                 "Your organization is registered. Open your dashboard to create"
                         + " your first conditional trade.",
                 "Open dashboard", appBaseUrl,
@@ -128,9 +128,15 @@ class ResendVerificationEmailSender implements VerificationEmailSender {
                         "from", from,
                         "to", new String[]{email},
                         "subject", subject,
-                        "html", BrandedEmailTemplate.render(
-                                icon, heading, intro, cta, link, footnote,
-                                appBaseUrl + "/email-logo.png")))
+                        "html", BrandedEmailTemplate.render(Map.of(
+                                "SUBJECT", subject,
+                                "ICON", icon,
+                                "HEADING", heading,
+                                "INTRO", intro,
+                                "CTA", cta,
+                                "LINK", link,
+                                "FOOTNOTE", footnote,
+                                "BASE", appBaseUrl))))
                 .retrieve()
                 .toBodilessEntity();
     }
