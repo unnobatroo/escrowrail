@@ -21,7 +21,9 @@ export function Badge({
   className,
   variant = "default",
   ...props
-}: React.HTMLAttributes<HTMLSpanElement> & { variant?: keyof typeof VARIANTS }) {
+}: React.HTMLAttributes<HTMLSpanElement> & {
+  variant?: keyof typeof VARIANTS;
+}) {
   return (
     <span
       className={cn(

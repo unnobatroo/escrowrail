@@ -3,7 +3,9 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { accountsApi, apiError, demoApi, escrowApi, isDemoMode } from "../../api";
 import type { Account, ContractView } from "../../api";
+import { Handshake, ShieldCheck, TrendingUp, Wallet } from "lucide-react";
 import NewEscrowTradeModal from "./NewEscrowTradeModal";
+import { CurrencyFlag } from "../../shared/components/CurrencyFlag";
 import LedgerActivityFeed from "../ledger-activity/LedgerActivityFeed";
 import ContractExecutionDrawer from "./ContractExecutionDrawer";
 import WebhookSimulatorCard from "./WebhookSimulatorCard";
@@ -172,19 +174,28 @@ export default function Dashboard() {
       {/* Account cards — per-currency balances with sandbox top-up */}
       <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
         {(["USD", "EUR"] as const).map((cur) => (
-          <div key={cur} className="rounded-xl border border-slate-200 bg-white p-5">
+          <div
+            key={cur}
+            className="rounded-xl border border-slate-200 bg-white p-5"
+          >
             <div className="flex items-center justify-between">
-              <p className="text-sm text-[#5C685B]">{cur} Account</p>
-              {demoEnabled && (
-                <button
-                  data-testid={`topup-${cur.toLowerCase()}`}
-                  onClick={() => topUp(cur)}
-                  disabled={topupBusy === cur}
-                  className="rounded-full border border-[#163300] px-3 py-1 text-xs font-semibold text-[#163300] hover:bg-[#F4F5F0] disabled:opacity-40"
-                >
-                  + Add Funds
-                </button>
-              )}
+              <p className="flex items-center gap-2 text-sm font-medium text-[#5C685B]">
+                <CurrencyFlag code={cur} />
+                {cur} Account
+              </p>
+              <span className="flex items-center gap-2">
+                <Wallet size={15} className="text-[#5C685B]" />
+                {demoEnabled && (
+                  <button
+                    data-testid={`topup-${cur.toLowerCase()}`}
+                    onClick={() => topUp(cur)}
+                    disabled={topupBusy === cur}
+                    className="rounded-full border border-[#163300] px-3 py-1 text-xs font-semibold text-[#163300] hover:bg-[#F4F5F0] disabled:opacity-40"
+                  >
+                    + Add Funds
+                  </button>
+                )}
+              </span>
             </div>
             <AnimatedMoney
               testId={`metric-cash-${cur.toLowerCase()}`}
@@ -203,29 +214,35 @@ export default function Dashboard() {
         <div className="mb-4 rounded-lg bg-[#D1E7DD] px-3 py-2 text-sm text-[#0F5132]">{notice}</div>
       )}
 
-      <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="rounded-xl border border-slate-200 bg-white p-5">
+      <div className="mb-4 grid grid-cols-2 gap-3 sm:gap-4">
+        <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
           <p className="flex items-center gap-1 text-sm text-[#5C685B]">
-            Safeguarded in Escrow
+            <span className="mr-1 flex h-6 w-6 items-center justify-center rounded-full bg-[#CFF4FC] text-[#084298]">
+              <ShieldCheck size={13} />
+            </span>
+            Safeguarded
             <Tooltip
               label="About safeguarded funds"
               text="Under Electronic Money Regulations, Wise isolates 100% of escrowed balances from operational assets. Funds can never be lent or leveraged."
             />
           </p>
-          <p data-testid="metric-vault" className="num mt-1 text-2xl font-bold text-[#084298]">
+          <p data-testid="metric-vault" className="num mt-1 text-xl font-bold text-[#084298] sm:text-2xl">
             {money(safeguarded.toFixed(2), "EUR")}
           </p>
           <p className="text-xs text-[#5C685B]">Segregated EMI vault</p>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-5">
+        <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
           <p className="flex items-center gap-1 text-sm text-[#5C685B]">
-            Accrued Float Yield
+            <span className="mr-1 flex h-6 w-6 items-center justify-center rounded-full bg-[#D1E7DD] text-[#0F5132]">
+              <TrendingUp size={13} />
+            </span>
+            Float Yield
             <Tooltip
               label="About float yield"
               text="Interest generated on safeguarded EUR balances at the 3.5% ECB annualized base rate, accruing per millisecond while the vault holds funds."
             />
           </p>
-          <p data-testid="metric-yield" className="num mt-1 text-2xl font-bold text-[#0F5132]">
+          <p data-testid="metric-yield" className="num mt-1 text-xl font-bold text-[#0F5132] sm:text-2xl">
             {money(accruedYield.toFixed(4), "EUR")}
           </p>
           <p className="text-xs text-[#5C685B]">3.5% ECB base rate</p>
@@ -234,7 +251,9 @@ export default function Dashboard() {
 
       <div className="rounded-xl border border-slate-200 bg-white">
         <div className="flex items-center gap-2 border-b border-slate-200 px-5 py-3">
-          <h2 className="mr-4 font-semibold text-[#1B1C1D]">My Trades</h2>
+          <h2 className="mr-2 flex items-center gap-1.5 font-semibold text-[#1B1C1D] sm:mr-4">
+            <Handshake size={16} className="text-[#5C685B]" /> My Trades
+          </h2>
           {(["all", "active", "completed"] as Filter[]).map((f) => (
             <button
               key={f}
@@ -256,7 +275,7 @@ export default function Dashboard() {
             <tr className="border-b border-slate-200 text-left text-[#5C685B]">
               <th className="px-5 py-2 font-medium">Counterparty</th>
               <th className="px-5 py-2 font-medium">Invoice</th>
-              <th className="px-5 py-2 font-medium">Role</th>
+              <th className="hidden px-5 py-2 font-medium sm:table-cell">Role</th>
               <th className="px-5 py-2 font-medium">Status</th>
             </tr>
           </thead>
@@ -277,11 +296,17 @@ export default function Dashboard() {
               >
                 <td className="px-5 py-3 font-medium text-[#1B1C1D]">
                   {c.role === "buyer" ? c.seller_name : c.buyer_name}
+                  <span className="block text-xs font-normal capitalize text-[#5C685B] sm:hidden">
+                    you {c.role === "buyer" ? "buy from" : "sell to"} them
+                  </span>
                 </td>
                 <td className="px-5 py-3">
-                  {money(c.target_amount, c.target_currency)}
+                  <span className="num inline-flex items-center gap-1.5 whitespace-nowrap">
+                    <CurrencyFlag code={c.target_currency} />
+                    {money(c.target_amount, c.target_currency)}
+                  </span>
                 </td>
-                <td className="px-5 py-3 capitalize text-[#5C685B]">{c.role}</td>
+                <td className="hidden px-5 py-3 capitalize text-[#5C685B] sm:table-cell">{c.role}</td>
                 <td className="px-5 py-3">
                   <Badge variant={STATUS_VARIANT[c.status] ?? "default"}>
                     {c.status}
