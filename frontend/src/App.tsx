@@ -1,8 +1,8 @@
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { useAuth } from "./features/authentication/auth";
-import ContractDetail from "./features/escrow-trades/ContractDetail";
-import Dashboard from "./features/escrow-trades/Dashboard";
+import { useAuth } from "./features/authentication/AuthProvider";
+import ContractDetail from "./features/escrow-trades/drawer/ContractDetail";
+import Dashboard from "./features/escrow-trades/dashboard/Dashboard";
 import Login from "./features/authentication/Login";
 import Register from "./features/authentication/Register";
 import VerifyEmailView from "./features/authentication/VerifyEmailView";

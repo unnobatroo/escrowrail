@@ -16,12 +16,12 @@ PostgreSQL double-entry ledger.
 
 ## Live environments
 
-| Surface | Provider | URL | Status |
-| --- | --- | --- | --- |
-| **Frontend Web App** | Vercel | <https://escrowrail.vercel.app> | Production |
-| **Backend REST API** | Azure Container Apps | <https://escrowrail-api.redmoss-f42ffb4e.swedencentral.azurecontainerapps.io> (`/actuator/health`) | Production |
-| **Database** | Supabase | Managed PostgreSQL 16 (SSL enabled) | Active |
-| **Documentation** | `docs/wiki/` in-repo | [Wiki pages](docs/wiki/Home.md) | GitHub Wiki remote pending first manual page |
+| Surface              | Provider             | URL                                                                                                 | Status                                       |
+| -------------------- | -------------------- | --------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| **Frontend Web App** | Vercel               | <https://escrowrail.vercel.app>                                                                    | Production                                   |
+| **Backend REST API** | Azure Container Apps | <https://escrowrail-api.redmoss-f42ffb4e.swedencentral.azurecontainerapps.io> (`/actuator/health`) | Production                                   |
+| **Database**         | Supabase             | Managed PostgreSQL 16 (SSL enabled)                                                                 | Active                                       |
+| **Documentation**    | GitHub Wiki          | [Wiki](https://github.com/unnobatroo/escrowrail/wiki) (`docs/wiki/` in-repo)                         | Live                                         |
 
 ## The commercial deadlock
 
@@ -69,7 +69,7 @@ sequenceDiagram
     Ingress->>API: POST /api/v1/webhooks/milestone (HMAC verified)
     API->>Ledger: Settle payout (-0.8% milestone fee)
     Ledger->>Seller: Credit 9,920.00 EUR
-    Ledger->>API: Credit 80.00 EUR (Escrowrail Fee Account)
+    Ledger->>API: Credit 80.00 EUR (Platform Fee Account)
     API-->>UI: Status -> SETTLED
 ```
 
@@ -120,7 +120,7 @@ erDiagram
   concurrency relies on `SELECT … FOR UPDATE` locks taken in ascending-UUID
   order.
 - **Frontend** (`frontend/`): React 19, TypeScript, Vite, Tailwind with
-  Escrowrail Neptune tokens, Framer Motion (reduced-motion aware), feature-based
+  Escrowrail design tokens, Framer Motion (reduced-motion aware), feature-based
   layout (`features/escrow-trades`, `features/authentication`,
   `features/ledger-activity`, `features/company-profile`, `shared/`).
 - **Disclosures**: `StaticFxRateProvider` serves a deterministic mid-market

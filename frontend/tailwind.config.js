@@ -4,11 +4,10 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        // Escrowrail's real stack: "Escrowrail Sans" display face, Inter body fallback.
-        sans: ['"Escrowrail Sans"', "Inter", "ui-sans-serif", "system-ui", "sans-serif"],
+        sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
       },
       colors: {
-        // Verified against escrowrail.com's shipped CSS (Dec 2025 snapshot):
+        // Fintech-style palette snapshot:
         // steel-blue body text, blue interactive accent, minimal shadows.
         brand: {
           forest: "#163300",
@@ -28,7 +27,7 @@ export default {
           dangerSurface: "#FDF2F0",
           success: "#2EAD4B",
         },
-        escrowrail: {
+        escrow: {
           forest: "#163300",
           neon: "#9FE870",
           canvas: "#F4F5F0",

@@ -8,18 +8,13 @@ import {
   profileApi,
 } from "../../api";
 import type { UserProfile } from "../../api";
-import { useAuth } from "../authentication/auth";
+import { useAuth } from "../authentication/AuthProvider";
 import { money } from "../../shared/utilities/currencyFormatter";
 import { randomPersona } from "../../shared/utilities/personaGenerator";
 
-const input =
-  "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm";
+const input = "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm";
 
-/**
- * Self-service profile: legal entity name, tax identity, the one-time
- * onboarding deposit (per supported currency), and — in demo builds —
- * instant sandbox top-ups so evaluations never stall on empty balances.
- */
+/** Profile editor + one-time onboarding deposit + demo top-ups. */
 export default function ProfileSettingsModal({
   onClose,
   onSaved,
@@ -101,7 +96,7 @@ export default function ProfileSettingsModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="profile-modal-title"
-      className="fixed inset-0 z-20 flex items-center justify-center bg-black/40"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
     >
       <form
         onSubmit={save}
@@ -147,8 +142,7 @@ export default function ProfileSettingsModal({
         />
 
         <label className="mb-1 block text-sm font-medium text-[#5C685B]">
-          Tax ID{" "}
-          <span className="font-normal">({user?.entity.country})</span>
+          Tax ID <span className="font-normal">({user?.entity.country})</span>
         </label>
         <input
           data-testid="profile-taxid"

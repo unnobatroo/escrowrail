@@ -108,7 +108,7 @@ ALTER TABLE ONLY public.app_users
 
 ALTER TABLE ONLY public.idempotency_records
     ADD CONSTRAINT ukol0gjg0uap11mq1y9ug506f1i UNIQUE (idempotency_key);
--- Escrowrail system accounts (entity_id IS NULL): one row per (type, currency)
+-- platform system accounts (entity_id IS NULL): one row per (type, currency)
 -- for the singleton fee/clearing accounts. The (entity_id, type,
 -- currency) UNIQUE constraint cannot enforce this because Postgres
 -- treats NULLs as distinct. ESCROW_VAULT is deliberately excluded —
@@ -131,7 +131,7 @@ CREATE INDEX ledger_debit_idx ON public.ledger_transactions (debit_account_id);
 CREATE INDEX ledger_credit_idx ON public.ledger_transactions (credit_account_id);
 CREATE INDEX escrow_tracking_idx ON public.escrow_contracts (tracking_type, tracking_key);
 
--- Singleton Escrowrail system accounts for the supported pair. Seeding them
+-- Singleton platform system accounts for the supported pair. Seeding them
 -- here means services never race to create them at runtime.
 INSERT INTO public.accounts (id, entity_id, type, currency, balance) VALUES
     ('00000000-0000-0000-0000-000000000001', NULL, 'ESCROWRAIL_CLEARING', 'USD', 0),

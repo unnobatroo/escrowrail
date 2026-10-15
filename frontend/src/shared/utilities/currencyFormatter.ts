@@ -6,6 +6,18 @@ export function money(amount: string | number | null | undefined, currency: stri
   })} ${currency}`;
 }
 
+/** Exact cent-level sum of wire-formatted amounts — no float rounding. */
+export function sumMoney(amounts: (string | null | undefined)[]): string {
+  const cents = amounts.reduce<bigint>((sum, a) => {
+    if (!a) return sum;
+    const [whole, frac = ""] = a.split(".");
+    return sum + BigInt(whole) * 100n + BigInt((frac + "00").slice(0, 2));
+  }, 0n);
+  const neg = cents < 0n;
+  const abs = neg ? -cents : cents;
+  return `${neg ? "-" : ""}${abs / 100n}.${(abs % 100n).toString().padStart(2, "0")}`;
+}
+
 export function yieldAccrued(escrowed: string, fundedAt: string, nowMs: number): number {
   const elapsed = Math.max(0, (nowMs - Date.parse(fundedAt)) / 1000);
   return (Number(escrowed) * 0.035 * elapsed) / (365 * 86400);
@@ -13,7 +25,7 @@ export function yieldAccrued(escrowed: string, fundedAt: string, nowMs: number):
 
 const RTF = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
 
-/** "3h ago" / "yesterday" for ledger timestamps; falls back to locale date past a week. */
+/** "3h ago"/"yesterday" relative timestamps; locale date past a week. */
 export function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.round(diff / 60_000);

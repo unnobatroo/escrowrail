@@ -4,11 +4,11 @@ services:
     environment:
       POSTGRES_USER: escrowrail
       POSTGRES_PASSWORD: escrowrail
-      POSTGRES_DB: escrowrail_escrow
+      POSTGRES_DB: escrowrail
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U escrowrail -d escrowrail_escrow"]
+      test: ["CMD-SHELL", "pg_isready -U escrowrail -d escrowrail"]
       interval: 2s
       timeout: 3s
       retries: 20

@@ -35,7 +35,7 @@ sequenceDiagram
     Ingress->>API: POST /api/v1/webhooks/milestone (HMAC verified)
     API->>Ledger: Settle payout (-0.8% milestone fee)
     Ledger->>Seller: Credit 9,920.00 EUR
-    Ledger->>API: Credit 80.00 EUR (Escrowrail Fee Account)
+    Ledger->>API: Credit 80.00 EUR (Platform Fee Account)
     API-->>UI: Status -> SETTLED
 ```
 

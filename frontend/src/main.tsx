@@ -4,7 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 import { MotionConfig } from "framer-motion";
 import "./index.css";
 import App from "./App";
-import { AuthProvider } from "./features/authentication/auth";
+import { AuthProvider } from "./features/authentication/AuthProvider";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

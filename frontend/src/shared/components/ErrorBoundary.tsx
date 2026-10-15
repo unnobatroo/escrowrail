@@ -21,7 +21,7 @@ export default class ErrorBoundary extends Component<
           <h1 className="mt-4 text-lg font-bold text-brand-charcoal">
             Something went wrong
           </h1>
-          <p className="mt-1 text-sm text-escrowrail-subtext">
+          <p className="mt-1 text-sm text-escrow-subtext">
             The interface hit an unexpected error. Your funds are unaffected —
             balances live server-side.
           </p>

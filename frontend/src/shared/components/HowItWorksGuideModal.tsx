@@ -26,7 +26,7 @@ const STAGES = [
   },
 ];
 
-/** "How Escrowrail Escrow Works" — 4-stage explainer drawer from the header. */
+/** "How Escrowrail Works" — 4-stage explainer drawer from the header. */
 export default function HowItWorksGuideModal({ onClose }: { onClose: () => void }) {
   const dialogRef = useRef<HTMLDivElement>(null);
   useDialogA11y(dialogRef, onClose);
@@ -36,10 +36,10 @@ export default function HowItWorksGuideModal({ onClose }: { onClose: () => void 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-20 flex items-center justify-center bg-brand-forest/30 p-4 backdrop-blur-md"
+        className="fixed inset-0 z-50 flex items-center justify-center bg-brand-forest/30 p-4 backdrop-blur-md"
         role="dialog"
         aria-modal="true"
-        aria-label="How Escrowrail Escrow works"
+        aria-label="How Escrowrail works"
       >
         <motion.div
           initial={{ scale: 0.95, opacity: 0, y: 16 }}
@@ -51,7 +51,7 @@ export default function HowItWorksGuideModal({ onClose }: { onClose: () => void 
         >
           <div className="mb-5 flex items-center justify-between">
             <h2 className="text-lg font-bold text-brand-charcoal">
-              How Escrowrail Escrow works
+              How Escrowrail works
             </h2>
             <button
               onClick={onClose}
