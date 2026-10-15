@@ -11,7 +11,12 @@ export default function VerifyEmailView() {
   const { verifyEmail, user } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const email = params.get("email") ?? "";
+  const paramEmail = params.get("email") ?? "";
+  // Fall back to the signed-in user's email — the Guard may have redirected
+  // here with no param, and a literal "undefined" would silently no-op the
+  // resend endpoint (it can't enumerate unknown addresses).
+  const email =
+    paramEmail && paramEmail !== "undefined" ? paramEmail : (user?.email ?? "");
   const urlToken = params.get("token") ?? "";
 
   const [token, setToken] = useState(urlToken);

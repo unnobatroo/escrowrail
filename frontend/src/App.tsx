@@ -41,7 +41,11 @@ function Guard({ children }: { children: React.ReactNode }) {
   if (!user.email_verified)
     return (
       <Navigate
-        to={`/verify-email?email=${encodeURIComponent(user.email)}`}
+        to={
+          user.email
+            ? `/verify-email?email=${encodeURIComponent(user.email)}`
+            : "/verify-email"
+        }
         replace
       />
     );
@@ -71,12 +75,22 @@ export default function App() {
           <Routes location={location}>
             <Route
               path="/login"
-              element={user ? <Navigate to="/dashboard" replace /> : <Login />}
+              element={
+                user?.email_verified ? (
+                  <Navigate to="/dashboard" replace />
+                ) : (
+                  <Login />
+                )
+              }
             />
             <Route
               path="/register"
               element={
-                user ? <Navigate to="/dashboard" replace /> : <Register />
+                user?.email_verified ? (
+                  <Navigate to="/dashboard" replace />
+                ) : (
+                  <Register />
+                )
               }
             />
             <Route path="/verify-email" element={<VerifyEmailView />} />
