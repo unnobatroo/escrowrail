@@ -28,6 +28,17 @@ param logisticsWebhookSecret string
 @secure()
 param resendApiKey string
 
+@description('Sender identity — must be on a verified Resend domain')
+param mailFrom string = 'Escrowrail <noreply@send.jismailov.com>'
+
+@secure()
+@description('Staging database URL — separate from prod so tests never touch live rows')
+param stagingDbUrl string = ''
+@secure()
+param stagingDbUser string = ''
+@secure()
+param stagingDbPassword string = ''
+
 param corsOrigins string = 'https://escrowrail.vercel.app'
 
 var acrName = 'escrowrailacr'
@@ -44,6 +55,9 @@ var secrets = [
   { name: 'dbpw', value: dbPassword }
   { name: 'dburl', value: dbUrl }
   { name: 'dbuser', value: dbUser }
+  { name: 'stg-dburl', value: empty(stagingDbUrl) ? dbUrl : stagingDbUrl }
+  { name: 'stg-dbuser', value: empty(stagingDbUser) ? dbUser : stagingDbUser }
+  { name: 'stg-dbpw', value: empty(stagingDbPassword) ? dbPassword : stagingDbPassword }
   { name: 'jwt', value: jwtSecret }
   { name: 'enckey', value: fieldEncryptionKey }
   { name: 'ghsec', value: githubWebhookSecret }
@@ -61,6 +75,20 @@ var sharedEnv = [
   { name: 'ESCROWRAIL_GITHUB_WEBHOOK_SECRET', secretRef: 'ghsec' }
   { name: 'ESCROWRAIL_LOGISTICS_WEBHOOK_SECRET', secretRef: 'losec' }
   { name: 'ESCROWRAIL_MAIL_RESEND_API_KEY', secretRef: 'resend' }
+  { name: 'ESCROWRAIL_MAIL_FROM', value: mailFrom }
+  { name: 'PORT', value: '8080' }
+]
+
+var stagingEnv = [
+  { name: 'SPRING_DATASOURCE_URL', secretRef: 'stg-dburl' }
+  { name: 'SPRING_DATASOURCE_USERNAME', secretRef: 'stg-dbuser' }
+  { name: 'SPRING_DATASOURCE_PASSWORD', secretRef: 'stg-dbpw' }
+  { name: 'JWT_SECRET', secretRef: 'jwt' }
+  { name: 'ESCROWRAIL_FIELD_ENCRYPTION_KEY', secretRef: 'enckey' }
+  { name: 'ESCROWRAIL_GITHUB_WEBHOOK_SECRET', secretRef: 'ghsec' }
+  { name: 'ESCROWRAIL_LOGISTICS_WEBHOOK_SECRET', secretRef: 'losec' }
+  { name: 'ESCROWRAIL_MAIL_RESEND_API_KEY', secretRef: 'resend' }
+  { name: 'ESCROWRAIL_MAIL_FROM', value: mailFrom }
   { name: 'PORT', value: '8080' }
 ]
 
@@ -90,9 +118,9 @@ resource prodApp 'Microsoft.App/containerApps@2024-03-01' = {
       containers: [{
         name: 'api'
         image: image
-        resources: { cpu: '0.5', memory: '1Gi' }
+        resources: { cpu: json('0.5'), memory: '1Gi' }
         env: concat(sharedEnv, [
-          { name: 'SPRING_PROFILES_ACTIVE', value: 'prod,demo' }
+          { name: 'SPRING_PROFILES_ACTIVE', value: 'prod' }
           { name: 'ESCROWRAIL_CORS_ORIGINS', value: corsOrigins }
         ])
       }]
@@ -115,8 +143,8 @@ resource stagingApp 'Microsoft.App/containerApps@2024-03-01' = {
       containers: [{
         name: 'api'
         image: image
-        resources: { cpu: '0.5', memory: '1Gi' }
-        env: concat(sharedEnv, [
+        resources: { cpu: json('0.5'), memory: '1Gi' }
+        env: concat(stagingEnv, [
           { name: 'SPRING_PROFILES_ACTIVE', value: 'demo' }
           { name: 'ESCROWRAIL_CORS_ORIGINS', value: corsOrigins }
         ])

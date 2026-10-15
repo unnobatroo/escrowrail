@@ -24,7 +24,7 @@ APP=${APP:-escrowrail-api}
 ACR=${ACR:-escrowrailacr}
 REGION=${REGION:-swedencentral}
 ENV_NAME=${ENV_NAME:-escrowrail-env}
-PROFILE=${PROFILE:-prod,demo}   # staging callers pass PROFILE=demo
+PROFILE=${PROFILE:-prod}   # staging callers pass PROFILE=demo
 IMAGE_REPO="$ACR.azurecr.io/escrowrail-backend"
 TAG=latest
 
@@ -53,8 +53,29 @@ echo ">> pushed digest $DIGEST"
 
 if az containerapp show -g "$RG" -n "$APP" >/dev/null 2>&1; then
   echo ">> updating $APP (digest-pinned, scale-to-zero)"
+  az containerapp secret set -g "$RG" -n "$APP" --secrets \
+    "dbpw=$SPRING_DATASOURCE_PASSWORD" "jwt=$JWT_SECRET" \
+    "enckey=$ESCROWRAIL_FIELD_ENCRYPTION_KEY" "ghsec=$ESCROWRAIL_GITHUB_WEBHOOK_SECRET" \
+    "losec=$ESCROWRAIL_LOGISTICS_WEBHOOK_SECRET" \
+    "resend=$ESCROWRAIL_MAIL_RESEND_API_KEY" --output none
   az containerapp update -g "$RG" -n "$APP" \
-    --image "$IMAGE_REPO@$DIGEST" --min-replicas 0 --output none
+    --image "$IMAGE_REPO@$DIGEST" --min-replicas 0 \
+    --set-env-vars \
+      "SPRING_PROFILES_ACTIVE=$PROFILE" \
+      "SPRING_DATASOURCE_URL=$SPRING_DATASOURCE_URL" \
+      "SPRING_DATASOURCE_USERNAME=$SPRING_DATASOURCE_USERNAME" \
+      "SPRING_DATASOURCE_PASSWORD=secretref:dbpw" \
+      "JWT_SECRET=secretref:jwt" \
+      "ESCROWRAIL_FIELD_ENCRYPTION_KEY=secretref:enckey" \
+      "ESCROWRAIL_GITHUB_WEBHOOK_SECRET=secretref:ghsec" \
+      "ESCROWRAIL_LOGISTICS_WEBHOOK_SECRET=secretref:losec" \
+      "ESCROWRAIL_MAIL_RESEND_API_KEY=secretref:resend" \
+      "ESCROWRAIL_MAIL_FROM=${ESCROWRAIL_MAIL_FROM:-Escrowrail <noreply@send.jismailov.com>}" \
+      "ESCROWRAIL_CORS_ORIGINS=$ESCROWRAIL_CORS_ORIGINS" \
+      "DEMO_BUYER_PASSWORD=${DEMO_BUYER_PASSWORD:-EscrowDemo123!}" \
+      "DEMO_SELLER_PASSWORD=${DEMO_SELLER_PASSWORD:-EscrowDemo123!}" \
+      "PORT=8080" \
+    --output none
 else
   echo ">> creating container app env + app"
   az containerapp env create -g "$RG" -n "$ENV_NAME" -l "$REGION" --output none
