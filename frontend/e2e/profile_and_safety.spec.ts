@@ -58,7 +58,8 @@ test("randomize identity → onboarding → shortfall → top-up → fund", asyn
   await page.getByTestId("cp-email").fill("seller@demo.com");
   await page.getByTestId("amount").fill("30000");
   await page.getByTestId("tracking-key").fill(`safety-${Date.now()}`);
-  await expect(page.getByTestId("quote-total")).toContainText("USD");
+  await expect(page.getByTestId("quote-total")).not.toHaveValue("");
+  await expect(page.getByTestId("source-currency")).toHaveValue("USD");
   await page.getByTestId("create-trade").click();
   await expect(page.getByTestId("trade-drawer")).toBeVisible();
 

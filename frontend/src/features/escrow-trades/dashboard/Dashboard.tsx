@@ -54,12 +54,21 @@ export default function Dashboard() {
   };
 
   useEffect(reload, [refreshKey]);
+  // Live dashboard: poll while the tab is visible — settlement is
+  // webhook-driven, so this is how trades flip to SETTLED in the UI.
+  useEffect(() => {
+    const t = setInterval(() => {
+      if (document.visibilityState === "visible") reload();
+    }, 5000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   useEffect(() => {
     if (!isDemoMode()) return;
     demoApi.config().then((r) => setDemoEnabled(r.data.enabled)).catch(() => {});
   }, []);
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 100);
+    const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
   useEffect(() => {

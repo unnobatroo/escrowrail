@@ -59,7 +59,8 @@ test("Complete P2P Trade: Buyer creates and funds -> Seller receives settlement"
   await page.getByTestId("amount").fill("10000.00");
   await page.getByTestId("tracking-type").selectOption("GITHUB_PR");
   await page.getByTestId("tracking-key").fill(TRACKING_URL);
-  await expect(page.getByTestId("quote-total")).toContainText("USD");
+  await expect(page.getByTestId("quote-total")).not.toHaveValue("");
+  await expect(page.getByTestId("source-currency")).toHaveValue("USD");
   await page.getByTestId("create-trade").click();
 
   // Wait for the create POST to land (onCreated navigates to the contract

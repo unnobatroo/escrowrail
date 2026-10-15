@@ -1,14 +1,26 @@
+import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "./features/authentication/AuthProvider";
-import ContractDetail from "./features/escrow-trades/drawer/ContractDetail";
-import Dashboard from "./features/escrow-trades/dashboard/Dashboard";
-import Login from "./features/authentication/Login";
-import Register from "./features/authentication/Register";
-import VerifyEmailView from "./features/authentication/VerifyEmailView";
-import ForgotPasswordView from "./features/authentication/ForgotPasswordView";
-import ResetPasswordView from "./features/authentication/ResetPasswordView";
 import ErrorBoundary from "./shared/components/ErrorBoundary";
+
+const ContractDetail = lazy(
+  () => import("./features/escrow-trades/drawer/ContractDetail"),
+);
+const Dashboard = lazy(
+  () => import("./features/escrow-trades/dashboard/Dashboard"),
+);
+const Login = lazy(() => import("./features/authentication/Login"));
+const Register = lazy(() => import("./features/authentication/Register"));
+const VerifyEmailView = lazy(
+  () => import("./features/authentication/VerifyEmailView"),
+);
+const ForgotPasswordView = lazy(
+  () => import("./features/authentication/ForgotPasswordView"),
+);
+const ResetPasswordView = lazy(
+  () => import("./features/authentication/ResetPasswordView"),
+);
 
 function Guard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -49,6 +61,13 @@ export default function App() {
           exit={{ opacity: 0, y: -6 }}
           transition={{ duration: 0.18, ease: "easeOut" }}
         >
+          <Suspense
+            fallback={
+              <div className="flex min-h-screen items-center justify-center bg-brand-sand">
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-forest border-t-transparent" />
+              </div>
+            }
+          >
           <Routes location={location}>
             <Route
               path="/login"
@@ -86,6 +105,7 @@ export default function App() {
               }
             />
           </Routes>
+          </Suspense>
         </motion.div>
       </AnimatePresence>
     </ErrorBoundary>

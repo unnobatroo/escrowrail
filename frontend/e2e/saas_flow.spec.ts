@@ -137,7 +137,8 @@ test("buyer invites seller, funds in USD, webhook settles, seller paid EUR", asy
   const trackingKey = `https://github.com/o/r/pull/${run}`;
   await page.getByTestId("tracking-type").selectOption("GITHUB_PR");
   await page.getByTestId("tracking-key").fill(trackingKey);
-  await expect(page.getByTestId("quote-total")).toContainText("USD");
+  await expect(page.getByTestId("quote-total")).not.toHaveValue("");
+  await expect(page.getByTestId("source-currency")).toHaveValue("USD");
   await page.getByTestId("create-trade").click();
 
   // Contract detail: buyer funds; vault locks exactly 1,000.00 EUR.
