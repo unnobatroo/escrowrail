@@ -3,7 +3,8 @@ package com.escrowrail;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.escrowrail.application.service.EscrowService;
+import com.escrowrail.application.dto.Quote;
+import com.escrowrail.application.service.QuoteCalculator;
 import com.escrowrail.application.service.FxRateProvider;
 import com.escrowrail.application.service.LedgerService;
 import com.escrowrail.domain.exception.CurrencyMismatchException;
@@ -39,16 +40,8 @@ import org.javamoney.moneta.Money;
  */
 class DomainInvariantPropertyTest {
 
-    private final FxRateProvider fx = new StaticFxRateProviderProbe();
-    private final EscrowService service = new EscrowService(
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        fx,
-        null
+    private final QuoteCalculator calculator = new QuoteCalculator(
+        new StaticFxRateProviderProbe()
     );
 
     /** Static table copy so the property stays independent of the bean. */
@@ -79,7 +72,7 @@ class DomainInvariantPropertyTest {
     /** The quoted deposit always converts to at least the target amount. */
     @Property
     void quotedDepositAlwaysCoversTarget(@ForAll("amounts") BigDecimal target) {
-        EscrowService.Quote q = service.quote("USD", "EUR", target);
+        Quote q = calculator.quote("USD", "EUR", target);
         BigDecimal converted = q
             .principal()
             .multiply(q.midMarketRate())

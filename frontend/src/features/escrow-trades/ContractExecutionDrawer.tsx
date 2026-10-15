@@ -5,7 +5,9 @@ import { accountsApi, apiError, escrowApi } from "../../api";
 import type { ContractView, LedgerEntry, Quote } from "../../api";
 import FundingConfirmSheet from "./FundingConfirmSheet";
 import EscrowMilestoneStepper from "./EscrowMilestoneStepper";
-import Tooltip from "../../shared/components/Tooltip";
+import FxSnapshotSection from "./FxSnapshotSection";
+import AuditTrailSection from "./AuditTrailSection";
+import CancelConfirmDialog from "./CancelConfirmDialog";
 import { useDialogA11y } from "../../shared/hooks/useDialogA11y";
 import CopyButton from "../../shared/components/CopyButton";
 import { Skeleton } from "../../components/ui/skeleton";
@@ -117,8 +119,6 @@ export default function ContractExecutionDrawer({
       ? yieldAccrued(contract.escrowed_amount ?? "0", contract.funded_at, now)
       : 0;
 
-  const fxFee = quote?.platform_fee ?? contract?.platform_conversion_fee ?? null;
-
   return (
     <div className="fixed inset-0 z-50" data-testid="trade-drawer">
       <motion.div
@@ -201,50 +201,7 @@ export default function ContractExecutionDrawer({
                 </div>
               )}
 
-              {/* FX snapshot */}
-              <section className="rounded-xl border border-slate-200 p-4">
-                <h3 className="mb-3 flex items-center gap-1 text-sm font-semibold text-[#1B1C1D]">
-                  FX Snapshot
-                  <Tooltip
-                    label="About the mid-market rate"
-                    text="The true midpoint between buy and sell prices in global currency markets without added markup spreads."
-                  />
-                </h3>
-                <dl className="space-y-2 text-sm">
-                  <Row
-                    k="Locked spot rate"
-                    v={
-                      contract.locked_spot_rate
-                        ? `${Number(contract.locked_spot_rate).toFixed(8)} ${contract.target_currency}/${contract.source_currency}`
-                        : "—"
-                    }
-                    mono
-                  />
-                  <Row
-                    k="Initial deposit"
-                    v={
-                      contract.deposit_amount
-                        ? money(contract.deposit_amount, contract.source_currency)
-                        : quote
-                          ? money(quote.total_deposit, quote.source_currency)
-                          : "—"
-                    }
-                  />
-                  <Row
-                    k="Upfront FX fee (0.5%)"
-                    v={fxFee ? money(fxFee, contract.source_currency) : "—"}
-                  />
-                  <Row
-                    k="Vault balance"
-                    v={
-                      contract.escrowed_amount
-                        ? money(contract.escrowed_amount, contract.target_currency)
-                        : "—"
-                    }
-                    testId="vault-balance"
-                  />
-                </dl>
-              </section>
+              <FxSnapshotSection contract={contract} quote={quote} />
 
               {/* Live float interest */}
               {contract.status === "FUNDED" && (
@@ -265,45 +222,7 @@ export default function ContractExecutionDrawer({
                 </section>
               )}
 
-              {/* Cryptographic audit trail */}
-              <section className="rounded-xl border border-slate-200">
-                <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5">
-                  <h3 className="flex items-center gap-1 text-sm font-semibold text-[#1B1C1D]">
-                    Cryptographic Audit Trail
-                    <Tooltip
-                      label="About audit hash integrity"
-                      text="A cryptographic SHA-256 seal linking this transaction to all previous ledger entries. Any alteration invalidates the audit proof."
-                    />
-                  </h3>
-                  {audit.length > 0 && (
-                    <span className="rounded-full bg-[#D1E7DD] px-2 py-0.5 text-xs font-semibold text-[#0F5132]">
-                      Audit Integrity Verified
-                    </span>
-                  )}
-                </div>
-                <div data-testid="audit-body" className="max-h-56 overflow-y-auto">
-                  {audit.length === 0 && (
-                    <p className="px-4 py-4 text-sm text-[#5C685B]">
-                      No ledger entries yet — the trail starts at funding.
-                    </p>
-                  )}
-                  {audit.map((e) => (
-                    <div key={e.id} className="border-b border-slate-100 px-4 py-2 last:border-0">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-[#1B1C1D]">{e.description}</span>
-                        <span className="font-medium">{money(e.amount, e.currency)}</span>
-                      </div>
-                      <div className="mt-0.5 flex justify-between text-xs text-[#5C685B]">
-                        <span>{new Date(e.created_at).toLocaleString()}</span>
-                        <span className="flex items-center gap-1 font-mono">
-                          SHA-256 {e.current_hash.slice(0, 16)}…
-                          <CopyButton text={e.current_hash} label="audit hash" />
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
+              <AuditTrailSection audit={audit} />
 
               {/* Role-gated actions */}
               {contract.role === "buyer" && contract.status === "INITIATED" && (
@@ -341,32 +260,11 @@ export default function ContractExecutionDrawer({
       </motion.aside>
 
       {showCancel && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-            <h3 className="mb-2 font-bold text-[#1B1C1D]">Cancel contract?</h3>
-            <p className="mb-4 text-sm text-[#5C685B]">
-              Vaulted funds liquidate back to your originating USD account at the
-              current spot rate — you absorb any FX movement. Escrowrail retains the
-              original 0.5% conversion fee.
-            </p>
-            <div className="flex gap-2">
-              <button
-                data-testid="confirm-cancel"
-                onClick={cancel}
-                disabled={busy}
-                className="flex-1 rounded-full bg-[#BA1A1A] py-2 font-semibold text-white"
-              >
-                Confirm cancellation
-              </button>
-              <button
-                onClick={() => setShowCancel(false)}
-                className="flex-1 rounded-full border border-slate-300 py-2 font-semibold text-[#5C685B]"
-              >
-                Keep escrow
-              </button>
-            </div>
-          </div>
-        </div>
+        <CancelConfirmDialog
+          busy={busy}
+          onConfirm={cancel}
+          onDismiss={() => setShowCancel(false)}
+        />
       )}
 
       {/* What-you-see-is-what-you-pay funding sheet */}
@@ -381,27 +279,6 @@ export default function ContractExecutionDrawer({
           onClose={() => setShowFundSheet(false)}
         />
       )}
-    </div>
-  );
-}
-
-function Row({
-  k,
-  v,
-  mono,
-  testId,
-}: {
-  k: string;
-  v: string;
-  mono?: boolean;
-  testId?: string;
-}) {
-  return (
-    <div className="flex justify-between gap-4">
-      <dt className="text-[#5C685B]">{k}</dt>
-      <dd data-testid={testId} className={`text-right ${mono ? "font-mono text-xs" : "font-medium"}`}>
-        {v}
-      </dd>
     </div>
   );
 }

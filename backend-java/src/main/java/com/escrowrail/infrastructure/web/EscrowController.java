@@ -7,6 +7,7 @@ import com.escrowrail.infrastructure.web.dto.escrow.FundEscrowTradeRequest;
 import com.escrowrail.infrastructure.web.dto.escrow.TradeInvitedResponse;
 import com.escrowrail.infrastructure.web.dto.ledger.LedgerTransactionResponse;
 import com.escrowrail.infrastructure.web.dto.escrow.QuotePreviewResponse;
+import com.escrowrail.application.dto.Quote;
 import com.escrowrail.application.service.EscrowService;
 import com.escrowrail.domain.exception.NotFoundException;
 import com.escrowrail.domain.model.EscrowContract;
@@ -141,7 +142,7 @@ public class EscrowController {
             @RequestParam(value = "target_currency", defaultValue = "EUR") String targetCurrency,
             @RequestParam(value = "source_currency", defaultValue = "USD") String sourceCurrency) {
         TenantPrincipal.entityId(); // auth gate
-        EscrowService.Quote q = service.quote(sourceCurrency, targetCurrency, targetAmount);
+        Quote q = service.quote(sourceCurrency, targetCurrency, targetAmount);
         var bank = q.traditionalBankEstimate();
         return new QuotePreviewResponse(
                 q.sourceCurrency(),

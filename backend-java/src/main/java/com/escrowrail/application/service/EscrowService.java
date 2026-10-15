@@ -1,31 +1,18 @@
 package com.escrowrail.application.service;
 
-import com.escrowrail.application.dto.Events.ContractCancelled;
-import com.escrowrail.application.dto.Events.ContractFunded;
-import com.escrowrail.application.dto.Events.ContractSettled;
 import com.escrowrail.application.dto.Events.CounterpartyInvited;
+import com.escrowrail.application.dto.Quote;
 import com.escrowrail.domain.exception.CircularOwnershipException;
-import com.escrowrail.domain.exception.ForbiddenException;
-import com.escrowrail.domain.exception.InsufficientFundsException;
-import com.escrowrail.domain.exception.InvalidStateTransitionException;
 import com.escrowrail.domain.exception.NotFoundException;
-import com.escrowrail.domain.exception.ValidationException;
-import com.escrowrail.domain.model.Account;
-import com.escrowrail.domain.model.AccountType;
 import com.escrowrail.domain.model.EscrowContract;
-import com.escrowrail.domain.model.EscrowStatus;
-import com.escrowrail.domain.model.MoneyAmounts;
 import com.escrowrail.domain.model.Organization;
 import com.escrowrail.domain.model.TrackingType;
-import com.escrowrail.domain.repository.AccountRepository;
 import com.escrowrail.domain.repository.AppUserRepository;
 import com.escrowrail.domain.repository.EscrowContractRepository;
 import com.escrowrail.domain.repository.LedgerRepository;
 import com.escrowrail.domain.repository.LedgerRepository.LedgerEntry;
 import com.escrowrail.domain.repository.OrganizationRepository;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -36,52 +23,48 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Escrow lifecycle. Every mutation runs in one transaction holding
- * PESSIMISTIC_WRITE locks on the contract and all touched account rows;
- * events go through the Modulith outbox in the same transaction.
+ * Escrow contract coordinator: tenant-scoped reads, creation, and invites.
+ * The money-moving legs live in {@link EscrowFundingService},
+ * {@link EscrowSettlementService}, and {@link EscrowCancellationService};
+ * pricing in {@link QuoteCalculator}. Mutations run in one transaction with
+ * PESSIMISTIC_WRITE locks; events go through the Modulith outbox.
  */
 @Service
 public class EscrowService {
 
-    /** Platform conversion fee, taken in source currency at funding time. */
-    public static final BigDecimal CONVERSION_FEE_RATE = new BigDecimal(
-        "0.005"
-    );
-
-    /** Settlement take rate, taken in target currency from the vault. */
-    public static final BigDecimal SETTLEMENT_FEE_RATE = new BigDecimal(
-        "0.008"
-    );
-
-    private static final BigDecimal CENT = new BigDecimal("0.01");
-
     private final EscrowContractRepository contracts;
-    private final AccountRepository accounts;
     private final OrganizationRepository organizations;
     private final AppUserRepository users;
     private final LedgerRepository ledger;
-    private final LedgerService ledgerService;
     private final FxRateProvider fx;
     private final ApplicationEventPublisher events;
+    private final QuoteCalculator quotes;
+    private final EscrowFundingService funding;
+    private final EscrowSettlementService settlement;
+    private final EscrowCancellationService cancellation;
 
     public EscrowService(
         EscrowContractRepository contracts,
-        AccountRepository accounts,
         OrganizationRepository organizations,
         AppUserRepository users,
         LedgerRepository ledger,
-        LedgerService ledgerService,
         FxRateProvider fx,
-        ApplicationEventPublisher events
+        ApplicationEventPublisher events,
+        QuoteCalculator quotes,
+        EscrowFundingService funding,
+        EscrowSettlementService settlement,
+        EscrowCancellationService cancellation
     ) {
         this.contracts = contracts;
-        this.accounts = accounts;
         this.organizations = organizations;
         this.users = users;
         this.ledger = ledger;
-        this.ledgerService = ledgerService;
         this.fx = fx;
         this.events = events;
+        this.quotes = quotes;
+        this.funding = funding;
+        this.settlement = settlement;
+        this.cancellation = cancellation;
     }
 
     // ---------- reads (tenant-scoped) ----------
@@ -242,485 +225,29 @@ public class EscrowService {
         }
     }
 
-    /**
-     * Funds the contract: 0.5% fee in source currency, remainder converted at
-     * spot and vaulted in target currency. Fee minimum 0.01; HALF_EVEN cents.
-     * Publishes the funded event atomically.
-     *
-     * @return the saved funded contract
-     * @throws NotFoundException if the contract/account is absent or actor is not a party
-     * @throws ForbiddenException if the actor is the seller
-     * @throws InvalidStateTransitionException if the contract is not INITIATED
-     * @throws com.escrowrail.domain.exception.CurrencyMismatchException if the deposit is not in source currency
-     * @throws InsufficientFundsException if the deposit does not cover the target
-     *     after conversion or the buyer cannot cover the deposit
-     * @throws IllegalStateException if a required system account is missing
-     * @throws com.escrowrail.domain.exception.UnsupportedCurrencyPairException if no FX rate is available
-     */
-    @Transactional(isolation = Isolation.READ_COMMITTED)
+    // ---------- delegated legs ----------
+
     public EscrowContract fundContract(
         UUID contractId,
         UUID actorEntityId,
         MonetaryAmount deposit
     ) {
-        EscrowContract contract = contracts
-            .findByIdForUpdate(contractId)
-            .orElseThrow(() ->
-                new NotFoundException("Contract not found: " + contractId)
-            );
-        if (!contract.involves(actorEntityId)) {
-            throw new NotFoundException("Contract not found: " + contractId);
-        }
-        if (!contract.isBuyer(actorEntityId)) {
-            throw new ForbiddenException(
-                "Only the buyer may fund this contract"
-            );
-        }
-        if (contract.status() != EscrowStatus.INITIATED) {
-            throw new InvalidStateTransitionException(
-                "Contract %s is %s".formatted(contractId, contract.status())
-            );
-        }
-        if (
-            !deposit
-                .getCurrency()
-                .getCurrencyCode()
-                .equals(contract.sourceCurrency())
-        ) {
-            throw new com.escrowrail.domain.exception.CurrencyMismatchException(
-                "Deposit must be in " + contract.sourceCurrency()
-            );
-        }
-
-        UUID buyerAccountId = accounts
-            .findAccountId(
-                actorEntityId,
-                AccountType.USER,
-                contract.sourceCurrency()
-            )
-            .orElseThrow(() ->
-                new NotFoundException("Funding account not found")
-            );
-        UUID clearingSourceId = systemAccountId(
-            AccountType.ESCROWRAIL_CLEARING,
-            contract.sourceCurrency()
-        );
-        UUID clearingTargetId = systemAccountId(
-            AccountType.ESCROWRAIL_CLEARING,
-            contract.targetCurrency()
-        );
-        UUID feeAccountId = systemAccountId(
-            AccountType.ESCROWRAIL_FEE,
-            contract.sourceCurrency()
-        );
-        // Lock all touched rows in global UUID order (as LedgerService) —
-        // fund vs refund would deadlock on opposite clearing accounts.
-        var locked = lockAll(
-            List.of(buyerAccountId, clearingSourceId, clearingTargetId, feeAccountId)
-        );
-        Account buyerAccount = locked.get(buyerAccountId);
-        Account clearingSource = locked.get(clearingSourceId);
-        Account feeAccount = locked.get(feeAccountId);
-
-        BigDecimal depositValue = deposit
-            .getNumber()
-            .numberValue(BigDecimal.class);
-        if (depositValue.stripTrailingZeros().scale() > 2) {
-            throw new ValidationException(
-                "depositAmount must have at most 2 decimal places"
-            );
-        }
-        BigDecimal fee = depositValue
-            .multiply(CONVERSION_FEE_RATE)
-            .setScale(2, RoundingMode.HALF_EVEN)
-            .max(CENT);
-        BigDecimal principal = depositValue.subtract(fee);
-        BigDecimal rate = fx.getRate(
-            contract.sourceCurrency(),
-            contract.targetCurrency()
-        );
-        BigDecimal converted = principal
-            .multiply(rate)
-            .setScale(2, RoundingMode.HALF_EVEN);
-        BigDecimal target = contract
-            .targetAmount()
-            .getNumber()
-            .numberValue(BigDecimal.class);
-        if (converted.compareTo(target) < 0) {
-            throw new InsufficientFundsException(
-                "Deposit %s converts to %s %s, below target %s".formatted(
-                    depositValue,
-                    converted,
-                    contract.targetCurrency(),
-                    target
-                )
-            );
-        }
-        // Over-deposit would over-vault the target — reject rather than escrow.
-        Quote required = quote(
-            contract.sourceCurrency(),
-            contract.targetCurrency(),
-            target
-        );
-        if (depositValue.compareTo(required.totalDeposit()) > 0) {
-            throw new ValidationException(
-                "Deposit %s exceeds quoted total %s".formatted(
-                    depositValue,
-                    required.totalDeposit()
-                )
-            );
-        }
-
-        // Full deposit up front; empty account gets its own code so the UI
-        // can route to top-up.
-        BigDecimal buyerBalance = buyerAccount
-            .balance()
-            .getNumber()
-            .numberValue(BigDecimal.class);
-        if (buyerBalance.signum() == 0) {
-            throw new com.escrowrail.domain.exception.ZeroBalanceException(
-                "Your %s account is empty — it needs %s to fund this trade"
-                    .formatted(contract.sourceCurrency(), depositValue)
-            );
-        }
-        if (buyerAccount.balance().subtract(deposit).isNegative()) {
-            throw new InsufficientFundsException(
-                "Balance %s cannot cover deposit %s".formatted(
-                    buyerAccount.balance(),
-                    deposit
-                )
-            );
-        }
-
-        UUID cid = contract.id();
-        ledgerService.transfer(
-            buyerAccount.id(),
-            feeAccount.id(),
-            MoneyAmounts.of(fee, contract.sourceCurrency()),
-            "FX conversion fee (0.5%)",
-            cid
-        );
-        ledgerService.transfer(
-            buyerAccount.id(),
-            clearingSource.id(),
-            MoneyAmounts.of(principal, contract.sourceCurrency()),
-            "Conversion principal",
-            cid
-        );
-
-        Account vault = accounts.save(
-            Account.open(
-                null,
-                AccountType.ESCROW_VAULT,
-                contract.targetCurrency()
-            )
-        );
-        ledgerService.transfer(
-            clearingTargetId,
-            vault.id(),
-            MoneyAmounts.of(converted, contract.targetCurrency()),
-            "Escrow vault funding",
-            cid
-        );
-
-        contract.fund(
-            buyerAccount.id(),
-            deposit,
-            MoneyAmounts.of(converted, contract.targetCurrency()),
-            rate,
-            vault.id(),
-            Instant.now()
-        );
-        EscrowContract saved = contracts.save(contract);
-        events.publishEvent(
-            new ContractFunded(cid, contract.buyerId(), contract.sellerId())
-        );
-        return saved;
+        return funding.fundContract(contractId, actorEntityId, deposit);
     }
 
-    /**
-     * Webhook settlement: 0.8% to the fee account, remainder to the seller.
-     * Idempotent — a repeat call on SETTLED returns it unchanged, so webhook
-     * redelivery never double-pays.
-     *
-     * @return the saved or previously settled contract
-     * @throws NotFoundException if the contract or a required user/vault account is absent
-     * @throws InvalidStateTransitionException if neither FUNDED nor SETTLED
-     * @throws IllegalStateException if the system fee account is missing
-     * @throws InsufficientFundsException if the vault cannot cover the transfers
-     */
-    @Transactional(isolation = Isolation.READ_COMMITTED)
     public EscrowContract settleMilestone(UUID contractId) {
-        EscrowContract contract = contracts
-            .findByIdForUpdate(contractId)
-            .orElseThrow(() ->
-                new NotFoundException("Contract not found: " + contractId)
-            );
-        if (contract.status() == EscrowStatus.SETTLED) {
-            return contract; // idempotent replay
-        }
-        if (contract.status() != EscrowStatus.FUNDED) {
-            throw new InvalidStateTransitionException(
-                "Cannot settle contract %s in status %s".formatted(
-                    contractId,
-                    contract.status()
-                )
-            );
-        }
-
-        UUID sellerAccountId = accounts
-            .findAccountId(
-                contract.sellerId(),
-                AccountType.USER,
-                contract.targetCurrency()
-            )
-            .orElseThrow(() ->
-                new NotFoundException("Seller account not found")
-            );
-        UUID feeAccountId = systemAccountId(
-            AccountType.ESCROWRAIL_FEE,
-            contract.targetCurrency()
-        );
-        var locked = lockAll(
-            List.of(contract.vaultAccountId(), sellerAccountId, feeAccountId)
-        );
-        Account vault = locked.get(contract.vaultAccountId());
-        Account sellerAccount = locked.get(sellerAccountId);
-        Account feeAccount = locked.get(feeAccountId);
-
-        BigDecimal escrowed = contract
-            .escrowedAmount()
-            .getNumber()
-            .numberValue(BigDecimal.class);
-        BigDecimal fee = escrowed
-            .multiply(SETTLEMENT_FEE_RATE)
-            .setScale(2, RoundingMode.HALF_EVEN);
-        BigDecimal payout = escrowed.subtract(fee);
-
-        UUID cid = contract.id();
-        ledgerService.transfer(
-            vault.id(),
-            feeAccount.id(),
-            MoneyAmounts.of(fee, contract.targetCurrency()),
-            "Settlement fee (0.8%)",
-            cid
-        );
-        ledgerService.transfer(
-            vault.id(),
-            sellerAccount.id(),
-            MoneyAmounts.of(payout, contract.targetCurrency()),
-            "Seller payout",
-            cid
-        );
-
-        contract.settle();
-        EscrowContract saved = contracts.save(contract);
-        events.publishEvent(
-            new ContractSettled(cid, contract.buyerId(), contract.sellerId())
-        );
-        return saved;
+        return settlement.settleMilestone(contractId);
     }
 
-    /**
-     * Buyer-only cancellation: free before funding; after funding the vault
-     * liquidates to source currency at current spot (buyer absorbs FX drift,
-     * the conversion fee is kept). Idempotent on CANCELLED.
-     *
-     * @return the saved or previously cancelled contract
-     * @throws NotFoundException if the contract or a required refund account is absent,
-     *     or the actor is not a party
-     * @throws ForbiddenException if the actor is the seller
-     * @throws InvalidStateTransitionException if the contract is SETTLED
-     * @throws IllegalStateException if a required system account is missing
-     * @throws InsufficientFundsException if the vault cannot cover liquidation
-     * @throws com.escrowrail.domain.exception.UnsupportedCurrencyPairException if no refund FX rate is available
-     */
-    @Transactional(isolation = Isolation.READ_COMMITTED)
     public EscrowContract cancelContract(UUID contractId, UUID actorEntityId) {
-        EscrowContract contract = contracts
-            .findByIdForUpdate(contractId)
-            .orElseThrow(() ->
-                new NotFoundException("Contract not found: " + contractId)
-            );
-        if (!contract.involves(actorEntityId)) {
-            throw new NotFoundException("Contract not found: " + contractId);
-        }
-        if (!contract.isBuyer(actorEntityId)) {
-            throw new ForbiddenException(
-                "Only the buyer may cancel this contract"
-            );
-        }
-        if (contract.status() == EscrowStatus.SETTLED) {
-            throw new InvalidStateTransitionException(
-                "SETTLED contracts cannot be cancelled"
-            );
-        }
-        if (contract.status() == EscrowStatus.CANCELLED) {
-            return contract;
-        }
-        if (contract.status() == EscrowStatus.FUNDED) {
-            refund(contract);
-        }
-        contract.cancel();
-        EscrowContract saved = contracts.save(contract);
-        events.publishEvent(
-            new ContractCancelled(
-                contract.id(),
-                contract.buyerId(),
-                contract.sellerId()
-            )
-        );
-        return saved;
+        return cancellation.cancelContract(contractId, actorEntityId);
     }
 
-    private void refund(EscrowContract contract) {
-        UUID clearingTargetId = systemAccountId(
-            AccountType.ESCROWRAIL_CLEARING,
-            contract.targetCurrency()
-        );
-        UUID clearingSourceId = systemAccountId(
-            AccountType.ESCROWRAIL_CLEARING,
-            contract.sourceCurrency()
-        );
-        var locked = lockAll(
-            List.of(
-                contract.vaultAccountId(),
-                contract.buyerAccountId(),
-                clearingTargetId,
-                clearingSourceId
-            )
-        );
-        Account vault = locked.get(contract.vaultAccountId());
-        Account clearingTarget = locked.get(clearingTargetId);
-        Account clearingSource = locked.get(clearingSourceId);
-        Account buyerAccount = locked.get(contract.buyerAccountId());
-
-        BigDecimal escrowed = contract
-            .escrowedAmount()
-            .getNumber()
-            .numberValue(BigDecimal.class);
-        BigDecimal spot = fx.getRate(
-            contract.targetCurrency(),
-            contract.sourceCurrency()
-        );
-        BigDecimal refund = escrowed
-            .multiply(spot)
-            .setScale(2, RoundingMode.HALF_EVEN);
-
-        UUID cid = contract.id();
-        ledgerService.transfer(
-            vault.id(),
-            clearingTarget.id(),
-            MoneyAmounts.of(escrowed, contract.targetCurrency()),
-            "Vault liquidation",
-            cid
-        );
-        ledgerService.transfer(
-            clearingSource.id(),
-            buyerAccount.id(),
-            MoneyAmounts.of(refund, contract.sourceCurrency()),
-            "Refund at current spot",
-            cid
-        );
-    }
-
-    // ---------- quote ----------
-
-    /**
-     * Quotes the cent-rounded source deposit whose net conversion covers the
-     * target. Fee: 0.5%, HALF_EVEN, 0.01 minimum. The rate is not reserved.
-     *
-     * @return target amount, rate, and principal/fee/total in source currency
-     * @throws com.escrowrail.domain.exception.ValidationException if the target is null or nonpositive
-     * @throws com.escrowrail.domain.exception.UnsupportedCurrencyPairException if no FX rate is available
-     */
     public Quote quote(
         String sourceCurrency,
         String targetCurrency,
         BigDecimal targetAmount
     ) {
-        if (targetAmount == null || targetAmount.signum() <= 0) {
-            throw new ValidationException("targetAmount must be positive");
-        }
-        BigDecimal rate = fx.getRate(sourceCurrency, targetCurrency);
-        BigDecimal oneMinusFee = BigDecimal.ONE.subtract(CONVERSION_FEE_RATE);
-        BigDecimal total = targetAmount
-            .divide(oneMinusFee.multiply(rate), 8, RoundingMode.HALF_EVEN)
-            .setScale(2, RoundingMode.CEILING);
-        // Fee floors at one cent so sub-cent targets cannot round to zero.
-        BigDecimal fee = total
-            .multiply(CONVERSION_FEE_RATE)
-            .setScale(2, RoundingMode.HALF_EVEN)
-            .max(CENT);
-        while (
-            total
-                .subtract(fee)
-                .multiply(rate)
-                .setScale(2, RoundingMode.HALF_EVEN)
-                .compareTo(targetAmount) < 0
-        ) {
-            total = total.add(CENT);
-            fee = total
-                .multiply(CONVERSION_FEE_RATE)
-                .setScale(2, RoundingMode.HALF_EVEN)
-                .max(CENT);
-        }
-        return new Quote(
-            sourceCurrency,
-            targetCurrency,
-            targetAmount,
-            rate,
-            total.subtract(fee),
-            fee,
-            total
-        );
-    }
-
-    public record Quote(
-        String sourceCurrency,
-        String targetCurrency,
-        BigDecimal targetAmount,
-        BigDecimal midMarketRate,
-        BigDecimal principal,
-        BigDecimal platformFee,
-        BigDecimal totalDeposit
-    ) {
-        /** Legacy-bank comparison: 3.8% spread + $150 SWIFT. */
-        public record BankEstimate(
-            BigDecimal spreadCost,
-            BigDecimal swiftFee,
-            BigDecimal totalCost
-        ) {}
-
-        /** 3.8% of deposit + fixed 150.00, HALF_EVEN cents, no FX conversion. */
-        public BankEstimate traditionalBankEstimate() {
-            BigDecimal spread = totalDeposit
-                .multiply(new BigDecimal("0.038"))
-                .setScale(2, RoundingMode.HALF_EVEN);
-            BigDecimal swift = new BigDecimal("150.00");
-            return new BankEstimate(spread, swift, spread.add(swift));
-        }
-    }
-
-    // ---------- helpers ----------
-
-    /**
-     * System account id, unlocked — callers lock via lockAll in global order.
-     *
-     * @throws IllegalStateException if the system account is missing
-     */
-    private UUID systemAccountId(AccountType type, String currency) {
-        // System accounts are seeded by V1; creating one here would race.
-        return accounts
-            .findSystemAccountId(type, currency)
-            .orElseThrow(() ->
-                new IllegalStateException(
-                    "System account missing: " + type + "/" + currency
-                )
-            );
-    }
-
-    private java.util.Map<UUID, Account> lockAll(List<UUID> ids) {
-        return ledgerService.lockInOrder(ids);
+        return quotes.quote(sourceCurrency, targetCurrency, targetAmount);
     }
 }

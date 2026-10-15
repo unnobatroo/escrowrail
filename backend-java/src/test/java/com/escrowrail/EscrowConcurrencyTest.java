@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.escrowrail.application.service.AuthService;
 import com.escrowrail.application.service.AuthService.Registration;
+import com.escrowrail.application.dto.Quote;
 import com.escrowrail.application.service.EscrowService;
 import com.escrowrail.domain.exception.InsufficientFundsException;
 import com.escrowrail.domain.model.AccountType;
@@ -87,7 +88,7 @@ class EscrowConcurrencyTest extends AbstractPostgresIT {
             TrackingType.GITHUB_PR,
             "pr-" + tag
         );
-        EscrowService.Quote q = escrow.quote("USD", "EUR", target);
+        Quote q = escrow.quote("USD", "EUR", target);
         return escrow.fundContract(
             c.id(),
             p.buyer(),
@@ -174,7 +175,7 @@ class EscrowConcurrencyTest extends AbstractPostgresIT {
         CountDownLatch go = new CountDownLatch(1);
         AtomicInteger funded = new AtomicInteger();
         AtomicInteger insufficient = new AtomicInteger();
-        EscrowService.Quote q = escrow.quote(
+        Quote q = escrow.quote(
             "USD",
             "EUR",
             new BigDecimal("40000.00")

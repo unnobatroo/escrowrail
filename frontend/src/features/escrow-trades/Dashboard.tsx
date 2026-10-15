@@ -3,23 +3,18 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { accountsApi, apiError, demoApi, escrowApi, isDemoMode } from "../../api";
 import type { Account, ContractView } from "../../api";
-import { Handshake, ShieldCheck, TrendingUp, Wallet } from "lucide-react";
 import NewEscrowTradeModal from "./NewEscrowTradeModal";
-import { CurrencyFlag } from "../../shared/components/CurrencyFlag";
 import LedgerActivityFeed from "../ledger-activity/LedgerActivityFeed";
 import ContractExecutionDrawer from "./ContractExecutionDrawer";
 import WebhookSimulatorCard from "./WebhookSimulatorCard";
 import ProfileSettingsModal from "../../features/company-profile/ProfileSettingsModal";
 import Shell from "../../shared/components/Shell";
-import Tooltip from "../../shared/components/Tooltip";
-import EmptyTradesCard from "./EmptyTradesCard";
-import AnimatedMoney from "../../shared/components/AnimatedMoney";
-import { Badge, STATUS_VARIANT } from "../../components/ui/badge";
+import AccountCards from "./AccountCards";
+import InsightTiles from "./InsightTiles";
+import TradesTable, { type TradeFilter } from "./TradesTable";
 import { Skeleton } from "../../components/ui/skeleton";
 import { useAuth } from "../authentication/auth";
 import { money, yieldAccrued } from "../../shared/utilities/currencyFormatter";
-
-type Filter = "all" | "active" | "completed";
 
 const ACTIVE = new Set(["INVITED", "INITIATED", "FUNDED"]);
 const TOPUP_AMOUNT = "5000";
@@ -28,7 +23,7 @@ export default function Dashboard() {
   const { user } = useAuth();
   const [contracts, setContracts] = useState<ContractView[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [filter, setFilter] = useState<Filter>("all");
+  const [filter, setFilter] = useState<TradeFilter>("all");
   const [showNew, setShowNew] = useState(false);
   const [preset, setPreset] = useState<
     { email?: string; amount?: string } | undefined
@@ -108,14 +103,6 @@ export default function Dashboard() {
     if (user && !user.onboarding_completed) setOnboardingOpen(true);
   }, [user]);
 
-  const cash = (cur: string) =>
-    accounts.find((a) => a.currency === cur)?.balance ?? "0.00";
-
-  const sourceBalance = (contract?: ContractView | null) =>
-    accounts.find(
-      (a) => a.currency === (contract?.source_currency ?? "USD"),
-    )?.balance;
-
   const safeguarded = useMemo(
     () =>
       contracts
@@ -138,6 +125,11 @@ export default function Dashboard() {
         ? ACTIVE.has(c.status)
         : !ACTIVE.has(c.status),
   );
+
+  const sourceBalance = (contract?: ContractView | null) =>
+    accounts.find(
+      (a) => a.currency === (contract?.source_currency ?? "USD"),
+    )?.balance;
 
   return (
     <Shell>
@@ -171,167 +163,40 @@ export default function Dashboard() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25, ease: "easeOut" }}
       >
-      {/* Account cards — per-currency balances with sandbox top-up */}
-      <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {(["USD", "EUR"] as const).map((cur) => (
-          <div
-            key={cur}
-            className="rounded-xl border border-slate-200 bg-white p-5"
-          >
-            <div className="flex items-center justify-between">
-              <p className="flex items-center gap-2 text-sm font-medium text-[#5C685B]">
-                <CurrencyFlag code={cur} />
-                {cur} Account
-              </p>
-              <span className="flex items-center gap-2">
-                <Wallet size={15} className="text-[#5C685B]" />
-                {demoEnabled && (
-                  <button
-                    data-testid={`topup-${cur.toLowerCase()}`}
-                    onClick={() => topUp(cur)}
-                    disabled={topupBusy === cur}
-                    className="rounded-full border border-[#163300] px-3 py-1 text-xs font-semibold text-[#163300] hover:bg-[#F4F5F0] disabled:opacity-40"
-                  >
-                    + Add Funds
-                  </button>
-                )}
-              </span>
-            </div>
-            <AnimatedMoney
-              testId={`metric-cash-${cur.toLowerCase()}`}
-              value={cash(cur)}
-              currency={cur}
-              className="mt-1 block text-2xl font-bold text-[#1B1C1D]"
-            />
-            <p className="text-xs text-[#5C685B]">
-              {accounts.find((a) => a.currency === cur)?.account_type ?? "USER"} · available
-            </p>
-          </div>
-        ))}
-      </div>
+      <AccountCards
+        accounts={accounts}
+        demoEnabled={demoEnabled}
+        topupBusy={topupBusy}
+        onTopUp={topUp}
+      />
 
       {notice && (
         <div className="mb-4 rounded-lg bg-[#D1E7DD] px-3 py-2 text-sm text-[#0F5132]">{notice}</div>
       )}
 
-      <div className="mb-4 grid grid-cols-2 gap-3 sm:gap-4">
-        <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
-          <p className="flex items-center gap-1 text-sm text-[#5C685B]">
-            <span className="mr-1 flex h-6 w-6 items-center justify-center rounded-full bg-[#CFF4FC] text-[#084298]">
-              <ShieldCheck size={13} />
-            </span>
-            Safeguarded
-            <Tooltip
-              label="About safeguarded funds"
-              text="Under Electronic Money Regulations, Escrowrail isolates 100% of escrowed balances from operational assets. Funds can never be lent or leveraged."
-            />
-          </p>
-          <p data-testid="metric-vault" className="num mt-1 text-xl font-bold text-[#084298] sm:text-2xl">
-            {money(safeguarded.toFixed(2), "EUR")}
-          </p>
-          <p className="text-xs text-[#5C685B]">Segregated EMI vault</p>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
-          <p className="flex items-center gap-1 text-sm text-[#5C685B]">
-            <span className="mr-1 flex h-6 w-6 items-center justify-center rounded-full bg-[#D1E7DD] text-[#0F5132]">
-              <TrendingUp size={13} />
-            </span>
-            Float Yield
-            <Tooltip
-              label="About float yield"
-              text="Interest generated on safeguarded EUR balances at the 3.5% ECB annualized base rate, accruing per millisecond while the vault holds funds."
-            />
-          </p>
-          <p data-testid="metric-yield" className="num mt-1 text-xl font-bold text-[#0F5132] sm:text-2xl">
-            {money(accruedYield.toFixed(4), "EUR")}
-          </p>
-          <p className="text-xs text-[#5C685B]">3.5% ECB base rate</p>
-        </div>
-      </div>
+      <InsightTiles
+        safeguarded={safeguarded.toFixed(2)}
+        accruedYield={accruedYield.toFixed(4)}
+      />
 
-      <div className="rounded-xl border border-slate-200 bg-white">
-        <div className="flex items-center gap-2 border-b border-slate-200 px-5 py-3">
-          <h2 className="mr-2 flex items-center gap-1.5 font-semibold text-[#1B1C1D] sm:mr-4">
-            <Handshake size={16} className="text-[#5C685B]" /> My Trades
-          </h2>
-          {(["all", "active", "completed"] as Filter[]).map((f) => (
-            <button
-              key={f}
-              data-testid={`tab-${f}`}
-              onClick={() => setFilter(f)}
-              className={`rounded-full px-3 py-1 text-sm capitalize ${
-                filter === f
-                  ? "bg-[#163300] text-white"
-                  : "text-[#5C685B] hover:bg-slate-100"
-              }`}
-            >
-              {f}
-            </button>
-          ))}
-        </div>
-        <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-200 text-left text-[#5C685B]">
-              <th className="px-5 py-2 font-medium">Counterparty</th>
-              <th className="px-5 py-2 font-medium">Invoice</th>
-              <th className="hidden px-5 py-2 font-medium sm:table-cell">Role</th>
-              <th className="px-5 py-2 font-medium">Status</th>
-            </tr>
-          </thead>
-          <tbody data-testid="trades-body">
-            {rows.map((c, i) => (
-              <motion.tr
-                key={c.id}
-                data-testid={`trade-row-${c.id}`}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: Math.min(i * 0.04, 0.3), duration: 0.2 }}
-                onClick={() => {
-                  setSelected(c.id);
-                  // Re-read accounts so the drawer sees post-topup balances.
-                  refresh();
-                }}
-                className="cursor-pointer border-b border-brand-border/60 last:border-0 transition-colors hover:bg-brand-sand"
-              >
-                <td className="px-5 py-3 font-medium text-[#1B1C1D]">
-                  {c.role === "buyer" ? c.seller_name : c.buyer_name}
-                  <span className="block text-xs font-normal capitalize text-[#5C685B] sm:hidden">
-                    you {c.role === "buyer" ? "buy from" : "sell to"} them
-                  </span>
-                </td>
-                <td className="px-5 py-3">
-                  <span className="num inline-flex items-center gap-1.5 whitespace-nowrap">
-                    <CurrencyFlag code={c.target_currency} />
-                    {money(c.target_amount, c.target_currency)}
-                  </span>
-                </td>
-                <td className="hidden px-5 py-3 capitalize text-[#5C685B] sm:table-cell">{c.role}</td>
-                <td className="px-5 py-3">
-                  <Badge variant={STATUS_VARIANT[c.status] ?? "default"}>
-                    {c.status}
-                  </Badge>
-                </td>
-              </motion.tr>
-            ))}
-          </tbody>
-        </table>
-        </div>
-        {rows.length === 0 && (
-          <div className="border-t border-brand-border px-5 py-6">
-            <EmptyTradesCard
-              onNewTrade={() => {
-                setPreset(undefined);
-                setShowNew(true);
-              }}
-              onLoadDemo={() => {
-                setPreset({ email: "seller@demo.com", amount: "10000.00" });
-                setShowNew(true);
-              }}
-            />
-          </div>
-        )}
-      </div>
+      <TradesTable
+        rows={rows}
+        filter={filter}
+        onFilter={setFilter}
+        onSelect={(id) => {
+          setSelected(id);
+          // Re-read accounts so the drawer sees post-topup balances.
+          refresh();
+        }}
+        onNewTrade={() => {
+          setPreset(undefined);
+          setShowNew(true);
+        }}
+        onLoadDemo={() => {
+          setPreset({ email: "seller@demo.com", amount: "10000.00" });
+          setShowNew(true);
+        }}
+      />
 
       <div className="mt-4 space-y-4">
         {isDemoMode() && demoEnabled && (

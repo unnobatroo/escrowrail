@@ -18,10 +18,10 @@ import type {
 } from "../../api";
 
 import { money } from "../../shared/utilities/currencyFormatter";
-import { CurrencyFlag } from "../../shared/components/CurrencyFlag";
-import Tooltip from "../../shared/components/Tooltip";
 import FeeCalculationRail from "./FeeCalculationRail";
 import BankComparisonDropdown from "./BankComparisonDropdown";
+import CounterpartyField from "./CounterpartyField";
+import AmountTier from "./AmountTier";
 import { useDialogA11y } from "../../shared/hooks/useDialogA11y";
 
 interface Props {
@@ -158,6 +158,11 @@ export default function NewEscrowTradeModal({
   const input =
     "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm";
 
+  const available = (() => {
+    const acct = accounts.find((a) => a.currency === sourceCurrency);
+    return acct ? `Available: ${money(acct.balance, acct.currency)}` : "Available: —";
+  })();
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -190,156 +195,56 @@ export default function NewEscrowTradeModal({
           </button>
         </div>
 
-        <label className="mb-1 block text-sm font-medium text-[#5C685B]">
-          Counterparty
-        </label>
-        <div className="relative mb-1">
-          <input
-            data-testid="cp-email"
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className={input}
-            placeholder="Search members by name or email"
-            autoComplete="off"
-          />
-          {!cp && members.length > 0 && (
-            <ul
-              data-testid="cp-directory"
-              className="absolute z-20 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg"
-            >
-              {members.map((m) => (
-                <li key={m.entity_id}>
-                  <button
-                    type="button"
-                    data-testid={`cp-member-${m.email}`}
-                    onClick={() => {
-                      setEmail(m.email);
-                      setMembers([]);
-                    }}
-                    className="block w-full px-3 py-2 text-left hover:bg-[#F4F5F0]"
-                  >
-                    <span className="block text-sm font-medium text-[#1B1C1D]">
-                      {m.legal_name}
-                    </span>
-                    <span className="block text-xs text-[#5C685B]">
-                      {m.email} · {m.country}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-        {cp && (
-          <p
-            data-testid="cp-resolved"
-            className="mb-2 flex items-center gap-1 text-xs text-[#0F5132]"
-          >
-            {cp.legal_name} · {cp.country}
-            <Tooltip
-              label="About the ownership check"
-              text="Automated AML verification ensuring buyer and seller entities do not share common beneficial ownership or tax IDs."
-            />
-          </p>
-        )}
-        {cpUnknown && (
-          <p data-testid="cp-unknown" className="mb-2 text-xs text-brand-subtle">
-            Not on the platform yet — the trade will wait as INVITED and an
-            invite email goes out to them.
-          </p>
-        )}
+        <CounterpartyField
+          email={email}
+          onChange={setEmail}
+          cp={cp}
+          cpUnknown={cpUnknown}
+          members={members}
+          onPick={(m) => {
+            setEmail(m.email);
+            setMembers([]);
+          }}
+        />
 
         {/* Two-tier conversion widget: "You pay" → fee rail → "They
             receive". The editable field is the recipient amount (the API
             contract is target_amount); the deposit tier recalculates live. */}
-        <div className="mt-3 rounded-2xl border border-brand-border bg-brand-surface p-4 transition-colors focus-within:border-brand-forest">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-brand-subtle">
-              You pay
-            </span>
-            <span className="num text-xs text-brand-subtle">
-              {(() => {
-                const acct = accounts.find(
-                  (a) => a.currency === sourceCurrency,
-                );
-                return acct
-                  ? `Available: ${money(acct.balance, acct.currency)}`
-                  : "Available: —";
-              })()}
-            </span>
-          </div>
-          <div className="mt-2 flex items-end justify-between gap-3">
-            <span
-              data-testid="quote-total"
-              className="num text-3xl font-bold text-brand-charcoal"
-            >
-              {quote ? money(quote.total_deposit, quote.source_currency) : "—"}
-            </span>
-            <span className="flex items-center gap-2">
-              <CurrencyFlag code={sourceCurrency} />
-              <select
-                data-testid="source-currency"
-                value={sourceCurrency}
-                onChange={(e) => setSourceCurrency(e.target.value)}
-                aria-label="Deposit currency"
-                className="rounded-lg border border-brand-border bg-transparent px-2 py-1 text-sm font-bold text-brand-charcoal"
-              >
-                {currencies.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </span>
-          </div>
-        </div>
+        <AmountTier
+          label="You pay"
+          aside={<span className="num text-xs text-brand-subtle">{available}</span>}
+          display={quote ? money(quote.total_deposit, quote.source_currency) : "—"}
+          amountTestId="quote-total"
+          currency={sourceCurrency}
+          onCurrency={setSourceCurrency}
+          currencies={currencies}
+          currencyTestId="source-currency"
+          currencyLabel="Deposit currency"
+        />
 
         {quote && <FeeCalculationRail quote={quote} />}
 
-        <div className="rounded-2xl border border-brand-border bg-brand-surface p-4 transition-colors focus-within:border-brand-forest">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-brand-subtle">
-              Recipient receives
-            </span>
-            {quote && (
+        <AmountTier
+          label="Recipient receives"
+          aside={
+            quote && (
               <span className="num text-xs text-brand-subtle">
                 1 {quote.source_currency} ={" "}
                 {Number(quote.mid_market_rate).toFixed(6)}{" "}
                 {quote.target_currency}
               </span>
-            )}
-          </div>
-          <div className="mt-2 flex items-end justify-between gap-3">
-            <input
-              data-testid="amount"
-              type="number"
-              step="0.01"
-              min="0.01"
-              inputMode="decimal"
-              required
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              aria-label="Amount the recipient receives"
-              className="num w-full bg-transparent text-3xl font-bold text-brand-forest outline-none"
-            />
-            <span className="flex items-center gap-2">
-              <CurrencyFlag code={targetCurrency} />
-              <select
-                data-testid="target-currency"
-                value={targetCurrency}
-                onChange={(e) => setTargetCurrency(e.target.value)}
-                aria-label="Recipient currency"
-                className="rounded-lg border border-brand-border bg-transparent px-2 py-1 text-sm font-bold text-brand-charcoal"
-              >
-                {currencies.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-            </span>
-          </div>
-        </div>
+            )
+          }
+          amount={amount}
+          onAmount={setAmount}
+          amountTestId="amount"
+          currency={targetCurrency}
+          onCurrency={setTargetCurrency}
+          currencies={currencies}
+          currencyTestId="target-currency"
+          currencyLabel="Recipient currency"
+        />
+
         <div className="mt-3 grid grid-cols-1 gap-3">
           <div>
             <label className="mb-1 block text-sm font-medium text-[#5C685B]">
