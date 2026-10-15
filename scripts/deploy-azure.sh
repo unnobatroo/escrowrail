@@ -51,35 +51,17 @@ DIGEST=$(az acr repository show -n "$ACR" --image "escrowrail-backend:$TAG" \
   --query digest -o tsv)
 echo ">> pushed digest $DIGEST"
 
+# Express environments never cycle the replica on in-place updates — the
+# app keeps running the old (or a wedged) revision. Recreate is the only
+# reliable path; the FQDN survives because the app name is unchanged.
 if az containerapp show -g "$RG" -n "$APP" >/dev/null 2>&1; then
-  echo ">> updating $APP (digest-pinned, scale-to-zero)"
-  az containerapp secret set -g "$RG" -n "$APP" --secrets \
-    "dbpw=$SPRING_DATASOURCE_PASSWORD" "jwt=$JWT_SECRET" \
-    "enckey=$ESCROWRAIL_FIELD_ENCRYPTION_KEY" "ghsec=$ESCROWRAIL_GITHUB_WEBHOOK_SECRET" \
-    "losec=$ESCROWRAIL_LOGISTICS_WEBHOOK_SECRET" \
-    "resend=$ESCROWRAIL_MAIL_RESEND_API_KEY" --output none
-  az containerapp update -g "$RG" -n "$APP" \
-    --image "$IMAGE_REPO@$DIGEST" --min-replicas 0 \
-    --set-env-vars \
-      "SPRING_PROFILES_ACTIVE=$PROFILE" \
-      "SPRING_DATASOURCE_URL=$SPRING_DATASOURCE_URL" \
-      "SPRING_DATASOURCE_USERNAME=$SPRING_DATASOURCE_USERNAME" \
-      "SPRING_DATASOURCE_PASSWORD=secretref:dbpw" \
-      "JWT_SECRET=secretref:jwt" \
-      "ESCROWRAIL_FIELD_ENCRYPTION_KEY=secretref:enckey" \
-      "ESCROWRAIL_GITHUB_WEBHOOK_SECRET=secretref:ghsec" \
-      "ESCROWRAIL_LOGISTICS_WEBHOOK_SECRET=secretref:losec" \
-      "ESCROWRAIL_MAIL_RESEND_API_KEY=secretref:resend" \
-      "ESCROWRAIL_MAIL_FROM=${ESCROWRAIL_MAIL_FROM:-Escrowrail <noreply@send.jismailov.com>}" \
-      "ESCROWRAIL_CORS_ORIGINS=$ESCROWRAIL_CORS_ORIGINS" \
-      "DEMO_BUYER_PASSWORD=${DEMO_BUYER_PASSWORD:-EscrowDemo123!}" \
-      "DEMO_SELLER_PASSWORD=${DEMO_SELLER_PASSWORD:-EscrowDemo123!}" \
-      "PORT=8080" \
-    --output none
-else
-  echo ">> creating container app env + app"
-  az containerapp env create -g "$RG" -n "$ENV_NAME" -l "$REGION" --output none
-  az containerapp create -g "$RG" -n "$APP" --environment "$ENV_NAME" \
+  echo ">> recreating $APP (in-place updates wedge on this env)"
+  az containerapp delete -g "$RG" -n "$APP" --yes --output none
+fi
+
+echo ">> creating container app env + app"
+az containerapp env create -g "$RG" -n "$ENV_NAME" -l "$REGION" --output none
+az containerapp create -g "$RG" -n "$APP" --environment "$ENV_NAME" \
     --image "$IMAGE_REPO@$DIGEST" \
     --registry-server "$ACR.azurecr.io" --registry-username "$ACR" \
     --registry-password "$(az acr credential show -n "$ACR" --query 'passwords[0].value' -o tsv)" \
@@ -106,7 +88,6 @@ else
       "DEMO_SELLER_PASSWORD=${DEMO_SELLER_PASSWORD:-EscrowDemo123!}" \
       "PORT=8080" \
     --output none
-fi
 
 FQDN=$(az containerapp show -g "$RG" -n "$APP" \
   --query "properties.configuration.ingress.fqdn" -o tsv)
