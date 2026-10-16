@@ -13,7 +13,7 @@ export function toCents(amount: string | null | undefined): bigint | null {
   if (!trimmed) return 0n;
   const neg = trimmed.startsWith("-");
   const unsigned = neg || trimmed.startsWith("+") ? trimmed.slice(1) : trimmed;
-  if (!/^\d+(\.\d+)?$/.test(unsigned)) return null;
+  if (!/^\d+(\.\d{1,2})?$/.test(unsigned)) return null;
   const [whole, frac = ""] = unsigned.split(".");
   const magnitude = BigInt(whole) * 100n + BigInt((frac + "00").slice(0, 2));
   return neg ? -magnitude : magnitude;
