@@ -102,13 +102,6 @@ export const authApi = {
   me: () => api.get<UserProfile>("/api/v1/auth/me"),
 };
 
-export const devApi = {
-  latestVerificationToken: (email: string) =>
-    api.get<{ token: string }>("/dev/verification-token", {
-      params: { email },
-    }),
-};
-
 export const escrowApi = {
   list: () => api.get<ContractView[]>("/api/v1/escrow"),
   get: (id: string) => api.get<ContractView>(`/api/v1/escrow/${id}`),
