@@ -60,13 +60,14 @@ if az containerapp show -g "$RG" -n "$APP" >/dev/null 2>&1; then
 fi
 
 echo ">> creating container app env + app"
+# MIN_REPLICAS=0 saves cost but every cold start 404s all requests for minutes.
 az containerapp env create -g "$RG" -n "$ENV_NAME" -l "$REGION" --output none
 az containerapp create -g "$RG" -n "$APP" --environment "$ENV_NAME" \
     --image "$IMAGE_REPO@$DIGEST" \
     --registry-server "$ACR.azurecr.io" --registry-username "$ACR" \
     --registry-password "$(az acr credential show -n "$ACR" --query 'passwords[0].value' -o tsv)" \
     --target-port 8080 --ingress external \
-    --min-replicas 0 --max-replicas 1 --cpu 0.5 --memory 1Gi \
+    --min-replicas "${MIN_REPLICAS:-1}" --max-replicas 1 --cpu 0.5 --memory 1Gi \
     --secrets \
       "dbpw=$SPRING_DATASOURCE_PASSWORD" "jwt=$JWT_SECRET" \
       "enckey=$ESCROWRAIL_FIELD_ENCRYPTION_KEY" "ghsec=$ESCROWRAIL_GITHUB_WEBHOOK_SECRET" \
