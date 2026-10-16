@@ -35,7 +35,6 @@ public class AccountController {
     }
 
     @GetMapping("/{id}")
-    /** Returns one account owned by the caller entity. */
     public AccountBalanceResponse get(@PathVariable UUID id) {
         return accounts
                 .findById(id)

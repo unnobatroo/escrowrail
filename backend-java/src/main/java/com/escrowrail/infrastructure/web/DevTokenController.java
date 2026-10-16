@@ -9,10 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * E2E backdoor: last issued verification/reset token per address, so tests
- * verify without a mailbox. dev/test only — unmapped under prod and demo.
- */
+/** E2E backdoor: last issued verification/reset token per address, so tests verify without a mailbox. dev/test only — unmapped under prod and demo. */
 @RestController
 @RequestMapping("/dev")
 @Profile({"dev", "test"})

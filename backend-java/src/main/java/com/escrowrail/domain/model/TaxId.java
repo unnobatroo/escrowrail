@@ -2,19 +2,10 @@ package com.escrowrail.domain.model;
 
 import java.util.Objects;
 
-/**
- * UBO tax identifier, normalized on construction for format-insensitive
- * equality — the anti-collusion guardrail compares value objects, not strings.
- */
+/** UBO tax identifier, normalized on construction for format-insensitive equality — the anti-collusion guardrail compares value objects, not strings. */
 public record TaxId(String value) {
 
-    /**
-     * Normalized: trims, drops ASCII whitespace and {@code .-_/} separators,
-     * uppercases with the root locale.
-     *
-     * @throws NullPointerException if the value is null
-     * @throws IllegalArgumentException if the normalized value is empty or exceeds 64 characters
-     */
+    /** Normalizes: trims, drops whitespace + .-_/ separators, uppercases. */
     public TaxId {
         Objects.requireNonNull(value, "tax id");
         // Format-insensitive equality: separators and case are ignored so

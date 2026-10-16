@@ -1,10 +1,7 @@
 import { motion } from "framer-motion";
 import { money } from "../utilities/currencyFormatter";
 
-/**
- * Balance figure that pops the new wire-formatted amount in on change.
- * Never does arithmetic — amounts are wire strings, formatted only.
- */
+/** Balance figure that pops on change — display only, no arithmetic. */
 export default function AnimatedMoney({
   value,
   currency,

@@ -35,11 +35,7 @@ public record LedgerTransactionResponse(
         );
     }
 
-    /**
-     * Buckets free-text ledger descriptions into stable operation types for
-     * the activity feed. Descriptions are the only taxonomy on the row, so
-     * this is presentation-layer classification, not a persisted enum.
-     */
+    /** Buckets free-text descriptions into stable op types for the feed — presentation classification, not a persisted enum. */
     private static String classify(String description) {
         String d = description.toLowerCase(java.util.Locale.ROOT);
         if (

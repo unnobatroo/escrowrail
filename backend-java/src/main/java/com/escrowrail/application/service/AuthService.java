@@ -33,11 +33,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import com.escrowrail.application.port.VerificationEmailSender;
 
-/**
- * Tenant onboarding. Registration is atomic: organization + user + empty
- * USD/EUR accounts. Balances start at zero; the one-time onboarding deposit
- * via {@link ProfileService} is the only self-service credit.
- */
+/** Tenant onboarding. Registration is atomic: org + user + zero-balance USD/EUR accounts; the only self-service credit is the one-time deposit via {@link ProfileService}. */
 @Service
 public class AuthService {
 
@@ -79,15 +75,7 @@ public class AuthService {
 
     public record Registration(AppUser user, Organization organization) {}
 
-    /**
-     * Registers organization + user (normalized email, encoded password).
-     * Accounts open at zero — no self-granted balances.
-     *
-     * @return the saved user and organization
-     * @throws DuplicateEmailException if the email exists or the named email constraint fails
-     * @throws IllegalArgumentException if the normalized tax ID is empty or too long
-     * @throws DataIntegrityViolationException if another database integrity constraint fails
-     */
+    /** Registers org + user (normalized email, encoded password) and zero-balance accounts. */
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public Registration register(
         String email,
@@ -123,8 +111,7 @@ public class AuthService {
             );
             return new Registration(user, org);
         } catch (DataIntegrityViolationException e) {
-            // The failed statement aborted the transaction — match the
-            // named constraint, rethrow anything else.
+            // The aborted tx leaves only the constraint name to match — rethrow anything else.
             if (
                 e.getMessage() != null &&
                 e.getMessage().contains("app_users_email_uq")
@@ -137,12 +124,7 @@ public class AuthService {
         }
     }
 
-    /**
-     * Authenticates by normalized email + password match.
-     *
-     * @throws UnauthorizedException if the email is unknown, the password does not
-     *     match, or the account is inactive
-     */
+    /** Email+password auth; rejects unknown email, bad password, or unverified/inactive accounts. */
     public AppUser authenticate(String email, String password) {
         AppUser user = users
             .findByEmail(email.strip().toLowerCase(java.util.Locale.ROOT))
@@ -161,12 +143,7 @@ public class AuthService {
         return user;
     }
 
-    /**
-     * Consumes a verification token and activates the user atomically.
-     *
-     * @return the now-verified user
-     * @throws ValidationException if the token is unknown, expired, or already used
-     */
+    /** Consumes a verification token and activates the user; fails on unknown/expired/used tokens. */
     @Transactional
     public AppUser verifyEmail(String rawToken) {
         VerificationToken token = tokens
@@ -182,21 +159,17 @@ public class AuthService {
             .findById(token.userId())
             .orElseThrow(() -> new NotFoundException("User not found"));
         AppUser verified = users.save(user.verified());
-        // Invited trades attach only after address ownership is proven —
-        // attaching at registration would let an unverified squatter claim
-        // another party's trades (and its settlement payouts).
+        // Invites attach only after email ownership is proven — earlier, a
+        // squatter could claim another party's trades and payouts.
         escrow.attachPendingInvites(verified.email(), verified.entityId());
         return verified;
     }
 
-    /**
-     * Re-issues a verification email. Always appears to succeed (anti-enumeration);
-     * 60s cooldown per user.
-     */
+    /** Re-issues a verification email; always appears to succeed (anti-enumeration), 60s cooldown. */
     @Transactional
     public void resendVerification(String email) {
         String normalized = email.strip().toLowerCase(java.util.Locale.ROOT);
-        // Row lock serializes concurrent resends past the cooldown check.
+        // Row lock serializes concurrent resends past the cooldown.
         var user = users.findByEmailForUpdate(normalized);
         if (user.isEmpty() || user.get().emailVerified()) {
             return;
@@ -218,15 +191,11 @@ public class AuthService {
         issueVerification(user.get());
     }
 
-    /**
-     * Issues a reset link. Always appears to succeed (anti-enumeration); 60s
-     * cooldown. Outstanding links are consumed — only the newest works.
-     */
+    /** Issues a reset link; always appears to succeed (anti-enumeration), 60s cooldown. Older links are consumed. */
     @Transactional
     public void requestPasswordReset(String email) {
         String normalized = email.strip().toLowerCase(java.util.Locale.ROOT);
-        // Row lock serializes concurrent forgot-password requests past the
-        // cooldown check.
+        // Row lock serializes concurrent requests past the cooldown.
         var user = users.findByEmailForUpdate(normalized);
         if (user.isEmpty() || !user.get().emailVerified()) {
             return;
@@ -247,11 +216,7 @@ public class AuthService {
         issuePasswordReset(user.get());
     }
 
-    /**
-     * Consumes a reset token and swaps the password hash atomically.
-     *
-     * @throws ValidationException if the token is unknown, expired, or already used
-     */
+    /** Consumes a reset token and swaps the password hash; fails on unknown/expired/used tokens. */
     @Transactional
     public void resetPassword(String rawToken, String newPassword) {
         PasswordResetToken token = resetTokens
@@ -297,10 +262,9 @@ public class AuthService {
         RANDOM.nextBytes(bytes);
         String rawToken = HexFormat.of().formatHex(bytes);
         tokens.save(VerificationToken.issue(user.id(), sha256(rawToken)));
-        // Send after commit — a slow mail call must not hold row locks, and
-        // a rollback must not leave a link to a nonexistent account. Plain
-        // TransactionSynchronization, not a Modulith event: raw tokens must
-        // never be persisted.
+        // Send after commit: a slow mail call mustn't hold row locks, and
+        // rollback mustn't leave a link to a dead account. Plain
+        // TransactionSynchronization — raw tokens are never persisted.
         TransactionSynchronizationManager.registerSynchronization(
             new TransactionSynchronization() {
                 @Override

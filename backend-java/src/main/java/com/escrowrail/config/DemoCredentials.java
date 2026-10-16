@@ -8,11 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
-/**
- * Demo persona credentials resolved once per boot: env vars
- * {@code DEMO_BUYER_PASSWORD}/{@code DEMO_SELLER_PASSWORD}, else random
- * (logged at startup). dev/demo/test only.
- */
+/** Demo persona credentials: env vars or random (logged at boot); dev/demo/test only. */
 @Component
 @Profile({"dev", "demo", "test"})
 public class DemoCredentials {

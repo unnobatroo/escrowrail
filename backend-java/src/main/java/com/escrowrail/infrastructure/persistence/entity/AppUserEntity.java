@@ -48,7 +48,7 @@ public class AppUserEntity {
     @Column(nullable = false)
     private Instant createdAt;
 
-    /** For JPA / reflective use only. */
+    /** JPA / reflective use only. */
     protected AppUserEntity() {}
     public AppUserEntity(
             UUID id,
@@ -71,22 +71,16 @@ public class AppUserEntity {
         this.createdAt = createdAt;
     }
 
-    /** Returns the id. */
     public UUID getId() { return id; }
-    /** Returns the email. */
     public String getEmail() { return email; }
-    /** Returns the password hash. */
     public String getPasswordHash() { return passwordHash; }
-    /** Returns the entity id. */
     public UUID getEntityId() { return entityId; }
     /** Whether the account is active (verified and not disabled). */
     public boolean isActive() { return active; }
     /** Whether the email address was verified. */
     public boolean isEmailVerified() { return emailVerified; }
-    /** Returns the lifecycle status. */
     public UserStatus getStatus() { return status; }
     /** Whether the onboarding setup window is closed. */
     public boolean isOnboardingCompleted() { return onboardingCompleted; }
-    /** Returns the created at. */
     public Instant getCreatedAt() { return createdAt; }
 }

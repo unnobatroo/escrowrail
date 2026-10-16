@@ -27,10 +27,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * Sandbox surface: webhook introspection, signed simulation, balance
- * top-ups. dev/demo profiles only — unmapped (404) under prod.
- */
+/** Sandbox surface: webhook introspection, signed simulation, balance top-ups. dev/demo profiles only — unmapped (404) under prod. */
 @RestController
 @RequestMapping("/api/v1/demo")
 @Profile({"dev", "demo"})
@@ -77,10 +74,7 @@ public class DemoToolsController {
         this.allowMockWebhooks = allowMockWebhooks;
     }
 
-    /**
-     * Simulator introspection. Signing secrets never leave the server —
-     * simulation is HMAC-signed backend-side via {@code /simulate-webhook}.
-     */
+    /** Simulator introspection. Signing secrets never leave the server — simulation is HMAC-signed backend-side via {@code /simulate-webhook}. */
     @GetMapping("/config")
     public Map<String, Object> config() {
         return Map.of(
@@ -131,11 +125,7 @@ public class DemoToolsController {
     public record SimulateRequest(UUID contract_id) {}
     public record SimulateResponse(String status, UUID contract_id, String signature) {}
 
-    /**
-     * Fires the milestone through the real webhook verification path —
-     * HMAC-signed server-side, same handlers as provider webhooks. Also
-     * requires {@code escrowrail.security.allow-mock-webhooks}.
-     */
+    /** Fires the milestone through the real webhook path — HMAC-signed, same handlers. Needs escrowrail.security.allow-mock-webhooks. */
     @PostMapping("/simulate-webhook")
     public SimulateResponse simulate(@RequestBody SimulateRequest body) throws java.io.IOException {
         if (!allowMockWebhooks) {

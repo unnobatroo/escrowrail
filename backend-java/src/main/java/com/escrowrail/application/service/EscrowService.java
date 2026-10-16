@@ -25,13 +25,7 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import com.escrowrail.application.port.FxRateProvider;
 
-/**
- * Escrow contract coordinator: tenant-scoped reads, creation, and invites.
- * The money-moving legs live in {@link EscrowFundingService},
- * {@link EscrowSettlementService}, and {@link EscrowCancellationService};
- * pricing in {@link QuoteCalculator}. Mutations run in one transaction with
- * PESSIMISTIC_WRITE locks; events go through the Modulith outbox.
- */
+/** Escrow coordinator: tenant reads, creation, invites. Money legs in the Funding/Settlement/Cancellation services; pricing in {@link QuoteCalculator}. */
 @Service
 public class EscrowService {
 
@@ -72,11 +66,7 @@ public class EscrowService {
 
     // ---------- reads (tenant-scoped) ----------
 
-    /**
-     * Contract visible to its buyer or seller organization.
-     *
-     * @throws NotFoundException if absent or the entity is not a party
-     */
+    /** Contract visible to a party org; 404s for absent/non-party. */
     @Transactional(readOnly = true)
     public EscrowContract getForEntity(UUID contractId, UUID entityId) {
         return contracts
@@ -92,11 +82,7 @@ public class EscrowService {
         return contracts.findAllForEntity(entityId);
     }
 
-    /**
-     * Ledger entries in creation order, caller must be a party.
-     *
-     * @throws NotFoundException if absent or the entity is not a party
-     */
+    /** Ledger entries in creation order; caller must be a party. */
     @Transactional(readOnly = true)
     public List<LedgerEntry> auditForEntity(UUID contractId, UUID entityId) {
         getForEntity(contractId, entityId); // tenancy gate before the trail
@@ -127,14 +113,7 @@ public class EscrowService {
 
     // ---------- lifecycle ----------
 
-    /**
-     * Creates an INITIATED contract after org, UBO, and FX checks. Target
-     * amount is in the invoice currency.
-     *
-     * @throws NotFoundException if either organization is absent
-     * @throws CircularOwnershipException if both organizations share a normalized UBO tax ID
-     * @throws com.escrowrail.domain.exception.UnsupportedCurrencyPairException if the FX provider cannot quote the pair
-     */
+    /** Creates an INITIATED contract after org, UBO, and FX checks; target amount is in the invoice currency. */
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public EscrowContract createContract(
         UUID buyerEntityId,
@@ -159,8 +138,7 @@ public class EscrowService {
                 "Buyer and seller share UBO tax id " + buyer.uboTaxId().value()
             );
         }
-        // Reject pairs the FX provider cannot quote — the contract would
-        // never be fundable.
+        // Reject unquotable pairs — the contract could never fund.
         fx.getRate(sourceCurrency, targetAmount.getCurrency().getCurrencyCode());
         return contracts.save(
             EscrowContract.create(
@@ -174,14 +152,7 @@ public class EscrowService {
         );
     }
 
-    /**
-     * INVITED contract for an unregistered counterparty plus the invite
-     * event in one transaction — a partial pair would leave a trade the
-     * counterparty never learns about; a later signup under
-     * {@code invitedEmail} fills the seller slot via {@link #attachPendingInvites}.
-     *
-     * @throws NotFoundException if the buyer organization is absent
-     */
+    /** INVITED contract + invite event in one tx — a partial pair would orphan the trade. Signup under {@code invitedEmail} fills the seller slot via {@link #attachPendingInvites}. */
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public EscrowContract createInvitedContract(
         UUID buyerEntityId,
@@ -214,11 +185,7 @@ public class EscrowService {
         return saved;
     }
 
-    /**
-     * Attaches INVITED contracts for {@code email} to the new entity — called
-     * from {@code verifyEmail} once address ownership is proven. The UBO check
-     * repeats here because the buyer is only known now.
-     */
+    /** Attaches INVITED contracts for {@code email} — called from {@code verifyEmail} once ownership is proven; the UBO check repeats as the buyer is only known now. */
     @Transactional
     public void attachPendingInvites(String email, UUID sellerEntityId) {
         String normalizedEmail = email.strip().toLowerCase(Locale.ROOT);

@@ -9,14 +9,7 @@ import javax.crypto.Cipher;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
-/**
- * AES-256-GCM field-level encryption for sensitive columns (tax IDs).
- * Output is {@code base64(iv || ciphertext||tag)}; a fresh random 12-byte
- * IV is generated per write so identical plaintext never produces
- * identical ciphertext. The key is injected at boot by
- * {@code EncryptionConfig} — JPA instantiates converters itself, so the
- * key cannot be constructor-injected.
- */
+/** AES-256-GCM for sensitive columns (tax IDs): base64(iv||ct||tag), fresh IV per write. Key set at boot by EncryptionConfig — JPA instantiates converters itself, no ctor injection. */
 @Converter
 public class FieldEncryptionConverter implements AttributeConverter<String, String> {
 

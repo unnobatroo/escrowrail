@@ -25,11 +25,7 @@ public interface AccountRepository {
         String currency
     );
 
-    /**
-     * Scalar id resolution for the lock-then-load pattern — does not
-     * populate the persistence context, so a subsequent FOR UPDATE load
-     * sees the post-lock row.
-     */
+    /** Scalar id resolution for the lock-then-load pattern — does not populate the persistence context, so a subsequent FOR UPDATE load sees the post-lock row. */
     Optional<UUID> findAccountId(
         UUID entityId,
         AccountType type,

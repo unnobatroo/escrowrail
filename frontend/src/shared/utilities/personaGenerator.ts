@@ -50,10 +50,7 @@ const pick = <T,>(list: T[]): T =>
 
 const serial = () => String(1000 + Math.floor(Math.random() * 900000));
 
-/**
- * Generates a full persona. `supportedCurrencies` should come from
- * GET /api/v1/currencies — suggestions only cover rails that exist.
- */
+/** Builds a persona; `supportedCurrencies` should come from GET /api/v1/currencies so suggestions only cover live rails. */
 export function randomPersona(
   supportedCurrencies: string[] = ["USD", "EUR"],
 ): Persona {

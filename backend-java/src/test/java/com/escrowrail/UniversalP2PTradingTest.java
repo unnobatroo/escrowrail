@@ -16,12 +16,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
-/**
- * Universal P2P trading: roles are per-contract, not per-tenant. Two random
- * registered entities trade in both directions — Alpha buys from Beta, then
- * Beta buys from Alpha — and a trade invited to an unregistered address
- * attaches to that entity automatically on signup.
- */
+/** Roles are per-contract, not per-tenant: two entities trade both directions; an invite to an unregistered address attaches on signup. */
 @AutoConfigureMockMvc
 class UniversalP2PTradingTest extends AbstractPostgresIT {
 
@@ -143,12 +138,7 @@ class UniversalP2PTradingTest extends AbstractPostgresIT {
             .andExpect(jsonPath("$.status").value("settled"));
     }
 
-    /**
-     * What the seller is owed on settlement: the vaulted escrowed amount less
-     * the 0.8% settlement fee, rounded HALF_EVEN like the service computes.
-     * The escrowed amount is read back from the contract because FX
-     * conversion can land a cent over the round target.
-     */
+    /** Seller take: vaulted amount less 0.8% settlement fee (HALF_EVEN). Read back from the contract — FX can land a cent over target. */
     private java.math.BigDecimal expectedPayout(String token, String contractId)
         throws Exception {
         MvcResult res = mvc

@@ -12,10 +12,7 @@ import com.escrowrail.infrastructure.persistence.entity.OrganizationEntity;
 
 public interface JpaDirectoryRepository extends Repository<OrganizationEntity, UUID> {
 
-    /**
-     * Verified members discoverable by email or legal name — one joined query,
-     * so the directory is always just the live user + organization tables.
-     */
+    /** Verified members discoverable by email or legal name — one joined query, so the directory is always just the live user + organization tables. */
     @Query("""
             SELECT new com.escrowrail.domain.model.DirectoryEntry(
                 u.email, o.id, o.legalName, o.country)

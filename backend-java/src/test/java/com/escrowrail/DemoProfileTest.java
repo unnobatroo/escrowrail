@@ -18,11 +18,7 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
-/**
- * Demo profile contract: seed tenants are provisioned and can run the
- * full buyer→seller escrow lifecycle, the demo gateway is available, and
- * the dev/test token backdoor is still unmapped.
- */
+/** Demo profile contract: seed tenants are provisioned and can run the full buyer→seller escrow lifecycle, the demo gateway is available, and the dev/test token backdoor is still unmapped. */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles(profiles = "demo", inheritProfiles = false)

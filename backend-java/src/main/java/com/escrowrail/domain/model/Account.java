@@ -6,10 +6,7 @@ import java.math.BigDecimal;
 import java.util.UUID;
 import javax.money.MonetaryAmount;
 
-/**
- * Ledger account. Only ESCROWRAIL_CLEARING may go negative; every other type
- * enforces balance >= 0 on debit.
- */
+/** Ledger account. Only ESCROWRAIL_CLEARING may go negative; every other type enforces balance >= 0 on debit. */
 public class Account {
 
     private final UUID id;
@@ -42,38 +39,27 @@ public class Account {
         );
     }
 
-    /** Returns the account id. */
     public UUID id() {
         return id;
     }
 
-    /** Returns the owning entity id, or null for a platform system account. */
     public UUID entityId() {
         return entityId;
     }
 
-    /** Returns the account type (user, vault, clearing, fee). */
     public AccountType type() {
         return type;
     }
 
-    /** Returns the current balance. */
     public MonetaryAmount balance() {
         return balance;
     }
 
-    /** Returns the ISO currency code of the balance. */
     public String currency() {
         return balance.getCurrency().getCurrencyCode();
     }
 
-    /**
-     * Debit a nonnegative amount (zero allowed); only clearing may overdraw.
-     *
-     * @throws CurrencyMismatchException if the currencies differ
-     * @throws IllegalArgumentException if the amount is negative or has fractional cents
-     * @throws InsufficientFundsException if a non-clearing account cannot cover the debit
-     */
+    /** Debit a nonnegative amount (zero allowed); only clearing may overdraw. */
     public void debit(MonetaryAmount amount) {
         assertCurrency(amount);
         assertCentScale(amount);
@@ -93,12 +79,7 @@ public class Account {
         balance = next;
     }
 
-    /**
-     * Credit a nonnegative amount (zero allowed).
-     *
-     * @throws CurrencyMismatchException if the currencies differ
-     * @throws IllegalArgumentException if the amount is negative or has fractional cents
-     */
+    /** Credit a nonnegative amount (zero allowed). */
     public void credit(MonetaryAmount amount) {
         assertCurrency(amount);
         assertCentScale(amount);

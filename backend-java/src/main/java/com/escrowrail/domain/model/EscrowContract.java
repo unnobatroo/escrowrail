@@ -7,11 +7,7 @@ import java.util.Locale;
 import java.util.UUID;
 import javax.money.MonetaryAmount;
 
-/**
- * Conditional-settlement aggregate. Lifecycle: INITIATED -> FUNDED ->
- * SETTLED, or -> CANCELLED from INITIATED/FUNDED. escrowedAmount snapshots
- * at funding — settlement pays the snapshot, never a recomputation.
- */
+/** Conditional settlement: INITIATED -> FUNDED -> SETTLED, or CANCELLED. escrowedAmount snapshots at funding; settlement pays the snapshot, never recomputes. */
 public class EscrowContract {
 
     private final UUID id;
@@ -32,7 +28,7 @@ public class EscrowContract {
     private MonetaryAmount escrowedAmount;
     private EscrowStatus status;
     private Instant fundedAt;
-    /** Loaded row version — the adapter refuses to save staleness. */
+    /** Optimistic-lock row version. */
     private long version;
 
     public EscrowContract(
@@ -89,7 +85,7 @@ public class EscrowContract {
         }
     }
 
-    /** INITIATED contract between two registered entities. */
+    /** INITIATED contract between registered entities. */
     public static EscrowContract create(
         UUID buyerId,
         UUID sellerId,
@@ -111,7 +107,7 @@ public class EscrowContract {
         );
     }
 
-    /** INVITED contract for an unregistered counterparty; a later signup attaches. */
+    /** INVITED contract for an unregistered counterparty; attaches on signup. */
     public static EscrowContract createInvited(
         UUID buyerId,
         MonetaryAmount targetAmount,
@@ -135,17 +131,13 @@ public class EscrowContract {
         return c;
     }
 
-    /** Marks a seller-less contract INVITED; used by creation and rehydration. */
+    /** Marks a seller-less contract INVITED (creation + rehydration). */
     public void markInvited(String email) {
         this.invitedEmail = email == null ? null : email.strip().toLowerCase(Locale.ROOT);
         this.status = EscrowStatus.INVITED;
     }
 
-    /**
-     * Attaches the registered seller: INVITED -> INITIATED.
-     *
-     * @throws InvalidStateTransitionException if the contract is not INVITED
-     */
+    /** INVITED -> INITIATED once the seller registers; fails unless INVITED. */
     public void attachSeller(UUID entityId) {
         requireStatus(EscrowStatus.INVITED, "attach seller to");
         this.sellerId = entityId;
@@ -153,15 +145,7 @@ public class EscrowContract {
         this.status = EscrowStatus.INITIATED;
     }
 
-    /**
-     * INITIATED -> FUNDED with the supplied funding snapshot. Callers own
-     * monetary validation and ledger transfers.
-     *
-     * @param deposit the original deposit in source currency, including the conversion fee
-     * @param escrowed the converted amount held in target currency
-     * @param spotRate target-currency units per source-currency unit at funding
-     * @throws InvalidStateTransitionException if the contract is not INITIATED
-     */
+    /** INITIATED -> FUNDED with the funding snapshot; callers own monetary validation and ledger transfers. */
     public void fund(
         UUID buyerAccountId,
         MonetaryAmount deposit,
@@ -182,22 +166,13 @@ public class EscrowContract {
         this.status = EscrowStatus.FUNDED;
     }
 
-    /**
-     * FUNDED -> SETTLED, retaining the funding snapshot.
-     *
-     * @throws InvalidStateTransitionException if the contract is not FUNDED,
-     *     including when it is already SETTLED
-     */
+    /** FUNDED -> SETTLED, retaining the funding snapshot. */
     public void settle() {
         requireStatus(EscrowStatus.FUNDED, "settle");
         this.status = EscrowStatus.SETTLED;
     }
 
-    /**
-     * INITIATED/FUNDED -> CANCELLED, retaining any snapshot. Callers own refunds.
-     *
-     * @throws InvalidStateTransitionException if already SETTLED or CANCELLED
-     */
+    /** INITIATED/FUNDED -> CANCELLED, retaining any snapshot; callers own refunds. */
     public void cancel() {
         if (status == EscrowStatus.SETTLED) {
             throw new InvalidStateTransitionException(
@@ -220,103 +195,93 @@ public class EscrowContract {
         }
     }
 
-    /** Whether the entity is the contract's buyer. */
     public boolean isBuyer(UUID entityId) {
         return buyerId.equals(entityId);
     }
 
-    /** Whether the entity is buyer or seller on this contract. */
+    /** True for buyer or seller. */
     public boolean involves(UUID entityId) {
         return buyerId.equals(entityId)
             || (sellerId != null && sellerId.equals(entityId));
     }
 
-    /** Returns the contract id. */
     public UUID id() {
         return id;
     }
 
-    /** Returns the buyer entity id. */
     public UUID buyerId() {
         return buyerId;
     }
 
-    /** Returns the seller entity id, or null while INVITED. */
+    /** Null while INVITED. */
     public UUID sellerId() {
         return sellerId;
     }
 
-    /** Invited counterparty email, while the seller slot is still open. */
+    /** Null once a seller attaches. */
     public String invitedEmail() {
         return invitedEmail;
     }
 
-    /** Returns the funding account recorded at deposit time. */
+    /** Set at funding. */
     public UUID buyerAccountId() {
         return buyerAccountId;
     }
 
-    /** Returns the segregated vault account created at funding. */
+    /** Segregated vault created at funding. */
     public UUID vaultAccountId() {
         return vaultAccountId;
     }
 
-    /** Returns the invoice (seller payout) currency. */
     public String targetCurrency() {
         return targetCurrency;
     }
 
-    /** Returns the buyer deposit currency. */
     public String sourceCurrency() {
         return sourceCurrency;
     }
 
-    /** Returns the target amount in invoice currency. */
     public MonetaryAmount targetAmount() {
         return targetAmount;
     }
 
-    /** Returns the source-currency deposit recorded at funding. */
+    /** Source-currency deposit; set at funding. */
     public MonetaryAmount depositAmount() {
         return depositAmount;
     }
 
-    /** Returns the spot rate locked at funding. */
+    /** Spot rate locked at funding. */
     public BigDecimal snapshotSpotRate() {
         return snapshotSpotRate;
     }
 
-    /** Returns the converted amount vaulted in target currency. */
+    /** Converted amount vaulted in target currency; set at funding. */
     public MonetaryAmount escrowedAmount() {
         return escrowedAmount;
     }
 
-    /** Returns the lifecycle status. */
     public EscrowStatus status() {
         return status;
     }
 
-    /** Returns the milestone proof type (GitHub PR or carrier). */
     public TrackingType trackingType() {
         return trackingType;
     }
 
-    /** Returns the milestone proof key (PR URL or tracking number). */
+    /** PR URL or tracking number. */
     public String trackingKey() {
         return trackingKey;
     }
 
-    /** Returns the funding timestamp, or null before funding. */
+    /** Null until funded. */
     public Instant fundedAt() {
         return fundedAt;
     }
 
-    /** Returns the creation timestamp. */
     public Instant createdAt() {
         return createdAt;
     }
 
-    /** Returns the JPA optimistic-lock version. */
     public long version() {
         return version;
     }

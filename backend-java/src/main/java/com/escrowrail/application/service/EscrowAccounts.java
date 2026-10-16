@@ -20,12 +20,7 @@ class EscrowAccounts {
         this.ledgerService = ledgerService;
     }
 
-    /**
-     * System account id, unlocked — callers lock via {@link #lockAll} in
-     * global order.
-     *
-     * @throws IllegalStateException if the system account is missing
-     */
+    /** System account id, unlocked — callers lock via {@link #lockAll} in global order. */
     UUID systemAccountId(AccountType type, String currency) {
         // System accounts are seeded by V1; creating one here would race.
         return accounts

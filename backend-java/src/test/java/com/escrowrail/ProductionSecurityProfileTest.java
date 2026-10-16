@@ -20,12 +20,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
-/**
- * Production profile audit: with only {@code prod} active, every demo
- * loophole (seed runner, top-up faucet, webhook simulator, token backdoor)
- * must be unmapped, webhooks must demand real signatures, and unverified
- * accounts must not reach the dashboard.
- */
+/** Prod profile audit: every demo loophole (seed, top-up, webhook sim, token backdoor) unmapped, webhooks demand real signatures, unverified accounts stay off the dashboard. */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles(profiles = "prod", inheritProfiles = false)

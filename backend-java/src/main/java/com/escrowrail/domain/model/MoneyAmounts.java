@@ -6,36 +6,23 @@ import javax.money.Monetary;
 import javax.money.MonetaryAmount;
 import org.javamoney.moneta.Money;
 
-/**
- * JSR-354 money helpers; all amounts round to cents HALF_EVEN — the single
- * rounding rule platform-wide.
- */
+/** JSR-354 money helpers; all amounts round to cents HALF_EVEN — the single rounding rule platform-wide. */
 public final class MoneyAmounts {
 
     public static final BigDecimal CENT = new BigDecimal("0.01");
 
     private MoneyAmounts() {}
 
-    /**
-     * Amount without cent rounding; use {@link #cents} when needed.
-     *
-     * @throws javax.money.UnknownCurrencyException if the currency code is unknown
-     */
+    /** Amount without cent rounding; use {@link #cents} when needed. */
     public static MonetaryAmount of(BigDecimal amount, String currency) {
         return Money.of(amount, Monetary.getCurrency(currency));
     }
 
-    /**
-     * Parses a decimal amount without cent rounding.
-     *
-     * @throws NumberFormatException if the amount is not a valid decimal
-     * @throws javax.money.UnknownCurrencyException if the currency code is unknown
-     */
+    /** Parses a decimal amount without cent rounding. */
     public static MonetaryAmount of(String amount, String currency) {
         return of(new BigDecimal(amount), currency);
     }
 
-    /** Returns a zero amount in the given currency. */
     public static MonetaryAmount zero(String currency) {
         return of(BigDecimal.ZERO, currency);
     }

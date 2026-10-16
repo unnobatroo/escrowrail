@@ -15,12 +15,7 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
   GBP: "£",
 };
 
-/**
- * What-you-see-is-what-you-pay bottom sheet — shown before any escrow
- * funding so the gross debit, platform fee, vault amount, and bank estimate
- * are explicit. A shortfall in the source-currency balance disables the
- * confirm action and says exactly how much is missing.
- */
+/** Pre-funding confirmation: gross debit, fee, vault amount, bank estimate. A balance shortfall disables confirm and shows the gap. */
 export default function FundingConfirmSheet({
   contract,
   quote,

@@ -100,7 +100,6 @@ public class AuthController {
     }
 
     @GetMapping("/me")
-    /** Returns the authenticated caller's profile. */
     public UserProfileResponse me() {
         AppUser user = users
                 .findById(TenantPrincipal.userId())

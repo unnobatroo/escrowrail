@@ -27,26 +27,20 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.ContentCachingResponseWrapper;
 
-/**
- * POST idempotency: keyed by X-Idempotency-Key, else SHA-256 of path+body.
- * The key is claimed before the handler runs (duplicates can never
- * re-execute); the stored 2xx response replays byte-for-byte with
- * X-Idempotent-Replay: true. Errors are never cached; settlement webhooks
- * are excluded (domain idempotency applies there).
- */
+    /** POST idempotency: keyed by X-Idempotency-Key else SHA-256(path+body); claims taken pre-handler, stored 2xx replayed byte-for-byte, errors never cached, webhooks excluded. */
 @Component
 @Order(1)
 public class IdempotencyFilter extends OncePerRequestFilter {
 
-    /** Completed responses replay for as long as the sweeper retains them. */
+    /** How long a completed response replays (bounded by the sweeper). */
     public static final Duration REPLAY_WINDOW = Duration.ofHours(24);
 
-    /** Abandoned in-flight claims become reclaimable after this. */
+    /** Abandoned claims become reclaimable after this. */
     public static final Duration CLAIM_TTL = Duration.ofSeconds(300);
     private static final int IN_FLIGHT = 0;
     private static final String KEY_HEADER = "X-Idempotency-Key";
     private static final String REPLAY_HEADER = "X-Idempotent-Replay";
-    /** Bodies larger than this are not buffered or deduplicated. */
+    /** Bodies beyond this skip buffering and dedup. */
     private static final int MAX_BODY_BYTES = 64 * 1024;
 
     private final IdempotencyRecordRepository records;
@@ -57,7 +51,7 @@ public class IdempotencyFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        // Auth responses carry bearer tokens — never cache them.
+        // Bearer tokens must never be cached.
         boolean mutating = switch (request.getMethod().toUpperCase(java.util.Locale.ROOT)) {
             case "POST", "PUT", "PATCH", "DELETE" -> true;
             default -> false;
@@ -75,7 +69,7 @@ public class IdempotencyFilter extends OncePerRequestFilter {
         HttpServletResponse response,
         FilterChain chain
     ) throws ServletException, IOException {
-        // Reject oversized bodies — unbounded pre-auth buffering would exhaust the heap.
+        // Reject oversized bodies — unbounded pre-auth buffering exhausts the heap.
         if (request.getContentLengthLong() > MAX_BODY_BYTES) {
             response.sendError(HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE);
             return;
@@ -90,16 +84,15 @@ public class IdempotencyFilter extends OncePerRequestFilter {
             new RepeatableBodyRequestWrapper(request, body);
         ContentCachingResponseWrapper wrappedResponse =
             new ContentCachingResponseWrapper(response);
-        // Caller identity is part of the dedup key — same body+path from a
-        // different tenant must not replay. The filter runs pre-auth, so the
-        // raw credential hash is the only unforgeable identity here.
+        // Caller identity is in the dedup key — same body+path from another
+        // tenant must not replay. Pre-auth, the credential hash is the only
+        // unforgeable identity.
         String explicitKey = request.getHeader(KEY_HEADER);
         String auth = request.getHeader("Authorization");
         String identityHash = sha256(
             (auth == null ? "" : auth).getBytes(StandardCharsets.UTF_8)
         );
-        // Hash the composite — fixed 64 chars regardless of URI length
-        // (the column is VARCHAR(200)).
+        // Hash keeps the key at 64 chars regardless of URI length (VARCHAR(200)).
         String key = sha256(
             (
                 request.getRequestURI() +
@@ -124,7 +117,7 @@ public class IdempotencyFilter extends OncePerRequestFilter {
             Instant.now()
         );
         if (stored.isPresent() || !tryClaim(claim)) {
-            // Claim held by another request — wait briefly, then replay.
+            // Claim held — wait briefly, then replay.
             Optional<Record> done = awaitCompleted(key);
             if (done.isPresent() && done.get().responseStatus() != IN_FLIGHT) {
                 writeReplay(response, done.get());
@@ -163,23 +156,19 @@ public class IdempotencyFilter extends OncePerRequestFilter {
                 )
             );
         } else {
-            // Don't cache failures — release the claim so a corrected retry runs fresh.
+            // Don't cache failures — release the claim so a retry runs fresh.
             records.delete(claim);
         }
         wrappedResponse.copyBodyToResponse();
     }
 
-    /**
-     * Saves a pending claim, retrying once after evicting an expired row of
-     * any status (an expired row would block the key on the unique
-     * constraint forever). False if the save cannot be resolved.
-     */
+    /** Saves a pending claim, retrying once after evicting an expired row (expired rows block the key's unique constraint forever). */
     private boolean tryClaim(Record claim) {
         try {
             records.save(claim);
             return true;
         } catch (DataIntegrityViolationException e) {
-            // Lost the race — unless the row expired; then evict and reclaim.
+            // Lost the race — unless the row expired; evict and reclaim.
             Optional<Record> loser = records.findByKey(claim.idempotencyKey());
             if (loser.isPresent() && !fresh(loser.get())) {
                 records.delete(loser.get());
@@ -194,11 +183,7 @@ public class IdempotencyFilter extends OncePerRequestFilter {
         }
     }
 
-    /**
-     * Polls a claim for up to ~3s, backing off 50→500ms so a slow handler
-     * doesn't multiply duplicate-request queries against the DB.
-     * Returns the record, or empty if absent/expired.
-     */
+    /** Polls a claim ~3s, backing off 50→500ms so a slow handler doesn't multiply duplicate queries. */
     private Optional<Record> awaitCompleted(String key) {
         long backoffMs = 50;
         long deadline = System.nanoTime() + Duration.ofSeconds(3).toNanos();
@@ -218,7 +203,7 @@ public class IdempotencyFilter extends OncePerRequestFilter {
         return records.findByKey(key).filter(this::fresh);
     }
 
-    /** Whether the record is live: claims age out fast, responses do not. */
+    /** Live check: claims age out fast, responses don't. */
     private boolean fresh(Record r) {
         Duration ttl = r.responseStatus() == IN_FLIGHT ? CLAIM_TTL : REPLAY_WINDOW;
         return r.createdAt().isAfter(Instant.now().minus(ttl));
@@ -242,7 +227,7 @@ public class IdempotencyFilter extends OncePerRequestFilter {
         }
     }
 
-    /** Replays a pre-read body so downstream handlers see it intact. */
+    /** Replays a pre-read body so handlers see it intact. */
     private static final class RepeatableBodyRequestWrapper
         extends HttpServletRequestWrapper
     {

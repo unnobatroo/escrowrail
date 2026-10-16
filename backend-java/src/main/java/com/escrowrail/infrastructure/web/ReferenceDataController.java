@@ -9,11 +9,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * Platform reference data. The supported-currency list is derived from the
- * seeded clearing accounts — the set the funding rails can actually move,
- * never a hardcoded enum the client has to guess.
- */
+/** Reference data. Supported currencies derive from seeded clearing accounts — rails that can actually move, never a hardcoded list. */
 @RestController
 @RequestMapping("/api/v1/currencies")
 public class ReferenceDataController {

@@ -17,19 +17,12 @@ public interface VerificationEmailSender {
     /** Post-registration welcome. */
     void sendWelcomeEmail(String email, String legalName);
 
-    /**
-     * Dev/test backdoor: the last token issued to an address, when the active
-     * sender keeps one (log sender). Production senders return empty — there
-     * is no legitimate way to recover a raw token after dispatch.
-     */
+    /** Dev/test backdoor: last token issued to an address, kept only by the log sender; prod senders return empty (raw tokens are unrecoverable post-dispatch). */
     default Optional<String> latestTokenFor(String email) {
         return Optional.empty();
     }
 
-    /**
-     * Dev/test backdoor for password reset — same contract as
-     * {@link #latestTokenFor(String)}.
-     */
+    /** Same backdoor for password-reset tokens. */
     default Optional<String> latestResetTokenFor(String email) {
         return Optional.empty();
     }

@@ -11,10 +11,7 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
-/**
- * Resend sender for production. Without {@code escrowrail.mail.resend-api-key}
- * the send degrades to a log line rather than silently dropping activations.
- */
+/** Resend sender for prod; without escrowrail.mail.resend-api-key it logs instead of silently dropping. */
 @Component
 @Profile({"prod", "demo"})
 class ResendVerificationEmailSender implements VerificationEmailSender {

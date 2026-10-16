@@ -67,11 +67,7 @@ function divRoundHalfEven(numerator: bigint, denominator: bigint): bigint {
   return q % 2n === 0n ? q : q + 1n;
 }
 
-/**
- * Exact BigInt forward conversion: given a deposit string (`pay`) and
- * mid-market rate string (`rateStr`), computes the rounded net target amount
- * after the 0.5% platform fee (HALF_EVEN cents, 0.01 minimum) without float math.
- */
+/** Forward conversion: deposit + mid-market rate -> rounded net target after 0.5% fee (HALF_EVEN cents, 0.01 floor), no floats. */
 export function deriveReceivesFromDeposit(pay: string, rateStr: string): string {
   const payCents = toCents(pay);
   if (payCents === null || payCents <= 1n) return "";

@@ -25,14 +25,7 @@ public class QuoteCalculator {
         this.fx = fx;
     }
 
-    /**
-     * Quotes the minimal cent-rounded source deposit whose net conversion covers
-     * the target. Fee: 0.5%, HALF_EVEN, 0.01 minimum. The rate is not reserved.
-     *
-     * @return target amount, rate, and principal/fee/total in source currency
-     * @throws ValidationException if the target is null, nonpositive, or has scale > 2
-     * @throws com.escrowrail.domain.exception.UnsupportedCurrencyPairException if no FX rate is available
-     */
+    /** Quotes the minimal cent-rounded source deposit whose net conversion covers the target. Fee: 0.5%, HALF_EVEN, 0.01 minimum. The rate is not reserved. */
     public Quote quote(
         String sourceCurrency,
         String targetCurrency,

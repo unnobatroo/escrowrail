@@ -49,17 +49,7 @@ public class EscrowSettlementService {
         this.events = events;
     }
 
-    /**
-     * Webhook settlement: 0.8% to the fee account, remainder to the seller.
-     * Idempotent — a repeat call on SETTLED returns it unchanged, so webhook
-     * redelivery never double-pays.
-     *
-     * @return the saved or previously settled contract
-     * @throws NotFoundException if the contract or a required user/vault account is absent
-     * @throws InvalidStateTransitionException if neither FUNDED nor SETTLED
-     * @throws IllegalStateException if the system fee account is missing
-     * @throws InsufficientFundsException if the vault cannot cover the transfers
-     */
+    /** Webhook settlement: 0.8% to the fee account, remainder to the seller. Idempotent — a repeat call on SETTLED returns it unchanged, so webhook redelivery never double-pays. */
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public EscrowContract settleMilestone(UUID contractId) {
         EscrowContract contract = contracts

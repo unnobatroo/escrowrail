@@ -50,13 +50,11 @@ public class EscrowController {
     }
 
     @GetMapping("/{id}")
-    /** Returns one contract visible to the caller's entity. */
     public EscrowTradeResponse get(@PathVariable UUID id) {
         return view(service.getForEntity(id, TenantPrincipal.entityId()), TenantPrincipal.entityId());
     }
 
     @GetMapping("/{id}/audit")
-    /** Returns the hash-chained ledger entries for a contract the caller is party to. */
     public List<LedgerTransactionResponse> audit(@PathVariable UUID id) {
         return service.auditForEntity(id, TenantPrincipal.entityId()).stream()
                 .map(LedgerTransactionResponse::of)
@@ -64,10 +62,7 @@ public class EscrowController {
     }
 
     @PostMapping
-    /**
-     * Creates a trade against a registered counterparty, or an INVITED
-     * contract plus invite event when the email is not registered yet.
-     */
+    /** Creates a trade against a registered counterparty, or an INVITED contract plus invite event when the email is not registered yet. */
     public ResponseEntity<?> create(@Valid @RequestBody CreateEscrowTradeRequest body) {
         UUID me = TenantPrincipal.entityId();
         var counterparty = service.resolveCounterparty(body.counterpartyEmail(), me);
@@ -135,7 +130,6 @@ public class EscrowController {
     }
 
     @GetMapping("/quote")
-    /** Returns a cent-rounded source-deposit quote including the bank-cost comparison. */
     public QuotePreviewResponse quote(
             @RequestParam("target_amount") BigDecimal targetAmount,
             @RequestParam(value = "target_currency", defaultValue = "EUR") String targetCurrency,

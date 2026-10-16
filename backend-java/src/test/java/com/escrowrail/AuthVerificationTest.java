@@ -15,10 +15,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
-/**
- * Email-verification gate: registration stays PENDING_VERIFICATION until a
- * hashed single-use token is consumed; unverified users cannot log in.
- */
+/** Email-verification gate: registration stays PENDING_VERIFICATION until a hashed single-use token is consumed; unverified users cannot log in. */
 @AutoConfigureMockMvc
 class AuthVerificationTest extends AbstractPostgresIT {
 

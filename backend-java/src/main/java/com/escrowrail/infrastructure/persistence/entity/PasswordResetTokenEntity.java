@@ -29,7 +29,7 @@ public class PasswordResetTokenEntity {
     @Column(nullable = false)
     private Instant createdAt;
 
-    /** For JPA / reflective use only. */
+    /** JPA / reflective use only. */
     protected PasswordResetTokenEntity() {}
     public PasswordResetTokenEntity(
             UUID id,
@@ -46,16 +46,10 @@ public class PasswordResetTokenEntity {
         this.createdAt = createdAt;
     }
 
-    /** Returns the id. */
     public UUID getId() { return id; }
-    /** Returns the user id. */
     public UUID getUserId() { return userId; }
-    /** Returns the token hash. */
     public String getTokenHash() { return tokenHash; }
-    /** Returns the expires at. */
     public Instant getExpiresAt() { return expiresAt; }
-    /** Returns the used at. */
     public Instant getUsedAt() { return usedAt; }
-    /** Returns the created at. */
     public Instant getCreatedAt() { return createdAt; }
 }
