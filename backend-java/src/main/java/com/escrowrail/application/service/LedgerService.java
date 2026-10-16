@@ -13,10 +13,7 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Double-entry ledger: one balanced debit->credit row per movement, both
- * account rows under PESSIMISTIC_WRITE so transfers serialize on rows.
- */
+/** Double-entry ledger: one balanced debit->credit row per movement, both account rows under PESSIMISTIC_WRITE so transfers serialize on rows. */
 @Service
 public class LedgerService {
 
@@ -28,15 +25,7 @@ public class LedgerService {
         this.ledger = ledger;
     }
 
-    /**
-     * Balanced transfer between distinct accounts; rounds HALF_EVEN to cents.
-     *
-     * @param contractId owning escrow contract, or null
-     * @throws IllegalArgumentException if the accounts are identical or the rounded amount is negative
-     * @throws NotFoundException if either account is missing
-     * @throws com.escrowrail.domain.exception.CurrencyMismatchException if either account's currency differs
-     * @throws com.escrowrail.domain.exception.InsufficientFundsException if a non-clearing debit account cannot cover the rounded amount
-     */
+    /** Balanced transfer between distinct accounts; rounds HALF_EVEN to cents. */
     @Transactional(
         propagation = Propagation.REQUIRED,
         isolation = Isolation.READ_COMMITTED
@@ -86,12 +75,7 @@ public class LedgerService {
         );
     }
 
-    /**
-     * PESSIMISTIC_WRITE-locks distinct accounts in ascending UUID order
-     * (deadlock-safe); locks hold to transaction end — callers need one.
-     *
-     * @throws NotFoundException if any account is missing
-     */
+    /** PESSIMISTIC_WRITE-locks distinct accounts in ascending UUID order (deadlock-safe); locks hold to transaction end — callers need one. */
     @Transactional(propagation = Propagation.REQUIRED)
     public java.util.Map<UUID, com.escrowrail.domain.model.Account> lockInOrder(
         java.util.Collection<UUID> accountIds

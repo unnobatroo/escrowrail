@@ -168,12 +168,7 @@ public class EscrowContractRepositoryAdapter
             .toList();
     }
 
-    /**
-     * Inserts a new contract or updates an existing row and returns its domain form.
-     *
-     * @throws org.springframework.dao.OptimisticLockingFailureException if the
-     *     existing row's version differs from the supplied contract's version
-     */
+    /** Inserts a new contract or updates an existing row and returns its domain form. existing row's version differs from the supplied contract's version */
     @Override
     public EscrowContract save(EscrowContract contract) {
         // Merge into the managed row when it exists instead of handing

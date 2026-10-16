@@ -5,12 +5,7 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
-/**
- * Loads the MJML-compiled transactional template (source:
- * {@code mail-templates/transactional.mjml}, regenerate with
- * {@code npx mjml transactional.mjml -o ../backend-java/src/main/resources/mail/branded.html})
- * and substitutes {@code {{TOKEN}}} placeholders.
- */
+/** MJML-compiled template (regen from {@code mail-templates/transactional.mjml}) with {{TOKEN}} substitution. */
 final class BrandedEmailTemplate {
 
     private static final String TEMPLATE;

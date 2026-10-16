@@ -11,10 +11,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * Ledger feed: newest journal rows across the caller's accounts, each with
- * its SHA-256 chain hash.
- */
+/** Ledger feed: newest journal rows across the caller's accounts, each with its SHA-256 chain hash. */
 @RestController
 @RequestMapping("/api/v1/ledger")
 public class LedgerController {

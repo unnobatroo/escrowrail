@@ -6,11 +6,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-/**
- * Hourly delete of expired idempotency rows — the filter evicts stale rows
- * only on collision, so this batch job bounds the table. Runs on an
- * indexed timestamp; never blocks live claims.
- */
+/** Hourly delete of expired idempotency rows — the filter evicts stale rows only on collision, so this batch job bounds the table. Runs on an indexed timestamp; never blocks live claims. */
 @Component
 public class IdempotencySweeper {
 

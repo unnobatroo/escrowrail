@@ -9,12 +9,7 @@ import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilde
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/**
- * Wire format alignment: the API serializes monetary values as JSON strings
- * (matching the legacy Python service's Decimal output). This keeps the
- * React client's string-typed money fields — and exact-magnitude display —
- * intact instead of emitting lossy JSON numbers like 1.08543E3.
- */
+/** Serializes BigDecimal as a plain string so the wire keeps exact magnitudes — no 1.08543E3. */
 @Configuration
 public class JacksonConfig {
 

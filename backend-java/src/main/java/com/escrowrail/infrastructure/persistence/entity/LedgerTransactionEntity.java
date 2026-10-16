@@ -40,7 +40,7 @@ public class LedgerTransactionEntity {
     @Column(nullable = false, length = 64)
     private String currentHash;
 
-    /** For JPA / reflective use only. */
+    /** JPA / reflective use only. */
     protected LedgerTransactionEntity() {}
     public LedgerTransactionEntity(
             UUID id,
@@ -63,22 +63,13 @@ public class LedgerTransactionEntity {
         this.currentHash = currentHash;
     }
 
-    /** Returns the id. */
     public UUID getId() { return id; }
-    /** Returns the debit account id. */
     public UUID getDebitAccountId() { return debitAccountId; }
-    /** Returns the credit account id. */
     public UUID getCreditAccountId() { return creditAccountId; }
-    /** Returns the amount. */
     public BigDecimal getAmount() { return amount; }
-    /** Returns the currency. */
     public String getCurrency() { return currency; }
-    /** Returns the description. */
     public String getDescription() { return description; }
-    /** Returns the contract id. */
     public UUID getContractId() { return contractId; }
-    /** Returns the created at. */
     public Instant getCreatedAt() { return createdAt; }
-    /** Returns the chain hash of this entry. */
     public String getCurrentHash() { return currentHash; }
 }

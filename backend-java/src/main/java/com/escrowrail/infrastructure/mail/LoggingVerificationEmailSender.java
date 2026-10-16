@@ -11,10 +11,7 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
-/**
- * Local/test sender: logs the link and retains the last token per address
- * so the demo gateway and E2E can verify without a mail provider.
- */
+/** Local/test sender: logs the link and retains the last token per address so the demo gateway and E2E can verify without a mail provider. */
 @Component
 @Profile({"dev", "test"})
 @Primary

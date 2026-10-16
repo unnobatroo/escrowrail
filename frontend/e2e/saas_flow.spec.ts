@@ -58,10 +58,7 @@ async function registerViaApi(request: {
   await verifyViaApi(request, email);
 }
 
-/**
- * Fresh users get an auto-opened onboarding modal. UI-registered users
- * complete it (that is the product flow); API-onboarded users never see it.
- */
+/** Fresh users get an auto-opened onboarding modal; UI-registered users complete it, API-onboarded users never see it. */
 async function completeOnboarding(page: Page) {
   const dialog = page.getByRole("dialog");
   await dialog.waitFor({ state: "visible", timeout: 5000 });

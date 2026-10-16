@@ -18,18 +18,11 @@ import java.util.regex.Pattern;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Tenant profile: legal name/tax ID updates and the one-time onboarding
- * deposit. Tenant-scoped — no admin path.
- */
+/** Tenant profile: legal name/tax ID updates and the one-time onboarding deposit. Tenant-scoped — no admin path. */
 @Service
 public class ProfileService {
 
-    /**
-     * Country-format tax IDs: two-letter country, a scheme code, then the
-     * serial — e.g. {@code GB-CRN-882190}, {@code US-EIN-4471},
-     * {@code DE-HRB-90210}.
-     */
+    /** Country-format tax IDs: two-letter country, a scheme code, then the serial — e.g. {@code GB-CRN-882190}, {@code US-EIN-4471}, {@code DE-HRB-90210}. */
     private static final Pattern TAX_ID_FORMAT =
             Pattern.compile("^[A-Z]{2}-[A-Z]{2,5}-[0-9]{3,10}$");
 
@@ -53,15 +46,7 @@ public class ProfileService {
 
     public record Result(AppUser user, Organization organization) {}
 
-    /**
-     * Profile edits + onboarding deposit in one transaction. Deposits outside
-     * the onboarding window are rejected — the faucet never runs twice.
-     *
-     * @return the persisted user and organization
-     * @throws NotFoundException if the user or organization is gone
-     * @throws ValidationException if the tax ID fails the country format, a
-     *     name is blank, or deposits arrive after onboarding completed
-     */
+    /** Profile edits + onboarding deposit in one tx; deposits outside the window are rejected — the faucet runs once. */
     @Transactional
     public Result update(
         UUID userId,

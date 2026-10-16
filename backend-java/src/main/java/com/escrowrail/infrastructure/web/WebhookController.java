@@ -47,16 +47,7 @@ public class WebhookController {
         this.logisticsSecret = logisticsSecret;
     }
 
-    /**
-     * HMAC-verifies the raw body and settles funded contracts matching a
-     * merged PR's html_url. Anything else returns ignored.
-     *
-     * @return ignored, or settled with the last successfully settled contract's id
-     * @throws WebhookValidationException if unconfigured, the signature is invalid,
-     *     or every matched settlement fails
-     * @throws java.io.IOException if JSON parsing fails
-     * @throws IllegalStateException if HMAC initialization fails
-     */
+    /** HMAC-verifies the raw body and settles funded contracts matching a merged PR's html_url; anything else → ignored. */
     @PostMapping("/github")
     public WebhookResult github(
             @RequestBody byte[] body,
@@ -83,15 +74,7 @@ public class WebhookController {
 
     public record LogisticsWebhook(String carrier, String status, String tracking_key) {}
 
-    /**
-     * HMAC-verified carrier webhooks; DELIVERED events settle all
-     * matching funded contracts, anything else is ignored.
-     *
-     * @return ignored if no delivery or match, otherwise settled with the last successful id
-     * @throws WebhookValidationException if unconfigured, the signature or carrier is
-     *     invalid, a delivered event lacks a tracking key, or all matched settlements fail
-     * @throws java.io.IOException if JSON parsing fails
-     */
+    /** HMAC-verified carrier webhooks; DELIVERED settles all matching funded contracts, else ignored. */
     @PostMapping("/logistics")
     public WebhookResult logistics(
             @RequestBody byte[] body,
@@ -114,14 +97,7 @@ public class WebhookController {
         return settle(TrackingType.SHIPPING_CARRIER, payload.tracking_key());
     }
 
-    /**
-     * Settles each matching funded contract in its own transaction — one
-     * failure must not block the rest.
-     *
-     * @return ignored if none match, otherwise settled with the last successful id,
-     *     including when only some settlements succeed
-     * @throws WebhookValidationException if matches exist but every settlement fails
-     */
+    /** Settles each match in its own tx — one failure must not block the rest; fails only if all fail. */
     private WebhookResult settle(TrackingType type, String key) {
         // Multiple FUNDED contracts can share a tracking key.
         java.util.List<EscrowContract> funded =
@@ -146,7 +122,7 @@ public class WebhookController {
         return new WebhookResult("settled", last.id());
     }
 
-    /** HMAC-SHA256 over the raw body — the signature covers the payload. */
+    /** HMAC-SHA256 over the raw body — the signature covers the exact payload. */
     private void verifySignature(byte[] body, String signature, String secret, String label) {
         if (signature == null || !signature.startsWith("sha256=")) {
             throw new WebhookValidationException("Missing or malformed " + label + " signature");

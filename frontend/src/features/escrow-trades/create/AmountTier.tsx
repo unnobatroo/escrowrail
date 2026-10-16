@@ -1,11 +1,7 @@
 import type { ReactNode } from "react";
 import { CurrencyFlag } from "../../../shared/components/CurrencyFlag";
 
-/**
- * One tier of the conversion widget — a big amount plus a currency picker.
- * `editable` renders the amount as a numeric input (recipient side); read
- * mode shows the computed figure (deposit side).
- */
+/** One conversion tier: amount + currency picker. `editable` = input (recipient side); read mode = computed figure (deposit side). */
 export default function AmountTier({
   label,
   aside,

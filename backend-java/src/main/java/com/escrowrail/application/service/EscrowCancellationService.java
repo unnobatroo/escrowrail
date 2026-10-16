@@ -46,20 +46,7 @@ public class EscrowCancellationService {
         this.events = events;
     }
 
-    /**
-     * Buyer-only cancellation: free before funding; after funding the vault
-     * liquidates to source currency at current spot (buyer absorbs FX drift,
-     * the conversion fee is kept). Idempotent on CANCELLED.
-     *
-     * @return the saved or previously cancelled contract
-     * @throws NotFoundException if the contract or a required refund account is absent,
-     *     or the actor is not a party
-     * @throws ForbiddenException if the actor is the seller
-     * @throws InvalidStateTransitionException if the contract is SETTLED
-     * @throws IllegalStateException if a required system account is missing
-     * @throws InsufficientFundsException if the vault cannot cover liquidation
-     * @throws UnsupportedCurrencyPairException if no refund FX rate is available
-     */
+    /** Buyer-only cancel: free before funding; after funding the vault liquidates at current spot (buyer absorbs FX drift, fee kept). Idempotent on CANCELLED. */
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public EscrowContract cancelContract(UUID contractId, UUID actorEntityId) {
         EscrowContract contract = contracts

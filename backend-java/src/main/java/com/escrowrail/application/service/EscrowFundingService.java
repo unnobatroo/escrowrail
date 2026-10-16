@@ -60,21 +60,7 @@ public class EscrowFundingService {
         this.events = events;
     }
 
-    /**
-     * Funds the contract: 0.5% fee in source currency, remainder converted at
-     * spot and vaulted in target currency. Fee minimum 0.01; HALF_EVEN cents.
-     * Publishes the funded event atomically.
-     *
-     * @return the funded contract plus the fee actually charged
-     * @throws NotFoundException if the contract/account is absent or actor is not a party
-     * @throws ForbiddenException if the actor is the seller
-     * @throws InvalidStateTransitionException if the contract is not INITIATED
-     * @throws CurrencyMismatchException if the deposit is not in source currency
-     * @throws InsufficientFundsException if the deposit does not cover the target
-     *     after conversion or the buyer cannot cover the deposit
-     * @throws IllegalStateException if a required system account is missing
-     * @throws UnsupportedCurrencyPairException if no FX rate is available
-     */
+    /** Funds the contract: 0.5% fee (min 0.01, HALF_EVEN) in source currency, remainder converted at spot and vaulted in target currency. */
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public FundingResult fundContract(
         UUID contractId,

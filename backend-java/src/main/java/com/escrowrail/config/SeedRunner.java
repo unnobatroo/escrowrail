@@ -14,10 +14,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
-/**
- * Idempotent demo seed: buyer + seller orgs with ledger-granted operating
- * balances (registration grants nothing). dev/demo/test only — prod never seeds.
- */
+/** Idempotent demo seed: buyer + seller orgs with ledger-granted operating balances (registration grants nothing). dev/demo/test only — prod never seeds. */
 @Component
 @Profile({"dev", "demo", "test"})
 public class SeedRunner implements CommandLineRunner {

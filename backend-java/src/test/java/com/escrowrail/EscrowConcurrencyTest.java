@@ -26,10 +26,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
-/**
- * Race conditions against a real PostgreSQL — pessimistic row locks must
- * serialize the losers; the winners commit exactly once.
- */
+/** Race conditions against a real PostgreSQL — pessimistic row locks must serialize the losers; the winners commit exactly once. */
 class EscrowConcurrencyTest extends AbstractPostgresIT {
 
     @Autowired

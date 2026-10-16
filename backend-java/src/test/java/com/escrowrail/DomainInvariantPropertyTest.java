@@ -34,10 +34,7 @@ import net.jqwik.api.constraints.BigRange;
 import net.jqwik.api.constraints.Size;
 import org.javamoney.moneta.Money;
 
-/**
- * Property-based invariant fuzzing. These run pure-domain — the DB-backed
- * races live in the Testcontainers suite.
- */
+/** Property-based invariant fuzzing. These run pure-domain — the DB-backed races live in the Testcontainers suite. */
 class DomainInvariantPropertyTest {
 
     private final QuoteCalculator calculator = new QuoteCalculator(

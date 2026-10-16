@@ -15,10 +15,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
-/**
- * Password reset flow: single-use hashed tokens, anti-enumeration 200s,
- * invalidation on re-issue, and old-password rejection after reset.
- */
+/** Password reset flow: single-use hashed tokens, anti-enumeration 200s, invalidation on re-issue, and old-password rejection after reset. */
 @AutoConfigureMockMvc
 class PasswordResetTest extends AbstractPostgresIT {
 

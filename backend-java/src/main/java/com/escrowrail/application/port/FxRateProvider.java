@@ -12,9 +12,7 @@ public interface FxRateProvider {
     BigDecimal getRate(String sourceCurrency, String targetCurrency);
 }
 
-/**
- * Static mid-market table; USD->EUR fixed at 1/1.08.
- */
+/** Static mid-market table; USD->EUR fixed at 1/1.08. */
 @Component
 class StaticFxRateProvider implements FxRateProvider {
 
@@ -25,12 +23,7 @@ class StaticFxRateProvider implements FxRateProvider {
         BigDecimal.ONE
     );
 
-    /**
-     * Returns target units per source unit from the static USD/EUR table, ignoring
-     * case. Identical codes return one without checking whether the currency exists.
-     *
-     * @throws UnsupportedCurrencyPairException if different codes are outside the table
-     */
+    /** Returns target units per source unit from the static USD/EUR table, ignoring case. Identical codes return one without checking whether the currency exists. */
     @Override
     public BigDecimal getRate(String source, String target) {
         String src = source.toUpperCase(java.util.Locale.ROOT);

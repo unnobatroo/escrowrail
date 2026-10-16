@@ -11,7 +11,6 @@ public class EmailNotVerifiedException extends DomainException {
         this.email = email;
     }
 
-    /** Returns the unverified account's email for the error payload. */
     public String email() {
         return email;
     }

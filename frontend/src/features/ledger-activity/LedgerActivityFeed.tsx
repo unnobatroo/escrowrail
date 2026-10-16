@@ -23,10 +23,7 @@ const SYSTEM_LABELS: Record<string, string> = {
   "00000000-0000-0000-0000-000000000004": "Escrowrail Fees EUR",
 };
 
-/**
- * Real-time cryptographic ledger stream — the tenant's latest double-entry
- * journal rows with their SHA-256 chain links.
- */
+/** Ledger stream: latest double-entry rows with SHA-256 chain links. */
 export default function LedgerActivityFeed({
   accounts,
   refreshKey,

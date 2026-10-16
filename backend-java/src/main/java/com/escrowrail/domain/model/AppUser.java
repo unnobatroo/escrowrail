@@ -41,7 +41,6 @@ public record AppUser(
         );
     }
 
-    /** Returns a copy marked verified and active. */
     public AppUser verified() {
         return new AppUser(
             id, email, passwordHash, entityId, active, true, UserStatus.ACTIVE,
@@ -49,7 +48,6 @@ public record AppUser(
         );
     }
 
-    /** Returns a copy with a new password hash — used by password reset. */
     public AppUser passwordChanged(String newPasswordHash) {
         return new AppUser(
             id, email, newPasswordHash, entityId, active, emailVerified, status,
@@ -57,7 +55,6 @@ public record AppUser(
         );
     }
 
-    /** Returns a copy with the onboarding window closed. */
     public AppUser onboarded() {
         return new AppUser(
             id, email, passwordHash, entityId, active, emailVerified, status,

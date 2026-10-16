@@ -22,11 +22,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 
-/**
- * Zero-debt invariants: the domain aggregate refuses overdrafts, an empty
- * account gets the dedicated ZERO_BALANCE_LOCKED code, and the database
- * check constraint physically blocks corruption that bypasses the service.
- */
+/** Zero-debt invariants: domain refuses overdrafts, empty account -> ZERO_BALANCE_LOCKED, DB constraint blocks bypass corruption. */
 @SpringBootTest
 class AccountBalanceSafetyTest extends AbstractPostgresIT {
 

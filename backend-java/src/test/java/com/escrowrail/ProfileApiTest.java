@@ -16,11 +16,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
-/**
- * Self-service profile: tenant-scoped updates, tax-ID validation, the
- * one-time onboarding deposit credited through the ledger, and replay
- * rejection once onboarding has completed.
- */
+/** Self-service profile: tenant-scoped updates, tax-ID validation, the one-time onboarding deposit credited through the ledger, and replay rejection once onboarding has completed. */
 @AutoConfigureMockMvc
 class ProfileApiTest extends AbstractPostgresIT {
 

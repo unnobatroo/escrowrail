@@ -16,10 +16,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
-/**
- * End-to-end lifecycle over HTTP: auth, UBO guardrail, fund, webhook
- * settle (0.8% split), asymmetric cancel, and tenant isolation.
- */
+/** End-to-end lifecycle over HTTP: auth, UBO guardrail, fund, webhook settle (0.8% split), asymmetric cancel, and tenant isolation. */
 @AutoConfigureMockMvc
 class EscrowApiIntegrationTest extends AbstractPostgresIT {
 

@@ -7,10 +7,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Member directory: find counterparties by legal name or email. Verified
- * members only, requester excluded — filtering happens in the query.
- */
+/** Member directory: find counterparties by legal name or email. Verified members only, requester excluded — filtering happens in the query. */
 @Service
 public class DirectoryService {
 

@@ -12,13 +12,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
-/**
- * External-notification sink. Events arrive here AFTER commit via plain
- * @TransactionalEventListener — in-memory only: a crash between commit and
- * dispatch loses the notification. Upgrade path if that matters: Spring
- * Modulith's @ApplicationModuleListener + starter-jpa persists publications
- * in the transaction and replays them.
- */
+/** Notification sink via @TransactionalEventListener — in-memory; a crash between commit and dispatch loses the event. Durability: Modulith @ApplicationModuleListener. */
 @Component
 public class NotificationEventListener {
 
