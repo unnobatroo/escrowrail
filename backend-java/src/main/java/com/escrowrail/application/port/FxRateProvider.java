@@ -49,8 +49,10 @@ class StaticFxRateProvider implements FxRateProvider {
             );
         }
         if (USD_RATES.containsKey(src) && USD_RATES.containsKey(dst)) {
-            // Cross via USD.
-            return getRate(src, "USD").multiply(getRate("USD", dst));
+            // Cross via USD, bounded to 8 decimal places to fit numeric(20,8).
+            return getRate(src, "USD")
+                .multiply(getRate("USD", dst))
+                .setScale(8, RoundingMode.HALF_EVEN);
         }
         throw new UnsupportedCurrencyPairException(
             "No rate for %s/%s".formatted(src, dst)

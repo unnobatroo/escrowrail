@@ -42,13 +42,19 @@ public record LedgerTransactionResponse(
      */
     private static String classify(String description) {
         String d = description.toLowerCase(java.util.Locale.ROOT);
-        if (d.contains("sandbox")) return "TOP_UP";
+        if (
+            d.contains("sandbox") ||
+            d.contains("onboarding deposit") ||
+            d.contains("opening balance")
+        ) {
+            return "TOP_UP";
+        }
         if (d.contains("fee")) return "FEE_DEDUCTION";
         if (d.contains("vault funding")) return "VAULT_LOCK";
         if (d.contains("payout")) return "ESCROW_PAYOUT";
         if (d.contains("liquidation")) return "VAULT_LIQUIDATION";
         if (d.contains("refund")) return "REFUND";
-        if (d.contains("fx")) return "FX_CONVERSION";
+        if (d.contains("fx") || d.contains("conversion")) return "FX_CONVERSION";
         return "TRANSFER";
     }
 }

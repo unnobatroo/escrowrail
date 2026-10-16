@@ -10,14 +10,18 @@ import {
 } from "../../../api";
 import type {
   Account,
-  ContractView,
   Counterparty,
+  CreateEscrowResponse,
   DirectoryMember,
   Quote,
   TrackingType,
 } from "../../../api";
 
-import { money } from "../../../shared/utilities/currencyFormatter";
+import {
+  deriveReceivesFromDeposit,
+  money,
+  toCents,
+} from "../../../shared/utilities/currencyFormatter";
 import FeeCalculationRail from "./FeeCalculationRail";
 import BankComparisonDropdown from "./BankComparisonDropdown";
 import CounterpartyField from "./CounterpartyField";
@@ -26,7 +30,7 @@ import { useDialogA11y } from "../../../shared/hooks/useDialogA11y";
 
 interface Props {
   onClose: () => void;
-  onCreated: (c: ContractView) => void;
+  onCreated: (c: CreateEscrowResponse) => void;
   /** Optional pre-fill for demo/evaluator fast paths. */
   preset?: { email?: string; amount?: string };
 }
@@ -114,11 +118,13 @@ export default function NewEscrowTradeModal({
 
   // Live backend quote for the chosen amount and currency pair.
   useEffect(() => {
-    const n = Number(amount);
-    if (!n || n <= 0 || sourceCurrency === targetCurrency) {
+    if ((toCents(amount) ?? 0n) <= 0n || sourceCurrency === targetCurrency) {
       setQuote(null);
       return;
     }
+    // A quote only stays valid for the inputs that produced it — clear it
+    // while the debounced replacement for the new pair/amount is pending.
+    setQuote(null);
     let stale = false;
     const t = setTimeout(() => {
       escrowApi
@@ -143,9 +149,9 @@ export default function NewEscrowTradeModal({
   useEffect(() => {
     if (editingPay) {
       if (quote) {
-        const derived = deriveReceives(
+        const derived = deriveReceivesFromDeposit(
           payInput,
-          Number(quote.mid_market_rate),
+          quote.mid_market_rate,
         );
         if (derived && derived !== amount) setAmount(derived);
       }
@@ -154,20 +160,15 @@ export default function NewEscrowTradeModal({
     }
   }, [quote, editingPay, payInput, amount]);
 
-  const deriveReceives = (pay: string, rate: number) => {
-    const p = Number(pay);
-    if (!p || p <= 0) return "";
-    // Mirror QuoteCalculator: 0.5% fee with a 0.01 floor, floored to cents
-    // so the derived receive figure never over-promises.
-    const fee = Math.max(p * 0.005, 0.01);
-    return (Math.floor((p - fee) * rate * 100) / 100).toFixed(2);
-  };
-
   const onPayEdit = (v: string) => {
     setEditingPay(true);
     setPayInput(v);
+    if (!v.trim()) {
+      setAmount("");
+      return;
+    }
     if (quote) {
-      const derived = deriveReceives(v, Number(quote.mid_market_rate));
+      const derived = deriveReceivesFromDeposit(v, quote.mid_market_rate);
       if (derived) setAmount(derived);
     }
   };
@@ -177,22 +178,49 @@ export default function NewEscrowTradeModal({
     setAmount(v);
   };
 
+  const handleSourceCurrency = (next: string) => {
+    if (next === targetCurrency) {
+      const fallback =
+        currencies.find((c) => c !== next) ?? sourceCurrency;
+      setTargetCurrency(fallback);
+    }
+    setSourceCurrency(next);
+  };
+
+  const handleTargetCurrency = (next: string) => {
+    if (next === sourceCurrency) {
+      const fallback =
+        currencies.find((c) => c !== next) ?? targetCurrency;
+      setSourceCurrency(fallback);
+    }
+    setTargetCurrency(next);
+  };
+
   const uboCollision = cp?.same_ubo === true;
+
+  // Submission requires the displayed quote to still match the current pair
+  // and amount — otherwise the old amount could be sent with new currencies.
+  const quoteReady =
+    quote !== null &&
+    quote.source_currency === sourceCurrency &&
+    quote.target_currency === targetCurrency &&
+    toCents(quote.target_amount) === toCents(amount);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!quoteReady) return;
     setBusy(true);
     setError("");
     try {
       const res = await escrowApi.create({
-        counterparty_email: email,
+        counterparty_email: email.trim(),
         target_amount: amount,
         target_currency: targetCurrency,
         source_currency: sourceCurrency,
         tracking_type: trackingType,
-        tracking_key: trackingKey,
+        tracking_key: trackingKey.trim(),
       });
-      onCreated(res.data as ContractView);
+      onCreated(res.data);
     } catch (err) {
       setError(apiError(err).message ?? "Could not create the trade");
     } finally {
@@ -212,14 +240,14 @@ export default function NewEscrowTradeModal({
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-brand-forest/30 p-4 backdrop-blur-md"
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-brand-forest/30 p-4 backdrop-blur-md"
     >
       <motion.form
         onSubmit={submit}
         initial={{ scale: 0.95, opacity: 0, y: 16 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         transition={{ type: "spring", duration: 0.3 }}
-        className="w-full max-w-lg rounded-3xl bg-brand-surface p-6 shadow-modal"
+        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-brand-surface p-6 shadow-modal"
         role="dialog"
         aria-modal="true"
         aria-label="New escrow trade"
@@ -262,7 +290,7 @@ export default function NewEscrowTradeModal({
           onAmount={onPayEdit}
           amountTestId="quote-total"
           currency={sourceCurrency}
-          onCurrency={setSourceCurrency}
+          onCurrency={handleSourceCurrency}
           currencies={currencies}
           currencyTestId="source-currency"
           currencyLabel="Deposit currency"
@@ -285,7 +313,7 @@ export default function NewEscrowTradeModal({
           onAmount={onAmountEdit}
           amountTestId="amount"
           currency={targetCurrency}
-          onCurrency={setTargetCurrency}
+          onCurrency={handleTargetCurrency}
           currencies={currencies}
           currencyTestId="target-currency"
           currencyLabel="Recipient currency"
@@ -352,7 +380,7 @@ export default function NewEscrowTradeModal({
         <motion.button
           data-testid="create-trade"
           type="submit"
-          disabled={busy || uboCollision || (!cp && !cpUnknown)}
+          disabled={busy || uboCollision || (!cp && !cpUnknown) || !quoteReady}
           whileTap={{ scale: 0.98 }}
           className="w-full rounded-pill bg-brand-neon py-2.5 font-semibold text-brand-forest transition-colors hover:bg-brand-neonHover disabled:opacity-50"
         >

@@ -12,6 +12,7 @@ const STEPS = [
 ] as const;
 
 const RANK: Record<string, number> = {
+  INVITED: 0,
   INITIATED: 0,
   FUNDED: 1,
   SETTLED: 3,
@@ -22,11 +23,16 @@ const RANK: Record<string, number> = {
 export default function EscrowMilestoneStepper({ status }: { status: string }) {
   const current = RANK[status] ?? 0;
   const cancelled = status === "CANCELLED";
+  const invited = status === "INVITED";
   return (
     <ol className="flex w-full" aria-label="Escrow lifecycle progress">
       {STEPS.map((s, i) => {
-        const done = !cancelled && i < current;
+        const done = !cancelled && !invited && i < current;
         const active = !cancelled && i === current;
+        const label =
+          i === 0 && invited ? "Counterparty invited" : s.label;
+        const sub =
+          i === 0 && invited ? "Awaiting signup" : s.sub;
         return (
           <li key={s.key} className="flex flex-1 items-start">
             <div className="flex w-full flex-col items-center text-center">
@@ -62,10 +68,10 @@ export default function EscrowMilestoneStepper({ status }: { status: string }) {
                   active ? "text-brand-forest" : "text-brand-subtle"
                 }`}
               >
-                {s.label}
+                {label}
               </p>
               <p className="text-[10px] leading-tight text-brand-subtle/80">
-                {s.sub}
+                {sub}
               </p>
             </div>
           </li>

@@ -36,7 +36,7 @@ export default function FeeCalculationRail({ quote }: { quote: Quote }) {
           =
         </span>
         <span className="num text-brand-charcoal">
-          {money(quote.total_deposit, quote.source_currency)}
+          {money(quote.principal, quote.source_currency)}
         </span>
         <span className="text-brand-subtle">Amount to convert</span>
       </div>

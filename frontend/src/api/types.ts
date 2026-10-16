@@ -60,6 +60,11 @@ export interface ContractView {
   net_vaulted?: string | null;
 }
 
+/** POST /escrow returns a full contract for members, or just a status+message for invited emails. */
+export type CreateEscrowResponse =
+  | (ContractView & { message?: string })
+  | { status: "INVITED"; message: string; id?: never };
+
 export interface Quote {
   source_currency: string;
   target_currency: string;

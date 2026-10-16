@@ -7,6 +7,7 @@ import com.escrowrail.domain.model.TrackingType;
 import com.escrowrail.domain.repository.EscrowContractRepository;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
@@ -36,11 +37,12 @@ public class EscrowContractRepositoryAdapter
             e.getCreatedAt(),
             e.getVersion()
         );
-        if (e.getStatus() == EscrowStatus.INVITED && e.getInvitedEmail() != null) {
+        if (e.getInvitedEmail() != null) {
             c.markInvited(e.getInvitedEmail());
         }
         if (
             e.getStatus() != EscrowStatus.INITIATED &&
+            e.getStatus() != EscrowStatus.INVITED &&
             e.getDepositAmount() != null
         ) {
             c.fund(
@@ -160,7 +162,7 @@ public class EscrowContractRepositoryAdapter
     /** {@inheritDoc} */
     public List<EscrowContract> findPendingInvites(String invitedEmail) {
         return jpa
-            .findPendingInvites(invitedEmail)
+            .findPendingInvites(invitedEmail.strip().toLowerCase(Locale.ROOT))
             .stream()
             .map(EscrowContractRepositoryAdapter::toDomain)
             .toList();

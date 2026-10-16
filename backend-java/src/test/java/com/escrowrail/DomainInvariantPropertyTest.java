@@ -69,19 +69,42 @@ class DomainInvariantPropertyTest {
             .ofScale(2);
     }
 
-    /** The quoted deposit always converts to at least the target amount. */
+    /** The quoted deposit always covers the target AND is the minimal cent deposit that does so. */
     @Property
     void quotedDepositAlwaysCoversTarget(@ForAll("amounts") BigDecimal target) {
-        Quote q = calculator.quote("USD", "EUR", target);
+        assertMinimalCoveringQuote("USD", "EUR", target);
+        assertMinimalCoveringQuote("EUR", "USD", target);
+    }
+
+    private void assertMinimalCoveringQuote(
+        String source,
+        String targetCurrency,
+        BigDecimal target
+    ) {
+        Quote q = calculator.quote(source, targetCurrency, target);
         BigDecimal converted = q
             .principal()
             .multiply(q.midMarketRate())
             .setScale(2, RoundingMode.HALF_EVEN);
         assertThat(converted)
-            .as("converted for target %s", target)
+            .as("converted for target %s (%s->%s)", target, source, targetCurrency)
             .isGreaterThanOrEqualTo(target);
         assertThat(q.platformFee()).isPositive();
         assertThat(q.totalDeposit()).isEqualTo(q.principal().add(q.platformFee()));
+
+        // Minimality invariant: one cent less strictly fails to cover target.
+        BigDecimal oneCentLess = q.totalDeposit().subtract(MoneyAmounts.CENT);
+        BigDecimal prevFee = oneCentLess
+            .multiply(QuoteCalculator.CONVERSION_FEE_RATE)
+            .setScale(2, RoundingMode.HALF_EVEN)
+            .max(MoneyAmounts.CENT);
+        BigDecimal prevConverted = oneCentLess
+            .subtract(prevFee)
+            .multiply(q.midMarketRate())
+            .setScale(2, RoundingMode.HALF_EVEN);
+        assertThat(prevConverted)
+            .as("one cent less than quoted deposit %s for target %s", q.totalDeposit(), target)
+            .isLessThan(target);
     }
 
     /** In-memory repo fakes — enough surface for LedgerService.transfer. */
