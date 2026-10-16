@@ -27,9 +27,16 @@ export default function Register() {
     e.preventDefault();
     setBusy(true);
     setError("");
+    const payload = {
+      email: form.email.trim(),
+      password: form.password,
+      legal_name: form.legal_name.trim(),
+      ubo_tax_id: form.ubo_tax_id.trim(),
+      country: form.country.trim().toUpperCase(),
+    };
     try {
-      await register(form);
-      navigate(`/verify-email?email=${encodeURIComponent(form.email)}`);
+      await register(payload);
+      navigate(`/verify-email?email=${encodeURIComponent(payload.email)}`);
     } catch (err) {
       setError(apiError(err).message ?? "Registration failed");
     } finally {
@@ -51,6 +58,8 @@ export default function Register() {
         <PasswordInput
           data-testid={key}
           required
+          minLength={8}
+          maxLength={128}
           autoComplete="new-password"
           value={form[key]}
           onChange={set(key)}
@@ -61,6 +70,8 @@ export default function Register() {
           data-testid={key}
           type={type}
           required
+          minLength={key === "country" ? 2 : undefined}
+          maxLength={key === "country" ? 2 : undefined}
           autoComplete={key === "email" ? "email" : "off"}
           value={form[key]}
           onChange={set(key)}

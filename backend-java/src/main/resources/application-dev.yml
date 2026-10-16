@@ -1,0 +1,20 @@
+# Local development profile (`make run-backend` -> SPRING_PROFILES_ACTIVE=dev):
+# Connects to docker-compose Postgres by default and enables seeded demo
+# tenants, sandbox top-ups, signed webhook simulation, and the /dev token
+# helper. Production (`prod`) ignores this file and requires explicit secrets.
+spring:
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/escrowrail}
+    username: ${DATABASE_USER:escrowrail}
+    password: ${DATABASE_PASSWORD:escrowrail}
+
+escrowrail:
+  jwt:
+    secret: ${JWT_SECRET:dev-only-jwt-secret-must-be-at-least-32-bytes}
+  webhooks:
+    github-secret: ${ESCROWRAIL_GITHUB_WEBHOOK_SECRET:dev-github-webhook-secret}
+    logistics-secret: ${ESCROWRAIL_LOGISTICS_WEBHOOK_SECRET:dev-logistics-webhook-secret}
+  security:
+    allow-mock-webhooks: ${ESCROWRAIL_ALLOW_MOCK_WEBHOOKS:true}
+  seed:
+    enabled: ${ESCROWRAIL_SEED_ENABLED:true}

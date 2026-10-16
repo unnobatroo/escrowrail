@@ -3,6 +3,7 @@ package com.escrowrail.domain.model;
 import com.escrowrail.domain.exception.InvalidStateTransitionException;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Locale;
 import java.util.UUID;
 import javax.money.MonetaryAmount;
 
@@ -63,6 +64,7 @@ public class EscrowContract {
         Instant createdAt,
         long version
     ) {
+        assertCentScale(targetAmount);
         this.id = id;
         this.buyerId = buyerId;
         this.sellerId = sellerId;
@@ -74,6 +76,17 @@ public class EscrowContract {
         this.createdAt = createdAt;
         this.version = version;
         this.status = EscrowStatus.INITIATED;
+    }
+
+    private static void assertCentScale(MonetaryAmount amount) {
+        if (amount != null) {
+            BigDecimal dec = amount.getNumber().numberValue(BigDecimal.class);
+            if (dec.stripTrailingZeros().scale() > 2) {
+                throw new IllegalArgumentException(
+                    "Amounts must have at most 2 decimal places"
+                );
+            }
+        }
     }
 
     /** INITIATED contract between two registered entities. */
@@ -124,7 +137,7 @@ public class EscrowContract {
 
     /** Marks a seller-less contract INVITED; used by creation and rehydration. */
     public void markInvited(String email) {
-        this.invitedEmail = email;
+        this.invitedEmail = email == null ? null : email.strip().toLowerCase(Locale.ROOT);
         this.status = EscrowStatus.INVITED;
     }
 
@@ -158,6 +171,8 @@ public class EscrowContract {
         Instant fundedAt
     ) {
         requireStatus(EscrowStatus.INITIATED, "fund");
+        assertCentScale(deposit);
+        assertCentScale(escrowed);
         this.buyerAccountId = buyerAccountId;
         this.depositAmount = deposit;
         this.escrowedAmount = escrowed;

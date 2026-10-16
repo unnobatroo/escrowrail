@@ -39,7 +39,7 @@ export default function BankComparisonDropdown({ quote }: { quote: Quote }) {
               <div className="flex justify-between border-t border-brand-border pt-3 font-semibold">
                 <span className="text-brand-charcoal">Escrowrail</span>
                 <span className="num text-brand-forest">
-                  {money(quote.total_deposit, ccy)}
+                  {money(quote.platform_fee, ccy)}
                 </span>
               </div>
               <div className="flex justify-between text-brand-subtle">

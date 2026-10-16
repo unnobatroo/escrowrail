@@ -186,7 +186,12 @@ export default function Dashboard() {
       />
 
       {notice && (
-        <div className="mb-4 rounded-lg bg-[#D1E7DD] px-3 py-2 text-sm text-[#0F5132]">{notice}</div>
+        <div
+          data-testid="dashboard-notice"
+          className="mb-4 rounded-lg bg-[#D1E7DD] px-3 py-2 text-sm text-[#0F5132]"
+        >
+          {notice}
+        </div>
       )}
 
       <InsightTiles
@@ -250,6 +255,9 @@ export default function Dashboard() {
           onCreated={(c) => {
             setShowNew(false);
             reload();
+            if (c.status === "INVITED" && c.message) {
+              setNotice(c.message);
+            }
             // INVITED responses carry no contract id — nothing to deep-link.
             if (c.id) navigate(`/dashboard?trade=${c.id}`);
           }}

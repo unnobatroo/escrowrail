@@ -76,15 +76,18 @@ test {
     // Let Testcontainers auto-discover the daemon (Docker Desktop,
     // OrbStack, /var/run/docker.sock, npipe on Windows). Honor explicit
     // operator overrides when present.
+    def defaultSock = new File('/var/run/docker.sock')
+    def orbstackSock = new File("${System.getProperty('user.home')}/.orbstack/run/docker.sock")
     if (System.getenv('DOCKER_HOST')) {
         environment 'DOCKER_HOST', System.getenv('DOCKER_HOST')
+    } else if (!defaultSock.exists() && orbstackSock.exists()) {
+        environment 'DOCKER_HOST', "unix://${orbstackSock.absolutePath}"
     }
     if (System.getenv('DOCKER_API_VERSION')) {
         environment 'DOCKER_API_VERSION', System.getenv('DOCKER_API_VERSION')
         systemProperty 'api.version', System.getenv('DOCKER_API_VERSION')
     } else if (!System.getProperty('os.name').toLowerCase().contains('windows')
-            && (new File('/var/run/docker.sock').exists()
-                || new File("${System.getProperty('user.home')}/.orbstack/run/docker.sock").exists())) {
+            && (defaultSock.exists() || orbstackSock.exists())) {
         // Docker 29+ daemons (OrbStack) reject docker-java's default
         // API 1.32 — floor at their documented minimum. Only applied on
         // Unix with a local socket so Windows/remote setups are untouched.

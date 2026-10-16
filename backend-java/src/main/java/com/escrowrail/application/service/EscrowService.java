@@ -15,6 +15,7 @@ import com.escrowrail.domain.repository.LedgerRepository.LedgerEntry;
 import com.escrowrail.domain.repository.OrganizationRepository;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import javax.money.MonetaryAmount;
@@ -109,7 +110,7 @@ public class EscrowService {
         UUID requesterEntityId
     ) {
         return users
-            .findByEmail(email.strip().toLowerCase(java.util.Locale.ROOT))
+            .findByEmail(email.strip().toLowerCase(Locale.ROOT))
             .flatMap(u -> organizations.findById(u.entityId()))
             .map(org ->
                 new Counterparty(
@@ -190,6 +191,7 @@ public class EscrowService {
         String trackingKey,
         String invitedEmail
     ) {
+        String normalizedEmail = invitedEmail.strip().toLowerCase(Locale.ROOT);
         Organization inviter = organizations
             .findById(buyerEntityId)
             .orElseThrow(() ->
@@ -203,11 +205,11 @@ public class EscrowService {
                 sourceCurrency,
                 trackingType,
                 trackingKey,
-                invitedEmail
+                normalizedEmail
             )
         );
         events.publishEvent(
-            new CounterpartyInvited(invitedEmail, inviter.legalName())
+            new CounterpartyInvited(normalizedEmail, inviter.legalName())
         );
         return saved;
     }
@@ -219,12 +221,13 @@ public class EscrowService {
      */
     @Transactional
     public void attachPendingInvites(String email, UUID sellerEntityId) {
+        String normalizedEmail = email.strip().toLowerCase(Locale.ROOT);
         Organization seller = organizations
             .findById(sellerEntityId)
             .orElseThrow(() ->
                 new NotFoundException("Seller organization not found")
             );
-        for (EscrowContract c : contracts.findPendingInvites(email)) {
+        for (EscrowContract c : contracts.findPendingInvites(normalizedEmail)) {
             Organization buyer = organizations
                 .findById(c.buyerId())
                 .orElseThrow(() ->

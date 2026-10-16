@@ -36,9 +36,8 @@ export default function Login() {
     setError("");
     setUnverified(false);
     try {
-      // Trim: copy-pasted credentials often carry a trailing space that
-      // fails auth invisibly (Argon2 compares raw bytes).
-      await login(email.trim(), password.trim());
+      // Trim email: copy-pasted addresses often carry a trailing space.
+      await login(email.trim(), password);
       navigate("/dashboard");
     } catch (err) {
       const apiErr = apiError(err);
@@ -101,7 +100,7 @@ export default function Login() {
           >
             Your account is not verified yet. Check your inbox or{" "}
             <Link
-              to={`/verify-email?email=${encodeURIComponent(email)}`}
+              to={`/verify-email?email=${encodeURIComponent(email.trim())}`}
               className="font-semibold underline"
             >
               resend verification email

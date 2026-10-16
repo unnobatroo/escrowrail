@@ -1,6 +1,10 @@
 import { useRef } from "react";
 import type { ContractView, Quote } from "../../../api";
-import { money } from "../../../shared/utilities/currencyFormatter";
+import {
+  compareMoney,
+  money,
+  subtractMoney,
+} from "../../../shared/utilities/currencyFormatter";
 import { useDialogA11y } from "../../../shared/hooks/useDialogA11y";
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
@@ -33,11 +37,9 @@ export default function FundingConfirmSheet({
   onConfirm: () => void;
   onClose: () => void;
 }) {
-  const available = Number(sourceBalance ?? "0");
-  const totalDeposit = Number(quote.total_deposit);
   const shortfall =
-    sourceBalance != null && totalDeposit > available
-      ? (totalDeposit - available).toFixed(2)
+    sourceBalance != null && compareMoney(quote.total_deposit, sourceBalance) > 0
+      ? subtractMoney(quote.total_deposit, sourceBalance)
       : null;
   const dialogRef = useRef<HTMLDivElement>(null);
   useDialogA11y(dialogRef, onClose);

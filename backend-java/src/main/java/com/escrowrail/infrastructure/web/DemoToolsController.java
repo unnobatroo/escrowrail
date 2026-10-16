@@ -107,6 +107,9 @@ public class DemoToolsController {
                 || body.amount().compareTo(MAX_TOPUP) > 0) {
             throw new ValidationException("Amount must be 0 < x <= " + MAX_TOPUP);
         }
+        if (body.amount().stripTrailingZeros().scale() > 2) {
+            throw new ValidationException("Amounts must have at most 2 decimal places");
+        }
         UUID entityId = TenantPrincipal.entityId();
         // Scalar id lookups: a managed entity load would pin the pre-lock
         // snapshot in the persistence context and lose concurrent updates.

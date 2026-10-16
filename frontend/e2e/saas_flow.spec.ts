@@ -96,10 +96,10 @@ async function registerViaUi(
   await completeOnboarding(page);
 }
 
-async function loginViaUi(page: Page, email: string) {
+async function loginViaUi(page: Page, email: string, password = PASSWORD) {
   await page.goto("/login");
   await page.getByTestId("email").fill(email);
-  await page.getByTestId("password").fill(PASSWORD);
+  await page.getByTestId("password").fill(password);
   await page.getByTestId("submit").click();
   await expect(page).toHaveURL(/\/dashboard/);
 }
@@ -202,4 +202,106 @@ test("buyer cancels funded escrow and receives refund", async ({ page, request }
   await page.getByTestId("cancel").click();
   await page.getByTestId("confirm-cancel").click();
   await expect(page.getByTestId("status-badge")).toHaveText("CANCELLED");
+});
+
+test("full UX/UI sweep: password reset, currency auto-swap, invited trade & cancel, demo switcher & guide", async ({
+  page,
+  request,
+}) => {
+  const run = Date.now();
+  const userEmail = `sweep-${run}@test.dev`;
+  await registerViaUi(page, userEmail, "Sweep Corp", `UB-SW-${run}`);
+
+  // 1. How It Works modal opens and closes cleanly.
+  await page.getByTestId("how-it-works").click();
+  await expect(page.getByRole("dialog", { name: "How Escrowrail works" })).toBeVisible();
+  await page.getByRole("button", { name: "Close explainer" }).click();
+  await expect(page.getByRole("dialog", { name: "How Escrowrail works" })).not.toBeVisible();
+
+  // 2. New Trade modal: currency auto-swap prevents same-currency collision + bidirectional editing.
+  await page.getByTestId("new-trade").click();
+  await expect(page.getByTestId("source-currency")).toHaveValue("USD");
+  await expect(page.getByTestId("target-currency")).toHaveValue("EUR");
+
+  // Verify algebraic invariants on the default 10,000.00 EUR quote:
+  // total_deposit (10,854.27) - platform_fee (54.27) = principal (10,800.00).
+  await expect(page.getByTestId("quote-total")).toHaveValue("10854.27");
+  await expect(page.getByRole("dialog")).toContainText("54.27 USD");
+  await expect(page.getByRole("dialog")).toContainText("10,800.00 USD");
+
+  // Bank comparison dropdown compares Escrowrail fee (54.27 USD) vs bank fee (562.46 USD) -> savings (508.19 USD).
+  await page.getByTestId("bank-comparison").click();
+  await expect(page.getByTestId("customer-savings")).toContainText("508.19 USD");
+
+  // Bidirectional BigInt derivation: typing 10854.27 into "You pay" derives exact "10000.00" EUR.
+  await page.getByTestId("quote-total").fill("10854.27");
+  await expect(page.getByTestId("amount")).toHaveValue("10000.00");
+
+  // Selecting EUR as source currency automatically swaps target currency to USD.
+  await page.getByTestId("source-currency").selectOption("EUR");
+  await expect(page.getByTestId("target-currency")).toHaveValue("USD");
+  // Swap back by choosing EUR as target currency.
+  await page.getByTestId("target-currency").selectOption("EUR");
+  await expect(page.getByTestId("source-currency")).toHaveValue("USD");
+
+  // Invite an unregistered counterparty and verify INVITED drawer + pre-funding cancellation.
+  const ghostEmail = `GhostVendor-${run}@Example.com`;
+  await page.getByTestId("cp-email").fill(ghostEmail);
+  await expect(page.getByTestId("cp-unknown")).toContainText("Not on the platform yet");
+  await page.getByTestId("amount").fill("750.00");
+  await page.getByTestId("tracking-type").selectOption("SHIPPING_CARRIER");
+  await page.getByTestId("tracking-key").fill(`DHL-${run}`);
+  await page.getByTestId("create-trade").click();
+
+  await expect(page.getByTestId("dashboard-notice")).toContainText(
+    "Counterparty is not on Escrowrail yet",
+  );
+  const invitedRow = page.locator('[data-testid^="trade-row-"]', {
+    hasText: ghostEmail.toLowerCase(),
+  });
+  await expect(invitedRow).toContainText("INVITED");
+  await invitedRow.click();
+
+  await expect(page.getByTestId("trade-drawer")).toBeVisible();
+  await expect(page.getByTestId("invited-banner")).toContainText(
+    ghostEmail.toLowerCase(),
+  );
+  await page.getByTestId("cancel").click();
+  await page.getByTestId("confirm-cancel").click();
+  await expect(page.getByTestId("status-badge")).toHaveText("CANCELLED");
+  await page.getByTestId("drawer-close").click();
+
+  // 3. Logout -> Forgot Password -> Reset Password -> Login with new password.
+  await page.getByTestId("logout").click();
+  await expect(page).toHaveURL(/\/login/);
+  await page.getByRole("link", { name: "Forgot password?" }).click();
+  await expect(page).toHaveURL(/\/forgot-password/);
+  await page.getByTestId("forgot-email").fill(userEmail);
+  await page.getByTestId("forgot-submit").click();
+  await expect(page.getByTestId("reset-sent")).toBeVisible();
+
+  const resetTokRes = await request.get(
+    `${API}/dev/reset-token?email=${encodeURIComponent(userEmail)}`,
+  );
+  expect(resetTokRes.ok()).toBeTruthy();
+  const { token: resetToken } = await resetTokRes.json();
+
+  const newPassword = "NewSweepPassword99!";
+  await page.goto(`/reset-password?token=${resetToken}`);
+  await page.getByTestId("new-password").fill(newPassword);
+  await page.getByTestId("confirm-password").fill(newPassword);
+  await page.getByTestId("reset-submit").click();
+  await expect(page.getByTestId("reset-done")).toBeVisible();
+
+  await loginViaUi(page, userEmail, newPassword);
+  await expect(page.getByText("Sweep Corp", { exact: true })).toBeVisible();
+
+  // 4. Demo persona switcher ("Switch to Seller" -> "Switch to Buyer").
+  await page.getByTestId("logout").click();
+  await loginViaUi(page, "buyer@demo.com", "EscrowDemo123!");
+  await expect(page.getByTestId("greeting")).toContainText("Acme Industrial US");
+  await page.getByTestId("demo-switch").click();
+  await expect(page.getByTestId("greeting")).toContainText("Berlin Robotics GmbH");
+  await page.getByTestId("demo-switch").click();
+  await expect(page.getByTestId("greeting")).toContainText("Acme Industrial US");
 });

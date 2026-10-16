@@ -16,8 +16,8 @@ gh api \
     "strict": true,
     "contexts": [
       "quality",
-      "unit-and-invariants",
-      "concurrency-and-load"
+      "verify",
+      "e2e"
     ]
   },
   "enforce_admins": false,

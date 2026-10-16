@@ -50,8 +50,9 @@ class UniversalP2PTradingTest extends AbstractPostgresIT {
         )
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.status").value("PENDING_VERIFICATION"));
+        String normalizedEmail = email.strip().toLowerCase(java.util.Locale.ROOT);
         MvcResult tok = mvc
-            .perform(get("/dev/verification-token").param("email", email))
+            .perform(get("/dev/verification-token").param("email", normalizedEmail))
             .andExpect(status().isOk())
             .andReturn();
         String rawToken = JsonPath.read(
@@ -284,10 +285,11 @@ class UniversalP2PTradingTest extends AbstractPostgresIT {
     void invitedContractAttachesWhenCounterpartyRegisters() throws Exception {
         String tag = "" + System.nanoTime();
         String buyerEmail = "inv-buyer-" + tag + "@t.dev";
-        String invitedEmail = "inv-seller-" + tag + "@t.dev";
+        String invitedEmailMixedCase = "Inv-Seller-" + tag + "@T.DEV";
+        String invitedEmail = invitedEmailMixedCase.toLowerCase(java.util.Locale.ROOT);
         String buyer = onboard(buyerEmail, "Inviter " + tag, "UB-IB-" + tag, "1000.00");
 
-        // Contract is created for an address that is not registered yet.
+        // Contract is created for an address that is not registered yet (with mixed case).
         mvc.perform(
             post("/api/v1/escrow")
                 .header("Authorization", "Bearer " + buyer)
@@ -296,13 +298,13 @@ class UniversalP2PTradingTest extends AbstractPostgresIT {
                     """
                     {"counterparty_email":"%s","target_amount":"500.00",
                      "tracking_type":"GITHUB_PR","tracking_key":"pr-i-%s"}
-                    """.formatted(invitedEmail, tag)
+                    """.formatted(invitedEmailMixedCase, tag)
                 )
         )
             .andExpect(status().isAccepted())
             .andExpect(jsonPath("$.status").value("INVITED"));
 
-        // The buyer's list shows the pending INVITED trade with the email
+        // The buyer's list shows the pending INVITED trade with the normalized email
         // standing in for the seller name.
         MvcResult list = mvc
             .perform(
@@ -348,6 +350,55 @@ class UniversalP2PTradingTest extends AbstractPostgresIT {
         settle("pr-i-" + tag);
         org.assertj.core.api.Assertions.assertThat(balance(seller, "EUR"))
             .isEqualByComparingTo(expectedPayout(seller, contractId));
+    }
+
+    @Test
+    void invitedContractCanBeCancelledBeforeCounterpartyRegisters() throws Exception {
+        String tag = "" + System.nanoTime();
+        String buyerEmail = "inv-cx-" + tag + "@t.dev";
+        String invitedEmail = "ghost-cx-" + tag + "@t.dev";
+        String buyer = onboard(buyerEmail, "Inviter CX " + tag, "UB-ICX-" + tag, "1000.00");
+
+        mvc.perform(
+            post("/api/v1/escrow")
+                .header("Authorization", "Bearer " + buyer)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"counterparty_email":"%s","target_amount":"250.00",
+                     "tracking_type":"GITHUB_PR","tracking_key":"pr-icx-%s"}
+                    """.formatted(invitedEmail, tag)
+                )
+        )
+            .andExpect(status().isAccepted())
+            .andExpect(jsonPath("$.status").value("INVITED"));
+
+        MvcResult list = mvc
+            .perform(
+                get("/api/v1/escrow").header("Authorization", "Bearer " + buyer)
+            )
+            .andExpect(status().isOk())
+            .andReturn();
+        String contractId = JsonPath.read(
+            list.getResponse().getContentAsString(),
+            "$[0].id"
+        );
+
+        // Buyer cancels the INVITED contract with zero fee and invited_email preserved.
+        mvc.perform(
+            post("/api/v1/escrow/" + contractId + "/cancel")
+                .header("Authorization", "Bearer " + buyer)
+        )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("CANCELLED"));
+
+        mvc.perform(
+            get("/api/v1/escrow/" + contractId)
+                .header("Authorization", "Bearer " + buyer)
+        )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("CANCELLED"))
+            .andExpect(jsonPath("$.seller_name").value(invitedEmail));
     }
 
     private static String signature(byte[] body) throws Exception {

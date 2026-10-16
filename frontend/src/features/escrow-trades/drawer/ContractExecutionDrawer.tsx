@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { ShieldCheck, Timer, X } from "lucide-react";
+import { Mail, ShieldCheck, Timer, X } from "lucide-react";
 import { accountsApi, apiError, escrowApi } from "../../../api";
 import type { ContractView, LedgerEntry, Quote } from "../../../api";
 import FundingConfirmSheet from "./FundingConfirmSheet";
@@ -69,7 +69,10 @@ export default function ContractExecutionDrawer({
       .catch(() => {});
   }, [showFundSheet, contract]);
   useEffect(() => {
-    if (contract?.status === "INITIATED") {
+    if (
+      contract?.status === "INITIATED" ||
+      contract?.status === "INVITED"
+    ) {
       escrowApi
         .quote(
           contract.target_amount,
@@ -206,6 +209,22 @@ export default function ContractExecutionDrawer({
             </div>
           ) : (
             <>
+              {contract.status === "INVITED" && (
+                <div
+                  data-testid="invited-banner"
+                  className="rounded-lg bg-[#FFF3CD] p-3 text-sm text-[#7A5800]"
+                >
+                  <Mail size={16} className="mr-1.5 inline" />
+                  <span className="font-semibold">Awaiting counterparty signup</span>{" "}
+                  — an invitation was sent to{" "}
+                  <span className="font-mono font-semibold">
+                    {contract.seller_name}
+                  </span>
+                  . Funding unlocks automatically once they register and verify
+                  their email.
+                </div>
+              )}
+
               {contract.status === "FUNDED" && (
                 <div className="rounded-lg bg-[#CFF4FC] p-3 text-sm font-semibold text-[#084298]">
                   <ShieldCheck size={16} className="mr-1 inline" />
@@ -224,7 +243,7 @@ export default function ContractExecutionDrawer({
                       <span className="relative inline-flex h-2 w-2 rounded-full bg-brand-neon" />
                     </span>
                     <Timer size={14} /> Live Float Interest — 3.5% ECB
-                    annualized on EUR float
+                    annualized on {contract.target_currency} float
                   </p>
                   <p
                     data-testid="yield-ticker"
@@ -251,6 +270,18 @@ export default function ContractExecutionDrawer({
                   Fund via {contract.source_currency} Balance
                 </button>
               )}
+              {contract.role === "buyer" &&
+                (contract.status === "INVITED" ||
+                  contract.status === "INITIATED") && (
+                  <button
+                    data-testid="cancel"
+                    onClick={() => setShowCancel(true)}
+                    disabled={busy}
+                    className="w-full rounded-full border border-[#BA1A1A] py-2 font-semibold text-[#BA1A1A] hover:bg-[#FFDAD6] disabled:opacity-50"
+                  >
+                    Cancel Trade (No Fee)
+                  </button>
+                )}
               {contract.role === "buyer" && contract.status === "FUNDED" && (
                 <button
                   data-testid="cancel"
@@ -276,9 +307,11 @@ export default function ContractExecutionDrawer({
         </div>
       </motion.aside>
 
-      {showCancel && (
+      {showCancel && contract && (
         <CancelConfirmDialog
           busy={busy}
+          sourceCurrency={contract.source_currency}
+          isFunded={contract.status === "FUNDED"}
           onConfirm={cancel}
           onDismiss={() => setShowCancel(false)}
         />
