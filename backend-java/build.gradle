@@ -26,7 +26,6 @@ repositories {
 }
 
 ext {
-    modulithVersion = '1.4.2'
     mapstructVersion = '1.6.3'
 }
 
@@ -38,10 +37,6 @@ dependencies {
     runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
-
-    // Transactional outbox via Spring Modulith event publication registry.
-    implementation "org.springframework.modulith:spring-modulith-starter-jpa:${modulithVersion}"
-    implementation "org.springframework.modulith:spring-modulith-events-api:${modulithVersion}"
 
     // JSR 354 money — no hand-rolled Money type.
     implementation 'org.javamoney:moneta:1.4.5'

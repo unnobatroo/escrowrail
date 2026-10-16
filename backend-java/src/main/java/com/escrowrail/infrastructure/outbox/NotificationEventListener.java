@@ -13,11 +13,11 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 /**
- * External-notification sink. Events arrive here AFTER commit via the
- * Spring Modulith event-publication registry (the transactional outbox):
- * publications are persisted in the same transaction as the ledger write
- * and replayed until the listener completes, so no notification is lost
- * on crash between commit and dispatch.
+ * External-notification sink. Events arrive here AFTER commit via plain
+ * @TransactionalEventListener — in-memory only: a crash between commit and
+ * dispatch loses the notification. Upgrade path if that matters: Spring
+ * Modulith's @ApplicationModuleListener + starter-jpa persists publications
+ * in the transaction and replays them.
  */
 @Component
 public class NotificationEventListener {

@@ -32,11 +32,6 @@ spring:
           batch_size: 50
         order_inserts: true
         order_updates: true
-  modulith:
-    events:
-      jdbc-schema-initialization:
-        # event_publication DDL lives in V1__init.sql like everything else.
-        enabled: false
   flyway:
     # Historical migrations were renamed during the Escrowrail rebrand —
     # checksums for already-applied versions intentionally diverge. Schema
