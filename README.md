@@ -11,7 +11,7 @@ verified settlement, hash-chained audit records.
 | Surface              | Provider             | URL                                                                                                 |
 | -------------------- | -------------------- | --------------------------------------------------------------------------------------------------- |
 | **Frontend Web App** | Vercel               | <https://escrowrail.vercel.app>                                                                    |
-| **Backend REST API** | Azure Container Apps | <https://escrowrail-api.redmoss-f42ffb4e.swedencentral.azurecontainerapps.io> (`/actuator/health`) |
+| **Backend REST API** | Azure Container Apps | <https://escrowrail-api.thankfulglacier-adbe2ba9.swedencentral.azurecontainerapps.io> (`/actuator/health`) |
 | **Database**         | Supabase             | Managed PostgreSQL 16 (SSL enabled)                                                                 |
 | **Documentation**    | GitHub Wiki          | [Wiki](https://github.com/unnobatroo/escrowrail/wiki) — mirrored from `docs/wiki/`                  |
 
