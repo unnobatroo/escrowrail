@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
-import { deriveReceivesFromDeposit, toCents } from "../src/shared/utilities/currencyFormatter.ts";
+import {
+  deriveReceivesFromDeposit,
+  groupMoney,
+  money,
+  toCents,
+} from "../src/shared/utilities/currencyFormatter.ts";
 
 // toCents: invalid non-empty input is null, never a silent zero.
 assert.equal(toCents("not-a-number"), null);
@@ -21,5 +26,12 @@ assert.equal(deriveReceivesFromDeposit("9305.79", "1.08"), "10000.00");
 // conversion can overshoot the requested target by a cent, so it is not an
 // exact inverse of the backend's minimum-deposit quote.
 assert.equal(deriveReceivesFromDeposit("9305.80", "1.08"), "10000.01");
+
+// groupMoney: exact en-US grouping at magnitudes where Number() loses cents.
+assert.equal(groupMoney("123456789012345678.99"), "123,456,789,012,345,678.99");
+assert.equal(groupMoney("-1234.50"), "-1,234.50");
+assert.equal(groupMoney("7"), "7.00");
+assert.equal(money("10000.00", "USD"), "10,000.00 USD");
+assert.equal(money(1234.5, "EUR"), "1,234.50 EUR");
 
 console.log("currencyFormatter checks passed");

@@ -2,6 +2,7 @@ import { useRef } from "react";
 import type { ContractView, Quote } from "../../../api";
 import {
   compareMoney,
+  groupMoney,
   money,
   subtractMoney,
   toCents,
@@ -103,9 +104,7 @@ export default function FundingConfirmSheet({
           >
             You need{" "}
             {CURRENCY_SYMBOLS[quote.source_currency]
-              ? `${CURRENCY_SYMBOLS[quote.source_currency]}${Number(
-                  shortfall,
-                ).toLocaleString("en-US", { minimumFractionDigits: 2 })}`
+              ? `${CURRENCY_SYMBOLS[quote.source_currency]}${groupMoney(shortfall)}`
               : money(shortfall, quote.source_currency)}{" "}
             more to fund this trade.
           </p>
