@@ -49,6 +49,7 @@ import type {
   ApiError,
   ContractView,
   Counterparty,
+  CreateEscrowResponse,
   DemoConfig,
   DirectoryMember,
   LedgerEntry,
@@ -129,7 +130,7 @@ export const escrowApi = {
     source_currency?: string;
     tracking_type: TrackingType;
     tracking_key: string;
-  }) => api.post<ContractView | { status: "INVITED" }>("/api/v1/escrow", body),
+  }) => api.post<CreateEscrowResponse>("/api/v1/escrow", body),
   fund: (id: string, deposit_amount: string) =>
     api.post<ContractView>(`/api/v1/escrow/${id}/fund`, { deposit_amount }),
   cancel: (id: string) => api.post<ContractView>(`/api/v1/escrow/${id}/cancel`),

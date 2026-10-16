@@ -34,6 +34,11 @@ export default function Register() {
       ubo_tax_id: form.ubo_tax_id.trim(),
       country: form.country.trim().toUpperCase(),
     };
+    if (!payload.legal_name || !payload.ubo_tax_id || !payload.country) {
+      setError("Legal name, UBO tax ID, and country are required.");
+      setBusy(false);
+      return;
+    }
     try {
       await register(payload);
       navigate(`/verify-email?email=${encodeURIComponent(payload.email)}`);

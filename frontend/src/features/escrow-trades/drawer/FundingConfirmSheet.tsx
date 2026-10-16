@@ -4,6 +4,7 @@ import {
   compareMoney,
   money,
   subtractMoney,
+  toCents,
 } from "../../../shared/utilities/currencyFormatter";
 import { useDialogA11y } from "../../../shared/hooks/useDialogA11y";
 
@@ -37,8 +38,11 @@ export default function FundingConfirmSheet({
   onConfirm: () => void;
   onClose: () => void;
 }) {
+  // An invalid balance means "unknown", not zero — don't block funding on it.
   const shortfall =
-    sourceBalance != null && compareMoney(quote.total_deposit, sourceBalance) > 0
+    sourceBalance != null &&
+    toCents(sourceBalance) !== null &&
+    compareMoney(quote.total_deposit, sourceBalance) > 0
       ? subtractMoney(quote.total_deposit, sourceBalance)
       : null;
   const dialogRef = useRef<HTMLDivElement>(null);

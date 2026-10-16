@@ -6,14 +6,14 @@ export function money(amount: string | number | null | undefined, currency: stri
   })} ${currency}`;
 }
 
-/** Parses a wire-formatted decimal string into signed integer cents without IEEE-754 float math. */
-export function toCents(amount: string | null | undefined): bigint {
+/** Parses a wire-formatted decimal string into signed integer cents without IEEE-754 float math. Invalid non-empty input returns null, not a silent zero. */
+export function toCents(amount: string | null | undefined): bigint | null {
   if (!amount) return 0n;
   const trimmed = amount.trim();
   if (!trimmed) return 0n;
   const neg = trimmed.startsWith("-");
   const unsigned = neg || trimmed.startsWith("+") ? trimmed.slice(1) : trimmed;
-  if (!/^\d+(\.\d+)?$/.test(unsigned)) return 0n;
+  if (!/^\d+(\.\d+)?$/.test(unsigned)) return null;
   const [whole, frac = ""] = unsigned.split(".");
   const magnitude = BigInt(whole) * 100n + BigInt((frac + "00").slice(0, 2));
   return neg ? -magnitude : magnitude;
@@ -28,7 +28,7 @@ export function formatCents(cents: bigint): string {
 
 /** Exact cent-level sum of wire-formatted amounts — no float rounding, handles negative values. */
 export function sumMoney(amounts: (string | null | undefined)[]): string {
-  const cents = amounts.reduce<bigint>((sum, a) => sum + toCents(a), 0n);
+  const cents = amounts.reduce<bigint>((sum, a) => sum + (toCents(a) ?? 0n), 0n);
   return formatCents(cents);
 }
 
@@ -37,7 +37,7 @@ export function subtractMoney(
   a: string | null | undefined,
   b: string | null | undefined,
 ): string {
-  return formatCents(toCents(a) - toCents(b));
+  return formatCents((toCents(a) ?? 0n) - (toCents(b) ?? 0n));
 }
 
 /** Exact cent-level comparison: returns -1 if a < b, 0 if a === b, 1 if a > b. */
@@ -45,7 +45,7 @@ export function compareMoney(
   a: string | null | undefined,
   b: string | null | undefined,
 ): -1 | 0 | 1 {
-  const diff = toCents(a) - toCents(b);
+  const diff = (toCents(a) ?? 0n) - (toCents(b) ?? 0n);
   return diff < 0n ? -1 : diff > 0n ? 1 : 0;
 }
 
@@ -60,13 +60,13 @@ function divRoundHalfEven(numerator: bigint, denominator: bigint): bigint {
 }
 
 /**
- * Exact BigInt inverse of QuoteCalculator: given a deposit string (`pay`) and
- * mid-market rate string (`rateStr`), computes the net converted target amount
+ * Exact BigInt forward conversion: given a deposit string (`pay`) and
+ * mid-market rate string (`rateStr`), computes the rounded net target amount
  * after the 0.5% platform fee (HALF_EVEN cents, 0.01 minimum) without float math.
  */
 export function deriveReceivesFromDeposit(pay: string, rateStr: string): string {
   const payCents = toCents(pay);
-  if (payCents <= 1n) return "";
+  if (payCents === null || payCents <= 1n) return "";
   const trimmedRate = rateStr.trim();
   if (!/^\d+(\.\d+)?$/.test(trimmedRate)) return "";
   const [rateWhole, rateFrac = ""] = trimmedRate.split(".");

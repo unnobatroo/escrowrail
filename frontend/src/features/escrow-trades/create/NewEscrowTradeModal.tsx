@@ -10,8 +10,8 @@ import {
 } from "../../../api";
 import type {
   Account,
-  ContractView,
   Counterparty,
+  CreateEscrowResponse,
   DirectoryMember,
   Quote,
   TrackingType,
@@ -30,7 +30,7 @@ import { useDialogA11y } from "../../../shared/hooks/useDialogA11y";
 
 interface Props {
   onClose: () => void;
-  onCreated: (c: ContractView & { message?: string }) => void;
+  onCreated: (c: CreateEscrowResponse) => void;
   /** Optional pre-fill for demo/evaluator fast paths. */
   preset?: { email?: string; amount?: string };
 }
@@ -118,10 +118,13 @@ export default function NewEscrowTradeModal({
 
   // Live backend quote for the chosen amount and currency pair.
   useEffect(() => {
-    if (toCents(amount) <= 0n || sourceCurrency === targetCurrency) {
+    if ((toCents(amount) ?? 0n) <= 0n || sourceCurrency === targetCurrency) {
       setQuote(null);
       return;
     }
+    // A quote only stays valid for the inputs that produced it — clear it
+    // while the debounced replacement for the new pair/amount is pending.
+    setQuote(null);
     let stale = false;
     const t = setTimeout(() => {
       escrowApi
@@ -195,8 +198,17 @@ export default function NewEscrowTradeModal({
 
   const uboCollision = cp?.same_ubo === true;
 
+  // Submission requires the displayed quote to still match the current pair
+  // and amount — otherwise the old amount could be sent with new currencies.
+  const quoteReady =
+    quote !== null &&
+    quote.source_currency === sourceCurrency &&
+    quote.target_currency === targetCurrency &&
+    toCents(quote.target_amount) === toCents(amount);
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!quoteReady) return;
     setBusy(true);
     setError("");
     try {
@@ -208,7 +220,7 @@ export default function NewEscrowTradeModal({
         tracking_type: trackingType,
         tracking_key: trackingKey.trim(),
       });
-      onCreated(res.data as ContractView & { message?: string });
+      onCreated(res.data);
     } catch (err) {
       setError(apiError(err).message ?? "Could not create the trade");
     } finally {
@@ -368,7 +380,7 @@ export default function NewEscrowTradeModal({
         <motion.button
           data-testid="create-trade"
           type="submit"
-          disabled={busy || uboCollision || (!cp && !cpUnknown)}
+          disabled={busy || uboCollision || (!cp && !cpUnknown) || !quoteReady}
           whileTap={{ scale: 0.98 }}
           className="w-full rounded-pill bg-brand-neon py-2.5 font-semibold text-brand-forest transition-colors hover:bg-brand-neonHover disabled:opacity-50"
         >
